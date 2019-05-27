@@ -30,8 +30,8 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 		
 		if os.path.isfile(pos2words_filename):
 			
-			pickleFile = open(pos2words_filename, 'rb')
-			pos2words = pickle.load(pickleFile)
+			with open(pos2words_filename, 'rb') as f:
+				pos2words = pickle.load(f)
 		
 		else:
 		
@@ -49,8 +49,8 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 					pos2words[pos_tag].add(w)
 					
-			pickleFile = open(pos2words_filename, 'wb')
-			pickle.dump(pos2words, pickleFile)
+			with open(pos2words_filename, 'wb') as f:
+				pickle.dump(pos2words, f)
 			
 		return pos2words
 
@@ -61,7 +61,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 		for token in doc:
 
-			pos_tags.append(token.pos)
+			pos_tags.append(token.tag_)
 
 		return pos_tags	
 
@@ -69,7 +69,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 	def get_equivalent_sentences(self, original_sentence: List[str],) -> List[List[str]]:
 
 		pos_tags = self._get_pos_tags(original_sentence)
-		equivalent_sentences = []
+		equivalent_sentences = [original_sentence]
 
 		for i in range(self.num_sentences):
 
@@ -79,8 +79,9 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 				if pos_tag in self.pos_tags_to_replace:
 
-					sentence.append(random.choice(self.pos2words[pos_tag]))
+					sentence.append(random.choice(list(self.pos2words[pos_tag])))
 				else:
+
 					sentence.append(w)
 
 			equivalent_sentences.append(sentence)

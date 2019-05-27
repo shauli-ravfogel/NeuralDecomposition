@@ -25,8 +25,8 @@ class EquivalentSentencesGenerator:
 			equivalent_sentences = self.get_equivalent_sentences(sentence)
 			sents_dict[i] = equivalent_sentences
 
-		pickleFile = open(utils.DEFAULT_PARAMS["sentences_dict_filename"], 'wb')
-		pickle.dump(sents_dict, pickleFile)
+		with open(utils.DEFAULT_PARAMS["sentences_dict_filename"], 'wb') as f:
+			pickle.dump(sents_dict, f)
 			
 		return sents_dict
 
