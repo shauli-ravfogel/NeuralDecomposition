@@ -13,19 +13,7 @@ from allennlp.predictors import SentenceTaggerPredictor
 from allennlp.training.trainer import Trainer
 from allennlp.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
 from framework.dataset_readers.data_reader import DataReader
-# from framework.dataset_readers.nfh_reader_number_detector import NFHReader
-# from framework.dataset_readers.nfh_reader_imp_ref_bin import NFHReader
-# from framework.dataset_readers.hiding_anchor import NFHReader
-# from framework.models.model_base import NfhDetector
-# from framework.models.model_anch_dropout import NfhDetector
 from framework.models.siamese_norm import SiameseModel
-# from framework.models.model_nalu import NfhDetectorNalu
-# from framework.models.model_imp_ref_bin import NfhDetector
-# from framework.models.model_number_detector import NfhDetector
-# from framework.models.model_missing_representation import NfhDetector
-# from framework.models.model_self_attention import NfhDetector
-# from framework.models.model_rank_loss import NfhDetector
-# from framework.models.hidden_anchor_model import NfhDetector
 
 torch.manual_seed(1)
 
@@ -60,19 +48,3 @@ trainer = Trainer(model=model,
                   patience=10,
                   num_epochs=1000)
 trainer.train()
-# predictor = SentenceTaggerPredictor(model, dataset_reader=reader)
-# tag_logits = predictor.predict("The dog ate the apple")['tag_logits']
-# tag_ids = np.argmax(tag_logits, axis=-1)
-# print([model.vocab.get_token_from_index(i, 'label') for i in tag_ids])
-# Here's how to save the model.
-# with open("/tmp/model.th", 'wb') as f:
-#     torch.save(model.state_dict(), f)
-# vocab.save_to_files("/tmp/vocabulary")
-# # And here's how to reload the model.
-# vocab2 = Vocabulary.from_files("/tmp/vocabulary")
-# model2 = LstmTagger(word_embeddings, lstm, vocab2)
-# with open("/tmp/model.th", 'rb') as f:
-#     model2.load_state_dict(torch.load(f))
-# predictor2 = SentenceTaggerPredictor(model2, dataset_readers=reader)
-# tag_logits2 = predictor2.predict("The dog ate the apple")['tag_logits']
-# assert tag_logits2 == tag_logits

@@ -49,7 +49,7 @@ class SiameseModel(Model):
 
         h = rep1 - rep2
 
-        scores = torch.sigmoid(torch.norm(h, dim=1))
+        scores = torch.tanh(torch.norm(h, dim=1))
 
         y_hat = torch.round(scores).long()
 
