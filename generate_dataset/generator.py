@@ -2,7 +2,7 @@ from generator_base import EquivalentSentencesGenerator
 import spacy
 import utils
 from typing import DefaultDict, List
-from collections import defaultdict
+from collections import defaultdict, Counter
 import random
 import os.path
 import tqdm
@@ -19,7 +19,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 		self.pos2words = self._get_POS2words_mapping()
 		self.pos_tags_to_replace = pos_tags_to_replace
 
-	def _get_POS2words_mapping(self) -> DefaultDict[str, set]:
+	def _get_POS2words_mapping(self, min_occurrence = 50) -> DefaultDict[str, set]:
 
 		"""
 		Iterate over the dataset, and find the words belonging to each POS tag.
@@ -37,7 +37,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 		
 			print("Collecting POS:words mapping...")
 			
-			pos2words = defaultdict(set)
+			pos2words = defaultdict(list)
 
 			sentences = utils.read_sentences(self.data_filename)
 			
@@ -47,7 +47,15 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 				for (w, pos_tag) in zip(sentence, pos_tags):
 
-					pos2words[pos_tag].add(w)
+					pos2words[pos_tag].append(w)
+			
+			for pos, words in pos2words.items():
+			
+				# filter rare words
+				
+				counter = Counter(words)
+				words = set([w for w, count in counter.items() if count > min_occurrence])
+				pos2words[pos] = words
 					
 			with open(pos2words_filename, 'wb') as f:
 				pickle.dump(pos2words, f)
@@ -56,13 +64,10 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 	def _get_pos_tags(self, sentence: List[str]) -> List[str]:
 		
-		doc = self.nlp(" ".join(sentence))
-		pos_tags = []
-
-		for token in doc:
-
-			pos_tags.append(token.tag_)
-
+		doc = spacy.tokens.Doc(vocab=self.nlp.vocab, words=sentence)
+		for name, proc in self.nlp.pipeline:
+				doc = proc(doc)
+		pos_tags = [token.tag_ for token in doc]
 		return pos_tags	
 
 
@@ -77,7 +82,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 			for j, (w, pos_tag) in enumerate(zip(original_sentence, pos_tags)):
 
-				if pos_tag in self.pos_tags_to_replace:
+				if pos_tag in self.pos_tags_to_replace and len(self.pos2words[pos_tag]) > 0:
 
 					sentence.append(random.choice(list(self.pos2words[pos_tag])))
 				else:
@@ -90,7 +95,6 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 	
 			
-
 
 
 
