@@ -4,7 +4,7 @@ DEFAULT_PARAMS = {"file_name": "resources/wikipedia.sample.tokenized",
 "dataset_filename": "resources/data.txt",
 "elmo_options": "resources/elmo_2x4096_512_2048cnn_2xhighway_options.json",
 "elmo_weights": "resources/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5",
-"num_sentences": 10,
+"num_sentences": 20,
 "pos_tags_to_replace":  ["NN", "NNS", "NNP", "NNPS", "PRP$", "JJ", "CD"]}
 
 def read_sentences(fname):
