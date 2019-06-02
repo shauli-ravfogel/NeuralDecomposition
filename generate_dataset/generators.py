@@ -10,9 +10,9 @@ import pickle
 
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
-	def __init__(self, data_filename, pos_tags_to_replace, num_sentences):
+	def __init__(self, data_filename, pos_tags_to_replace, num_sentences, recreate = True):
 
-		super().__init__(data_filename, num_sentences)
+		super().__init__(data_filename, num_sentences, recreate)
 		
 		self.nlp = spacy.load('en_core_web_sm')
 		self.data_filename = data_filename
@@ -98,9 +98,9 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
-	def __init__(self, data_filename, num_sentences, topn = 13):
+	def __init__(self, data_filename, num_sentences, topn = 13, recreate = True):
 
-		super().__init__(data_filename, num_sentences)
+		super().__init__(data_filename, num_sentences, recreate)
 		
 		self.model = gensim.models.KeyedVectors.load_word2vec_format(utils.DEFAULT_PARAMS["word2vec"], binary=True) 
 		self.topn = topn
