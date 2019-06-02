@@ -116,7 +116,7 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
 			for j, w in enumerate(original_sentence):
 
-				if w in utils.DEFAULT_PARAMS["function_words"]:
+				if (w in utils.DEFAULT_PARAMS["function_words"]) or (w not in self.model.wv.vocab):
 
 					sentence.append(w)
 				else:
