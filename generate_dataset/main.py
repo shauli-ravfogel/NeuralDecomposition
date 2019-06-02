@@ -1,4 +1,4 @@
-import generator
+import generators
 import argparse
 import model
 from model_runner import ModelRunner
@@ -15,8 +15,10 @@ if __name__ == '__main__':
 	parser.add_argument('-num-sentences', dest='num_sentences', type=int, default=DEFAULT_PARAMS["num_sentences"], help='Number of equivalent sentences to generate from each sentence.')
 	args = parser.parse_args()
 
-	#pos_generator = generator.POSBasedEGenerator(args.file_name, args.pos_tags_to_replace, args.num_sentences)
-	#equivalent_sentences = pos_generator.generate()
+	#generator = generators.POSBasedEGenerator(args.file_name, args.pos_tags_to_replace, args.num_sentences)
+	generator = generators.POSBasedEGenerator(args.file_name, args.pos_tags_to_replace, args.num_sentences)
+	
+	equivalent_sentences = generator.generate(recreate = True)
 	
 	with open("resources/sents.pickle", "rb") as f:
 	
