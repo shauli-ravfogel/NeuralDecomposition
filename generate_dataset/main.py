@@ -18,7 +18,7 @@ if __name__ == '__main__':
 	#generator = generators.POSBasedEGenerator(args.file_name, args.pos_tags_to_replace, args.num_sentences)
 	generator = generators.POSBasedEGenerator(args.file_name, args.pos_tags_to_replace, args.num_sentences)
 	
-	equivalent_sentences = generator.generate(recreate = True)
+	equivalent_sentences = generator.generate()
 	
 	with open("resources/sents.pickle", "rb") as f:
 	
