@@ -8,10 +8,13 @@ import random
 
 class ModelRunner(object):
 
-    def __init__(self, model: model.ModelInterface, equivalent_sentences_dict: Dict[int, List[List[str]]]):
+    def __init__(self, model: model.ModelInterface,
+                 equivalent_sentences_dict: Dict[int, List[List[str]]],
+                 persist=True):
 
         self.model = model
         self.equivalent_sentences_dict = equivalent_sentences_dict
+        self.persist = persist
 
     def run(self, num_examples_per_sentence=4, num_equivalents=5, num_indices=1):
 
@@ -40,7 +43,8 @@ class ModelRunner(object):
                     sent1_vecs_str = "*".join([utils.to_string(v) for v in sent1_vecs])
                     sent2_vecs_str = "*".join([utils.to_string(v) for v in sent2_vecs])
                     to_write = [utils.to_string(indices), sent1_str, sent2_str, sent1_vecs_str, sent2_vecs_str, "1"]
-                    f.write("\t".join(to_write) + "\n")
+                    if self.persist:
+                        f.write("\t".join(to_write) + "\n")
 
                 # Create negative examples
 
@@ -61,4 +65,5 @@ class ModelRunner(object):
                     sent1_vecs_str = "*".join([utils.to_string(v) for v in sent1_vecs])
                     sent2_vecs_str = "*".join([utils.to_string(v) for v in sent2_vecs])
                     to_write = [utils.to_string(indices), sent1_str, sent2_str, sent1_vecs_str, sent2_vecs_str, "0"]
-                    f.write("\t".join(to_write) + "\n")
+                    if self.persist:
+                        f.write("\t".join(to_write) + "\n")
