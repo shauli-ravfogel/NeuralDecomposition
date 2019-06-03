@@ -103,7 +103,7 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
         super().__init__(data_filename, num_sentences)
 
         self.embeddings = gensim.models.KeyedVectors.load_word2vec_format(utils.DEFAULT_PARAMS["word2vec"], binary=True)
-        self.word_list = list(self.embeddings.wv.vocab)
+        self.word_list = set(self.embeddings.wv.vocab)
         # self.knn = spatial.KDTree(self.embeddings.vectors[:1000])
         ngtpy.create(b"w2v", 300)
         self.knn = ngtpy.Index(b"w2v")
