@@ -7,6 +7,7 @@ import random
 import os.path
 import tqdm
 import pickle
+import gensim
 
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
@@ -94,6 +95,40 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 		return equivalent_sentences
 
 	
+
+
+class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
+
+	def __init__(self, data_filename, num_sentences, topn = 13):
+
+		super().__init__(data_filename, num_sentences)
+		
+		self.model = gensim.models.KeyedVectors.load_word2vec_format(utils.DEFAULT_PARAMS["word2vec"], binary=True) 
+		self.topn = topn
+
+
+	def get_equivalent_sentences(self, original_sentence: List[str]) -> List[List[str]]:
+		
+		equivalent_sentences = []
+
+		for i in range(self.num_sentences):
+
+			sentence = []
+
+			for j, w in enumerate(original_sentence):
+
+				if (w in utils.DEFAULT_PARAMS["function_words"]) or (w not in self.model.wv.vocab):
+
+					sentence.append(w)
+				else:
+
+					options = self.model.most_similar(positive = [w], topn = self.topn)
+					replacement, _ = random.choice(options)
+					sentence.append(replacement)
+
+			equivalent_sentences.append(sentence)
+
+		return equivalent_sentences
 			
 
 
