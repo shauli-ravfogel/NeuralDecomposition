@@ -8,6 +8,8 @@ import os.path
 import tqdm
 import pickle
 import gensim
+from scipy import spatial
+
 
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
@@ -103,7 +105,8 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
 		super().__init__(data_filename, num_sentences)
 		
-		self.model = gensim.models.KeyedVectors.load_word2vec_format(utils.DEFAULT_PARAMS["word2vec"], binary=True) 
+		self.embeddings = gensim.models.KeyedVectors.load_word2vec_format(utils.DEFAULT_PARAMS["word2vec"], binary=True)
+		self.knn = spatial.KDTree(self.embeddings.vectors)
 		self.topn = topn
 
 
@@ -117,13 +120,16 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
 			for j, w in enumerate(original_sentence):
 
-				if (w in utils.DEFAULT_PARAMS["function_words"]) or (w not in self.model.wv.vocab):
+				if (w in utils.DEFAULT_PARAMS["function_words"]) or (w not in self.embeddings.wv.vocab):
 
 					sentence.append(w)
 				else:
 
-					options = self.model.most_similar(positive = [w], topn = self.topn)
-					replacement, _ = random.choice(options)
+					# options = self.embeddings.most_similar(positive = [w], topn = self.topn)
+					# replacement, _ = random.choice(options)
+					_, k_nearest = self.knn.query(w, k=5)
+					replacement = random.choice(k_nearest)
+
 					sentence.append(replacement)
 
 			equivalent_sentences.append(sentence)
