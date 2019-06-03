@@ -11,6 +11,7 @@ import gensim
 from scipy import spatial
 # an approximate knn: https://github.com/yahoojapan/NGT
 import ngtpy  # pip install ngtpy
+from functools import lru_cache
 
 
 class POSBasedEGenerator(EquivalentSentencesGenerator):
@@ -103,14 +104,24 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
         super().__init__(data_filename, num_sentences)
 
         self.embeddings = gensim.models.KeyedVectors.load_word2vec_format(utils.DEFAULT_PARAMS["word2vec"], binary=True)
-        self.word_list = list(self.embeddings.wv.vocab)[:500000]
+        self.word_set = set(list(self.embeddings.wv.vocab))
+        self.word_list = list(self.embeddings.wv.vocab)
         # self.knn = spatial.KDTree(self.embeddings.vectors[:1000])
         ngtpy.create(b"w2v", 300)
         self.knn = ngtpy.Index(b"w2v")
-        self.knn.batch_insert(self.embeddings.vectors[:500000])
+        self.knn.batch_insert(self.embeddings.vectors)
         self.knn.save()
 
         self.topn = topn
+
+    @lru_cache(maxsize=None)
+    def get_knn(self, w):
+        if (w in utils.DEFAULT_PARAMS['function_words']) or (w not in self.word_set):
+            return [w]
+        else:
+            result = self.knn.search(self.embeddings[w], 3)
+            k_nearest = [x[0] for x in result]
+            return k_nearest
 
     def get_equivalent_sentences(self, original_sentence: List[str]) -> List[List[str]]:
 
@@ -122,19 +133,25 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
             for j, w in enumerate(original_sentence):
 
-                if (w in utils.DEFAULT_PARAMS["function_words"]) or (w not in self.word_list):
-
+                # if (w in utils.DEFAULT_PARAMS["function_words"]) or (w not in self.word_list):
+                #
+                #     sentence.append(w)
+                # else:
+                #
+                #     # options = self.embeddings.most_similar(positive = [w], topn = self.topn)
+                #     # replacement, _ = random.choice(options)
+                #
+                #     # _, k_nearest = self.knn.query(self.embeddings[w], k=5)
+                #     # sentence.append(self.embeddings.vectors[replacement])
+                #
+                #     result = self.knn.search(self.embeddings[w], 3)
+                #     k_nearest = [x[0] for x in result]
+                #     replacement = random.choice(k_nearest)
+                #     sentence.append(self.word_list[replacement])
+                k_nearest = self.get_knn(w)
+                if len(k_nearest) == 1:
                     sentence.append(w)
                 else:
-
-                    # options = self.embeddings.most_similar(positive = [w], topn = self.topn)
-                    # replacement, _ = random.choice(options)
-
-                    # _, k_nearest = self.knn.query(self.embeddings[w], k=5)
-                    # sentence.append(self.embeddings.vectors[replacement])
-
-                    result = self.knn.search(self.embeddings[w], 3)
-                    k_nearest = [x[0] for x in result]
                     replacement = random.choice(k_nearest)
                     sentence.append(self.word_list[replacement])
 
