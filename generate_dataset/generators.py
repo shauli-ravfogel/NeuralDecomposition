@@ -7,6 +7,7 @@ import random
 import os.path
 import tqdm
 import pickle
+import gensim
 
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
