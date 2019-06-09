@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.optim as optim
 from allennlp.common.file_utils import cached_path
@@ -6,17 +5,11 @@ from allennlp.data.iterators import BasicIterator
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.feedforward import FeedForward
 from allennlp.nn.activations import Activation
-from allennlp.modules.seq2seq_encoders import PytorchSeq2SeqWrapper
-from allennlp.modules.text_field_embedders import BasicTextFieldEmbedder
-from allennlp.modules.token_embedders import Embedding
-from allennlp.predictors import SentenceTaggerPredictor
 from allennlp.training.trainer import Trainer
-from allennlp.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
 from framework.dataset_readers.data_reader import DataReader
 from framework.models.siamese_norm import SiameseModel
 
 torch.manual_seed(1)
-
 
 reader = DataReader()
 # augmented
@@ -28,13 +21,13 @@ vocab = Vocabulary.from_instances(train_dataset + validation_dataset)
 EMBEDDING_DIM = 6
 HIDDEN_DIM = 6
 scorer = FeedForward(1024, num_layers=2,
-                                  hidden_dims=[150, 2], activations=[Activation.by_name('tanh')(),
-                                                                     Activation.by_name('linear')()],
-                                  dropout=0.2)
+                     hidden_dims=[150, 2], activations=[Activation.by_name('tanh')(),
+                                                        Activation.by_name('linear')()],
+                     dropout=0.2)
 representer = FeedForward(1024, num_layers=2,
-                                  hidden_dims=[512, 1024], activations=[Activation.by_name('tanh')(),
-                                                                     Activation.by_name('linear')()],
-                                  dropout=0.2)
+                          hidden_dims=[512, 1024], activations=[Activation.by_name('tanh')(),
+                                                                Activation.by_name('linear')()],
+                          dropout=0.2)
 model = SiameseModel(representer)
 
 optimizer = optim.Adam(model.parameters(), lr=0.0001)

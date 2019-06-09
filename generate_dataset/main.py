@@ -22,8 +22,8 @@ if __name__ == '__main__':
 
     equivalent_sentences = generator.generate()
 
-    with open("resources/sents.pickle", "rb") as f:
-        equivalent_sentences = pickle.load(f)
+    # with open("resources/sents.pickle", "rb") as f:
+    #     equivalent_sentences = pickle.load(f)
 
     model = model.Elmo(DEFAULT_PARAMS["elmo_options"], DEFAULT_PARAMS["elmo_weights"])
     model_runner = ModelRunner(model, equivalent_sentences, persist=False)

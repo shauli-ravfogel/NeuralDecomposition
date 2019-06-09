@@ -1,9 +1,9 @@
 import random
+
 random.seed(0)
 
 with open("data.txt", "r") as f:
-
-	data = f.readlines()
+    data = f.readlines()
 
 random.shuffle(data)
 train_prop = 0.8
@@ -19,12 +19,7 @@ parts = [train, dev, test]
 
 for part, name in zip(parts, ["train", "dev", "test"]):
 
+    with open(name, "w") as f:
 
-	with open(name, "w") as f:
-
-		for line in part:
-
-			f.write(line)
-
-
-
+        for line in part:
+            f.write(line)

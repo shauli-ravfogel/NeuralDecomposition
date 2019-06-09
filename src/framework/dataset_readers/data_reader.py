@@ -42,7 +42,7 @@ class DataReader(DatasetReader):
                 yield self.text_to_instance(vec1, vec2, label)
 
     @overrides
-    def text_to_instance(self, vec1: List, vec2: List, label: int = None) -> Instance:
+    def text_to_instance(self, vec1: np.ndarray, vec2: np.ndarray, label: int = None) -> Instance:
 
         fields: Dict[str, Field] = {}
 
