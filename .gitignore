@@ -297,3 +297,7 @@ $RECYCLE.BIN/
 data/
 allen_logs/
 .idea/
+
+sents.pickle
+generate_dataset/w2v/
+GoogleNews-vectors-negative300.bin
