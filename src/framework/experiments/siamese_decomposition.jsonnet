@@ -1,4 +1,4 @@
-local data_path = "../data/small_";
+local data_path = "../data/";
 
 local emb_size = 1024;
 {
