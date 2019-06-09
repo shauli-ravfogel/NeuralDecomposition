@@ -297,3 +297,11 @@ $RECYCLE.BIN/
 data/
 allen_logs/
 .idea/
+
+
+# resource files:
+elmo_2x4096_512_2048cnn_2xhighway_options.json
+elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5
+GoogleNews-vectors-negative300.bin
+generate_dataset/w2v/
+sents.pickle
