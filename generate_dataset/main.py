@@ -26,5 +26,5 @@ if __name__ == '__main__':
     #     equivalent_sentences = pickle.load(f)
 
     model = model.Elmo(DEFAULT_PARAMS["elmo_options"], DEFAULT_PARAMS["elmo_weights"])
-    model_runner = ModelRunner(model, equivalent_sentences, persist=False)
+    model_runner = ModelRunner(model, equivalent_sentences, persist=True)
     model_runner.run()
