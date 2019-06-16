@@ -16,8 +16,11 @@ if __name__ == '__main__':
     parser.add_argument('--w2v-file', dest='w2v_file', type=str,
                         default='../data/external/GoogleNews-vectors-negative300.bin',
                         help='name of the source wikipedia text file')
-    parser.add_argument('--output-file', dest='output_file', type=str,
-                        default='../data/interim/data.txt',
+    parser.add_argument('--output-data', dest='output_data', type=str,
+                        default='../data/interim/emb_data.txt',
+                        help='name of the output file')
+    parser.add_argument('--output-sentences', dest='output_sentences', type=str,
+                        default='../data/interim/emb_sents.pickle',
                         help='name of the output file')
     parser.add_argument('--pos-tags-to-replace', dest='pos_tags_to_replace', type=list,
                         default=pos_tags_to_replace, help='which POS tags to replace')
@@ -37,10 +40,12 @@ if __name__ == '__main__':
 
         # Reading the type of substitution technique
         if args.substitution_type == 'embeddings':
-            generator = generators.EmbeddingBasedGenerator(args.input_wiki, args.num_sentences,
+            generator = generators.EmbeddingBasedGenerator(args.input_wiki, args.output_sentences,
+                                                           args.num_sentences,
                                                            args.w2v_file, 12)
         else:  # if args.substitution_type == 'pos'
-            generator = generators.POSBasedEGenerator(args.input_wiki, args.pos_tags_to_replace, args.num_sentences)
+            generator = generators.POSBasedEGenerator(args.input_wiki, args.output_sentences,
+                                                      args.pos_tags_to_replace, args.num_sentences)
 
         equivalent_sentences = generator.generate()
     # otherwise, reading that file
@@ -51,5 +56,5 @@ if __name__ == '__main__':
     model = model.Elmo('../data/external/elmo_2x4096_512_2048cnn_2xhighway_options.json',
                        '../data/external/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
                        args.cuda_device)
-    model_runner = ModelRunner(model, equivalent_sentences, args.output_file, persist=True)
+    model_runner = ModelRunner(model, equivalent_sentences, args.output_data, persist=True)
     model_runner.run()

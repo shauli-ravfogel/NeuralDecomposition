@@ -13,9 +13,9 @@ from functools import lru_cache
 
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
-    def __init__(self, data_filename, pos_tags_to_replace, num_sentences):
+    def __init__(self, data_filename, output_file, pos_tags_to_replace, num_sentences):
 
-        super().__init__(data_filename, num_sentences)
+        super().__init__(data_filename, output_file, num_sentences)
 
         self.nlp = spacy.load('en_core_web_sm')
         self.data_filename = data_filename
@@ -95,9 +95,9 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
-    def __init__(self, data_filename, num_sentences, w2v_file, topn=13):
+    def __init__(self, data_filename, output_file, num_sentences, w2v_file, topn=13):
 
-        super().__init__(data_filename, num_sentences)
+        super().__init__(data_filename, output_file, num_sentences)
 
         self.embeddings = gensim.models.KeyedVectors.load_word2vec_format(w2v_file, binary=True)
         self.word_set = set(list(self.embeddings.wv.vocab))

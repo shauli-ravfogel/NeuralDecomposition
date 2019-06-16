@@ -6,13 +6,15 @@ import tqdm
 
 class EquivalentSentencesGenerator:
     """
-	An abstract class for generating syntactically-equivalent sentenes, that is, sentences sharing 
-	the same underlying hierarchical structure (but possibly different semantics). 
-	"""
+    An abstract class for generating syntactically-equivalent sentenes, that is, sentences sharing
+    the same underlying hierarchical structure (but possibly different semantics).
+    """
 
-    def __init__(self, data_filename: str, num_sentences: int):
+    def __init__(self, data_filename: str, output_file: str,
+                 num_sentences: int):
         self.sentences = utils.read_sentences(data_filename)
         self.num_sentences = num_sentences
+        self.output_file = output_file
 
     def generate(self) -> Dict[int, List[List[str]]]:
         sents_dict = dict()
@@ -22,7 +24,7 @@ class EquivalentSentencesGenerator:
             equivalent_sentences = self.get_equivalent_sentences(sentence)
             sents_dict[i] = equivalent_sentences
 
-        with open(utils.DEFAULT_PARAMS["sentences_dict_filename"], 'wb') as f:
+        with open(self.output_file, 'wb') as f:
             pickle.dump(sents_dict, f)
 
         return sents_dict
