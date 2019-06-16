@@ -17,8 +17,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # generator = generators.POSBasedEGenerator(args.file_name, args.pos_tags_to_replace, args.num_sentences)
-    # generator = generators.POSBasedEGenerator(args.file_name, args.pos_tags_to_replace, args.num_sentences)
-    generator = generators.EmbeddingBasedGenerator(args.file_name, args.num_sentences, 12)
+    generator = generators.POSBasedEGenerator(args.file_name, args.pos_tags_to_replace, args.num_sentences)
+    # generator = generators.EmbeddingBasedGenerator(args.file_name, args.num_sentences, 12)
 
     equivalent_sentences = generator.generate()
 

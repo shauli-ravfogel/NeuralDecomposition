@@ -305,3 +305,4 @@ GoogleNews-vectors-negative300.bin
 generate_dataset/w2v/
 sents.pickle
 data.txt
+same_pos/
