@@ -24,7 +24,7 @@ if __name__ == '__main__':
     with open(args.file_name, "r") as f:
         data = f.readlines()
 
-    train, eval_split = train_test_split(data, test_size=args.train_size, random_state=42)
+    train, eval_split = train_test_split(data, test_size=(1.0 - args.train_size), random_state=42)
     dev, test = train_test_split(eval_split, test_size=0.5, random_state=42)
 
     parts = [train, dev, test]
