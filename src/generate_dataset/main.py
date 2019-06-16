@@ -24,6 +24,9 @@ if __name__ == '__main__':
                         help='name of the output file')
     parser.add_argument('--pos-tags-to-replace', dest='pos_tags_to_replace', type=list,
                         default=pos_tags_to_replace, help='which POS tags to replace')
+    parser.add_argument('--pos2words-file', dest='pos2words_file', type=str,
+                        default='../data/external/pos2words.pickle',
+                        help='name of the output file')
     parser.add_argument('--num-sentences', dest='num_sentences', type=int, default=20,
                         help='Number of equivalent sentences to generate from each sentence.')
     parser.add_argument('--substitutions-type', dest='substitution_type', type=str,
@@ -45,7 +48,8 @@ if __name__ == '__main__':
                                                            args.w2v_file, 12)
         else:  # if args.substitution_type == 'pos'
             generator = generators.POSBasedEGenerator(args.input_wiki, args.output_sentences,
-                                                      args.pos_tags_to_replace, args.num_sentences)
+                                                      args.pos_tags_to_replace, args.num_sentences,
+                                                      args.pos2words_file)
 
         equivalent_sentences = generator.generate()
     # otherwise, reading that file

@@ -13,7 +13,8 @@ from functools import lru_cache
 
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
-    def __init__(self, data_filename, output_file, pos_tags_to_replace, num_sentences):
+    def __init__(self, data_filename, output_file, pos_tags_to_replace, num_sentences,
+                 pos2words_file):
 
         super().__init__(data_filename, output_file, num_sentences)
 
@@ -21,6 +22,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
         self.data_filename = data_filename
         self.pos2words = self._get_POS2words_mapping()
         self.pos_tags_to_replace = pos_tags_to_replace
+        self.pos2words_file = pos2words_file
 
     def _get_POS2words_mapping(self, min_occurrence=50) -> DefaultDict[str, set]:
         """
@@ -28,7 +30,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
         return: pos2words, a dictionary mapping pos tags (strings) to sets of words.
         """
 
-        pos2words_filename = utils.DEFAULT_PARAMS["pos2words_filename"]
+        pos2words_filename = self.pos2words_file
 
         if os.path.isfile(pos2words_filename):
 
