@@ -1,4 +1,4 @@
-local data_path = "../data/";
+local data_path = "../data/processed/emb/";
 
 local emb_size = 1024;
 {

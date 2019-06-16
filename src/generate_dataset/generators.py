@@ -24,7 +24,6 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
         self.pos2words = self._get_POS2words_mapping()
         self.pos_tags_to_replace = pos_tags_to_replace
 
-
     def _get_POS2words_mapping(self, min_occurrence=50) -> DefaultDict[str, set]:
         """
         Iterate over the dataset, and find the words belonging to each POS tag.
