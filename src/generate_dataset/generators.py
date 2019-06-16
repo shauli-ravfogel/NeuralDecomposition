@@ -95,11 +95,11 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
-    def __init__(self, data_filename, num_sentences, topn=13):
+    def __init__(self, data_filename, num_sentences, w2v_file, topn=13):
 
         super().__init__(data_filename, num_sentences)
 
-        self.embeddings = gensim.models.KeyedVectors.load_word2vec_format(utils.DEFAULT_PARAMS["word2vec"], binary=True)
+        self.embeddings = gensim.models.KeyedVectors.load_word2vec_format(w2v_file, binary=True)
         self.word_set = set(list(self.embeddings.wv.vocab))
         self.word_list = list(self.embeddings.wv.vocab)
 

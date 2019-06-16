@@ -11,7 +11,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Equivalent sentences generator',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--input-wiki', dest='input_wiki', type=str,
-                        default='../data/external/resources/wikipedia.sample.tokenized',
+                        default='../data/external/wikipedia.sample.tokenized',
+                        help='name of the source wikipedia text file')
+    parser.add_argument('--w2v-file', dest='w2v_file', type=str,
+                        default='../data/external/GoogleNews-vectors-negative300.bin',
                         help='name of the source wikipedia text file')
     parser.add_argument('--output-file', dest='output_file', type=str,
                         default='../data/interim/data.txt',
@@ -30,11 +33,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # If no substitution file is provided, need to build these
-    if args.substitution_file is not '':
+    if args.substitution_file == '':
 
         # Reading the type of substitution technique
         if args.substitution_type == 'embeddings':
-            generator = generators.EmbeddingBasedGenerator(args.input_wiki, args.num_sentences, 12)
+            generator = generators.EmbeddingBasedGenerator(args.input_wiki, args.num_sentences,
+                                                           args.w2v_file, 12)
         else:  # if args.substitution_type == 'pos'
             generator = generators.POSBasedEGenerator(args.input_wiki, args.pos_tags_to_replace, args.num_sentences)
 
@@ -44,8 +48,8 @@ if __name__ == '__main__':
         with open(args.substitution_file, "rb") as f:
             equivalent_sentences = pickle.load(f)
 
-    model = model.Elmo('../data/external/resources/elmo_2x4096_512_2048cnn_2xhighway_options.json',
-                       '../data/external/resources/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
+    model = model.Elmo('../data/external/elmo_2x4096_512_2048cnn_2xhighway_options.json',
+                       '../data/external/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
                        args.cuda_device)
     model_runner = ModelRunner(model, equivalent_sentences, args.output_file, persist=True)
     model_runner.run()
