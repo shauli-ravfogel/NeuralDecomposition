@@ -20,9 +20,10 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
         self.nlp = spacy.load('en_core_web_sm')
         self.data_filename = data_filename
+        self.pos2words_file = pos2words_file
         self.pos2words = self._get_POS2words_mapping()
         self.pos_tags_to_replace = pos_tags_to_replace
-        self.pos2words_file = pos2words_file
+
 
     def _get_POS2words_mapping(self, min_occurrence=50) -> DefaultDict[str, set]:
         """
