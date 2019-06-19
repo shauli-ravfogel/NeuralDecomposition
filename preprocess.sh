@@ -15,11 +15,13 @@ wget https://s3.amazonaws.com/dl4j-distribution/GoogleNews-vectors-negative300.b
 cd ../../
 
 python src/generate_dataset/main.py --output-data data/interim/pos_data.txt --output-sentences data/interim/pos_sents.pickle --substitutions-type pos
-python src/generate_dataset/split_data.py --filename data/processed/emb/emb_data.txt --output-dir data/processed/emb --substitutions-type embeddings
+python src/generate_dataset/main.py --filename data/processed/emb/emb_data.txt --output-dir data/processed/emb --substitutions-type embeddings
 
 python generate_dataset/split_data.py --filename ../data/processed/pos/pos_data.txt --output-dir ../data/processed/pos/
 python generate_dataset/split_data.py --filename ../data/processed/emb/emb_data.txt --output-dir ../data/processed/emb/
 
+
+# Running the learning process
 cd src
 
 allennlp train framework/experiments/base.jsonnet --include-package framework -s ../allen_logs/pos_base -o '{"trainer.cuda_device": 1}'
