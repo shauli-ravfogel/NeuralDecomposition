@@ -10,6 +10,8 @@ import pickle
 import gensim
 from functools import lru_cache
 
+import torch
+from pytorch_pretrained_bert import BertTokenizer, BertModel, BertForMaskedLM
 
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
@@ -126,6 +128,77 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
                 k_nearest = self.get_knn(w)
                 replacement = random.choice(k_nearest)
                 sentence.append(replacement)
+
+            equivalent_sentences.append(sentence)
+
+        return equivalent_sentences
+
+class BertGenerator(EquivalentSentencesGenerator):
+
+
+        
+    def __init__(self, data_filename, output_file, num_sentences):
+
+        super().__init__(data_filename, output_file, num_sentences)
+        
+
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = BertForMaskedLM.from_pretrained('bert-base-uncased')
+        self.model.eval()
+        self.model.to("cuda")
+        
+    def _tokenize(self, original_sentence: List[str]) -> Tuple[List[str], Dict[int, int]]:
+    
+        bert_tokens = ["[CLS]"]
+        orig_to_tok_map = {}
+        
+        for i, w in enumerate(original_sentence):
+            
+            orig_to_tok_map[i] = len(bert_tokens)
+            tokenized_w = self.tokenizer.tokenize(w)
+            bert_tokens.extend(tokenized_w)
+           
+        
+        bert_tokens.append("[SEP]")
+        
+        return (bert_tokens, orig_to_tok_map)
+
+
+    def get_equivalent_sentences(self, original_sentence: List[str]) -> List[List[str]]:
+
+        bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
+
+        equivalent_sentences = []
+
+        for i in range(self.num_sentences):
+
+            sentence = []
+
+            for j, w in enumerate(original_sentence):
+
+                if w in utils.DEFAULT_PARAMS["function_words"]:
+                
+                    sentence.append(w)
+                    
+                else:
+                
+                    masked_tokens = bert_tokens.copy()
+                    masked_index = orig_to_tok_map[j]
+
+                    
+                    masked_tokens[masked_index] = "[MASK]"
+                    print(masked_tokens)
+                    indexed_tokens = self.tokenizer.convert_tokens_to_ids(masked_tokens)
+                    tokens_tensor = torch.tensor([indexed_tokens])
+                    tokens_tensor = tokens_tensor.to('cuda')
+                    
+                    with torch.no_grad():
+                         predictions = self.model(tokens_tensor)
+
+                         predicted_indices = torch.argsort(predictions[0, masked_index])[-5:].cpu().numpy()
+                         print(self.tokenizer.convert_ids_to_tokens(predicted_indices)
+
+                    
 
             equivalent_sentences.append(sentence)
 
