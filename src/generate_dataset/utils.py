@@ -15,7 +15,7 @@ DEFAULT_PARAMS = {"file_name": "resources/wikipedia.sample.tokenized",
                                      "among", "anything", "beside", "besides", "both", "off", "did", "nothing", "now",
                                      "over", "rather", "perhaps", "sometime", "such", "still", "upon", "up", "down",
                                      "whereas", "where", "why", "yes", "yet", "were", "was", "been", "be", "will",
-                                     "would", "amongst", "always", "along", "all", "afterwards"]
+                                     "would", "amongst", "always", "along", "all", "afterwards", "its", "her", "his", "their", "your", "our", "my", "mine", "'s"]
                   }
 
 
