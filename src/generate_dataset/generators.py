@@ -83,8 +83,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
             for j, (w, pos_tag) in enumerate(zip(original_sentence, pos_tags)):
 
-                if pos_tag in self.pos_tags_to_replace and len(self.pos2words[pos_tag]) > 0:
-
+                if (pos_tag in self.pos_tags_to_replace) and (len(self.pos2words[pos_tag]) > 0) and (w not in utils.DEFAULT_PARAMS['function_words'):
                     sentence.append(random.choice(list(self.pos2words[pos_tag])))
                 else:
 
