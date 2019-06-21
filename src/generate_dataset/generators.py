@@ -181,7 +181,7 @@ class BertGenerator(EquivalentSentencesGenerator):
             equivalent_sentences = [original_sentence]
 
             bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
-            options = [] # a list of list, containing Bert's guesses for each position in the sentence.
+            options = [] # a list of lists, containing BERT's guesses for each position in the sentence.
 
             for j, w in enumerate(original_sentence):
 
@@ -217,7 +217,7 @@ class BertGenerator(EquivalentSentencesGenerator):
                              guesses = [w]
                          
                          # if the word was splitted into subwords, we heuristically mask the first subword only
-                         # the guessed word is then suffixed with the (unmodified) remaining subwords.
+                         # after BERT guesses the word, it is then suffixed with the (unmodified) remaining subwords.
                          
                          if subwords_exist:
                      
@@ -235,7 +235,7 @@ class BertGenerator(EquivalentSentencesGenerator):
                 
                 for j in range(len(original_sentence)):
 
-                    sentence.append(random.choice(options[j]).replace("##", ""))   
+                    sentence.append(random.choice(options[j]).replace("##", "")) # remove BERT's subwords markings
                    
                 equivalent_sentences.append(sentence)
             
