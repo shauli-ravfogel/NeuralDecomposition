@@ -1,7 +1,7 @@
 from generator_base import EquivalentSentencesGenerator
 import spacy
 import utils
-from typing import DefaultDict, List
+from typing import DefaultDict, List, Tuple, Dict
 from collections import defaultdict, Counter
 import random
 import os.path
@@ -55,6 +55,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
                     pos2words[pos_tag].append(w)
 
             for pos, words in pos2words.items():
+            
                 # filter rare words
 
                 counter = Counter(words)
@@ -86,6 +87,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
             for j, (w, pos_tag) in enumerate(zip(original_sentence, pos_tags)):
 
                 if (pos_tag in self.pos_tags_to_replace) and (len(self.pos2words[pos_tag]) > 0) and (w not in utils.DEFAULT_PARAMS['function_words']):
+
                     sentence.append(random.choice(list(self.pos2words[pos_tag])))
                 else:
 
@@ -117,7 +119,7 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
     def get_equivalent_sentences(self, original_sentence: List[str]) -> List[List[str]]:
 
-        equivalent_sentences = []
+        equivalent_sentences = [original_sentence]
 
         for i in range(self.num_sentences):
 
@@ -132,11 +134,12 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
             equivalent_sentences.append(sentence)
 
         return equivalent_sentences
+        
+
+
 
 class BertGenerator(EquivalentSentencesGenerator):
-
-
-        
+  
     def __init__(self, data_filename, output_file, num_sentences):
 
         super().__init__(data_filename, output_file, num_sentences)
@@ -163,20 +166,20 @@ class BertGenerator(EquivalentSentencesGenerator):
         
         return (bert_tokens, orig_to_tok_map)
 
+    
+    def get_equivalent_sentences(self, original_sentence: List[str], online = True) -> List[List[str]]:
 
-    def get_equivalent_sentences(self, original_sentence: List[str]) -> List[List[str]]:
-
-        bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
-
-        equivalent_sentences = []
+        equivalent_sentences = [original_sentence]
 
         for i in range(self.num_sentences):
-
+        
+            bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
             sentence = []
 
             for j, w in enumerate(original_sentence):
 
-                if w in utils.DEFAULT_PARAMS["function_words"]:
+        
+                if (w in utils.DEFAULT_PARAMS["function_words"]):
                 
                     sentence.append(w)
                     
@@ -184,10 +187,10 @@ class BertGenerator(EquivalentSentencesGenerator):
                 
                     masked_tokens = bert_tokens.copy()
                     masked_index = orig_to_tok_map[j]
-
-                    
+                    subwords = (j != len(original_sentence) - 1) and (orig_to_tok_map[j + 1] - orig_to_tok_map[j]) > 1
+             
                     masked_tokens[masked_index] = "[MASK]"
-                    print(masked_tokens)
+
                     indexed_tokens = self.tokenizer.convert_tokens_to_ids(masked_tokens)
                     tokens_tensor = torch.tensor([indexed_tokens])
                     tokens_tensor = tokens_tensor.to('cuda')
@@ -195,11 +198,24 @@ class BertGenerator(EquivalentSentencesGenerator):
                     with torch.no_grad():
                          predictions = self.model(tokens_tensor)
 
-                         predicted_indices = torch.argsort(predictions[0, masked_index])[-5:].cpu().numpy()
-                         print(self.tokenizer.convert_ids_to_tokens(predicted_indices)
-
-                    
-
+                         predicted_indices = torch.argsort(predictions[0, masked_index])[-7:].cpu().numpy()
+                         guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices)
+                         #print(w, guesses)
+                     
+                         w = random.choice(list(filter(lambda w: w not in [",",".",":","?","!","-","(",")","[","]", "and", "which", "or"], guesses)))
+                         
+                         if online: bert_tokens[j] = w
+                         
+                         if subwords:
+                     
+                             suffix = bert_tokens[masked_index + 1: orig_to_tok_map[j + 1]]
+                             suffix_str = "".join(suffix)
+                             w += suffix_str
+                             
+                         sentence.append(w.replace("##", ""))
+ 
             equivalent_sentences.append(sentence)
-
+        print()
+        print(" ".join(equivalent_sentences[-1]))
+        print("-----------------------------------")
         return equivalent_sentences
