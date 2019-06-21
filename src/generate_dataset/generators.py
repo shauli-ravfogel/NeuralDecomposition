@@ -100,7 +100,7 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
 class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
-    def __init__(self, data_filename, output_file, num_sentences, w2v_file, topn=13):
+    def __init__(self, data_filename, output_file, num_sentences, w2v_file, topn=8):
 
         super().__init__(data_filename, output_file, num_sentences)
 
@@ -110,7 +110,7 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
         self.topn = topn
 
-    @lru_cache(maxsize=None)
+    @lru_cache(maxsize=256)
     def get_knn(self, w: str) -> List[str]:
         if (w in utils.DEFAULT_PARAMS['function_words']) or (w not in self.word_set):
             return [w]
@@ -152,6 +152,15 @@ class BertGenerator(EquivalentSentencesGenerator):
         
     def _tokenize(self, original_sentence: List[str]) -> Tuple[List[str], Dict[int, int]]:
     
+        """
+        Parameters
+        ----------
+        Returns
+        -------
+        bert_tokens: The sentence, tokenized by BERT tokenizer.
+        orig_to_tok_map: An output dictionary consisting of a mapping (alignment) between indices in the original tokenized sentence, and indices in the sentence tokenized by the BERT tokenizer. See https://github.com/google-research/bert
+        """
+
         bert_tokens = ["[CLS]"]
         orig_to_tok_map = {}
         
@@ -172,11 +181,10 @@ class BertGenerator(EquivalentSentencesGenerator):
             equivalent_sentences = [original_sentence]
 
             bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
-            options = []
+            options = [] # a list of list, containing Bert's guesses for each position in the sentence.
 
             for j, w in enumerate(original_sentence):
 
-        
                 if (w in utils.DEFAULT_PARAMS["function_words"]):
                 
                     options.append([w])
@@ -184,10 +192,15 @@ class BertGenerator(EquivalentSentencesGenerator):
                 else:
                 
                     masked_tokens = bert_tokens.copy()
-                    masked_index = orig_to_tok_map[j]
-                    subwords = (j != len(original_sentence) - 1) and (orig_to_tok_map[j + 1] - orig_to_tok_map[j]) > 1
+                    masked_index = orig_to_tok_map[j] # find the index of the curent word in the BERT-tokenized sentence
+                    
+                    # check if BERT tokenizer has splitted the original word to subwrods.
+                    
+                    subwords_exist = (j != len(original_sentence) - 1) and (orig_to_tok_map[j + 1] - orig_to_tok_map[j]) > 1
              
                     masked_tokens[masked_index] = "[MASK]"
+                    
+                    # convert the masked sentence to a tensor.
 
                     indexed_tokens = self.tokenizer.convert_tokens_to_ids(masked_tokens)
                     tokens_tensor = torch.tensor([indexed_tokens])
@@ -199,17 +212,23 @@ class BertGenerator(EquivalentSentencesGenerator):
                          predicted_indices = torch.argsort(predictions[0, masked_index])[-10:].cpu().numpy()
                          guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices)
                          guesses = list(filter(lambda w: w not in [",",".",":","?","!","-","(",")","[","]", "and", "which", "or", "...", "'", '"'], guesses))
+                         
                          if guesses == []: 
                              guesses = [w]
                          
-                         if subwords:
+                         # if the word was splitted into subwords, we heuristically mask the first subword only
+                         # the guessed word is then suffixed with the (unmodified) remaining subwords.
+                         
+                         if subwords_exist:
                      
                              suffix = bert_tokens[masked_index + 1: orig_to_tok_map[j + 1]]
                              suffix_str = "".join(suffix)
                              guesses = [w + suffix_str for w in guesses]
                              
                     options.append(guesses)
-                             
+            
+            # randomly generate the equivalent sentences from BERT's guesses
+                        
             for i in range(self.num_sentences):
             
                 sentence = []
