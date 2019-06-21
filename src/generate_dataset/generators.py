@@ -202,7 +202,7 @@ class BertGenerator(EquivalentSentencesGenerator):
                          guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices)
                          #print(w, guesses)
                      
-                         w = random.choice(list(filter(lambda w: w not in [",",".",":","?","!","-","(",")","[","]", "and", "which", "or"], guesses)))
+                         w = random.choice(list(filter(lambda w: w not in [",",".",":","?","!","-","(",")","[","]", "and", "which", "or", "...", "'", '"'], guesses)))
                          
                          if online: bert_tokens[j] = w
                          
