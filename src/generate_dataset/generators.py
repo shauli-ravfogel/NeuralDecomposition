@@ -169,19 +169,17 @@ class BertGenerator(EquivalentSentencesGenerator):
     
     def get_equivalent_sentences(self, original_sentence: List[str], online = True) -> List[List[str]]:
 
-        equivalent_sentences = [original_sentence]
+            equivalent_sentences = [original_sentence]
 
-        for i in range(self.num_sentences):
-        
             bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
-            sentence = []
+            options = []
 
             for j, w in enumerate(original_sentence):
 
         
                 if (w in utils.DEFAULT_PARAMS["function_words"]):
                 
-                    sentence.append(w)
+                    options.append([w])
                     
                 else:
                 
@@ -198,24 +196,28 @@ class BertGenerator(EquivalentSentencesGenerator):
                     with torch.no_grad():
                          predictions = self.model(tokens_tensor)
 
-                         predicted_indices = torch.argsort(predictions[0, masked_index])[-7:].cpu().numpy()
+                         predicted_indices = torch.argsort(predictions[0, masked_index])[-10:].cpu().numpy()
                          guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices)
-                         #print(w, guesses)
-                     
-                         w = random.choice(list(filter(lambda w: w not in [",",".",":","?","!","-","(",")","[","]", "and", "which", "or", "...", "'", '"'], guesses)))
-                         
-                         if online: bert_tokens[j] = w
+                         guesses = list(filter(lambda w: w not in [",",".",":","?","!","-","(",")","[","]", "and", "which", "or", "...", "'", '"'], guesses))
+                         if guesses == []: 
+                             guesses = [w]
                          
                          if subwords:
                      
                              suffix = bert_tokens[masked_index + 1: orig_to_tok_map[j + 1]]
                              suffix_str = "".join(suffix)
-                             w += suffix_str
+                             guesses = [w + suffix_str for w in guesses]
                              
-                         sentence.append(w.replace("##", ""))
- 
-            equivalent_sentences.append(sentence)
-        print()
-        print(" ".join(equivalent_sentences[-1]))
-        print("-----------------------------------")
-        return equivalent_sentences
+                    options.append(guesses)
+                             
+            for i in range(self.num_sentences):
+            
+                sentence = []
+                
+                for j in range(len(original_sentence)):
+
+                    sentence.append(random.choice(options[j]).replace("##", ""))   
+                   
+                equivalent_sentences.append(sentence)
+            
+            return equivalent_sentences
