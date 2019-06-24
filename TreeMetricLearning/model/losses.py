@@ -1,12 +1,4 @@
 import torch
-import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
-import numpy as np
-import matplotlib.pyplot as plt
-import torch.utils.data as data_utils
-import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
 
 class TreeMetricHingeLoss(torch.nn.Module):
@@ -38,5 +30,25 @@ class TreeMetricHingeLoss(torch.nn.Module):
                                 (outputs[0,1] + outputs[2,3] - inner_max_result)/inner_max_result)
                 return loss
 
-        
-        
+
+if __name__ == '__main__':
+
+    loss_func = TreeMetricHingeLoss()
+
+    for i in range(1000):
+        distances = np.random.rand(4, 4) - 0.5
+        i, j, k, l = 0, 1, 2, 3
+        d_ij = distances[i, j]
+        d_kl = distances[k, l]
+        d_ik = distances[i, k]
+        d_jl = distances[j, l]
+        d_il = distances[i, l]
+        d_jk = distances[j, k]
+
+        expected_loss = np.maximum(0, d_ij + d_kl - np.maximum(d_ik + d_jl, d_il + d_jk))
+        outputs = torch.from_numpy(distances).type(torch.float)
+        loss = loss_func(outputs).item()
+
+        assert np.isclose(loss, expected_loss, atol=1e-4)
+
+    print("Test ended successfully.")
