@@ -16,25 +16,46 @@ from pytorch_pretrained_bert import BertTokenizer, BertModel, BertForMaskedLM
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
     def __init__(self, data_filename, output_file, pos_tags_to_replace, num_sentences,
-                 pos2words_file):
+                 pos2words_file, order = 1):
 
         super().__init__(data_filename, output_file, num_sentences)
 
+        self.order = order
         self.nlp = spacy.load('en_core_web_sm')
         self.data_filename = data_filename
         self.pos2words_file = pos2words_file
         self.pos2words = self._get_POS2words_mapping()
         self.pos_tags_to_replace = pos_tags_to_replace
+        
 
-    def _get_POS2words_mapping(self, min_occurrence=50) -> DefaultDict[str, set]:
+    def _pad(self, sentence, pos_tags):
+
+        for i in range(self.order):
+                
+                sentence.append("<E>")
+                pos_tags.append("<E>")
+                sentence.insert(0, "<S>")
+                pos_tags.insert(0, "<S>")
+                
+        return sentence, pos_tags
+        
+    def _get_ngrams(self, sentence, pos_tags):
+
+        words_ngrams = [sentence[i -self.order : i + self.order + 1] for i in range(self.order, len(sentence) - self.order)]
+        pos_ngrams = [pos_tags[i - self.order: i + self.order + 1] for i in range(self.order, len(sentence) - self.order)]
+                
+        return words_ngrams, pos_ngrams                    
+        
+    def _get_POS2words_mapping(self, min_occurrence = 20) -> DefaultDict[str, set]:
         """
         Iterate over the dataset, and find the words belonging to each POS tag.
         return: pos2words, a dictionary mapping pos tags (strings) to sets of words.
         """
 
         pos2words_filename = self.pos2words_file
-
-        if os.path.isfile(pos2words_filename):
+       
+        
+        if os.path.isfile(pos2words_filename) and True:
 
             with open(pos2words_filename, 'rb') as f:
                 pos2words = pickle.load(f)
@@ -43,24 +64,31 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
             print("Collecting POS:words mapping...")
 
-            pos2words = defaultdict(list)
-
+            pos2words = defaultdict(set)
             sentences = utils.read_sentences(self.data_filename)
+            all_words = [w for sent in sentences for w in sent]
+            words_counter = Counter(all_words)
+            common_words = set([w for w, count in words_counter.items() if count > min_occurrence])
 
             for sentence in tqdm.tqdm(sentences):
 
                 pos_tags = self._get_pos_tags(sentence)
-
-                for (w, pos_tag) in zip(sentence, pos_tags):
-                    pos2words[pos_tag].append(w)
-
-            for pos, words in pos2words.items():
-            
-                # filter rare words
-
-                counter = Counter(words)
-                words = set([w for w, count in counter.items() if count > min_occurrence])
-                pos2words[pos] = words
+                
+                # add dummy characters at the end
+                
+                sentence, pos_tags = self._pad(sentence, pos_tags)
+                
+                # collect occurrences of POS ngrams
+                
+                words_ngrams, pos_ngrams = self._get_ngrams(sentence, pos_tags)
+                
+                for i, (w_ngrams, pos_tag_ngrams) in enumerate(zip(words_ngrams, pos_ngrams)):
+                    
+                    w, pos = w_ngrams[self.order], pos_tag_ngrams[self.order]
+                    
+                    if w in common_words:
+                    
+                         pos2words["*".join(pos_tag_ngrams)].add(w)
 
             with open(pos2words_filename, 'wb') as f:
                 pickle.dump(pos2words, f)
@@ -78,17 +106,24 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
     def get_equivalent_sentences(self, original_sentence: List[str], ) -> List[List[str]]:
 
         pos_tags = self._get_pos_tags(original_sentence)
+        
+        original_sentence, pos_tags = self._pad(original_sentence, pos_tags)
+                        
         equivalent_sentences = [original_sentence]
-
+        words_ngrams, pos_ngrams = self._get_ngrams(original_sentence, pos_tags)
+        
         for i in range(self.num_sentences):
 
             sentence = []
+            
+            for j, (w_ngrams, pos_tag_ngrams) in enumerate(zip(words_ngrams, pos_ngrams)):
 
-            for j, (w, pos_tag) in enumerate(zip(original_sentence, pos_tags)):
+                pos_tag, w = pos_tag_ngrams[self.order], w_ngrams[self.order]
+                pos_seq = "*".join(pos_tag_ngrams)
+                
+                if (pos_tag in self.pos_tags_to_replace) and (pos_seq in self.pos2words) and (len(self.pos2words[pos_seq]) > 0) and (w not in utils.DEFAULT_PARAMS['function_words']):
 
-                if (pos_tag in self.pos_tags_to_replace) and (len(self.pos2words[pos_tag]) > 0) and (w not in utils.DEFAULT_PARAMS['function_words']):
-
-                    sentence.append(random.choice(list(self.pos2words[pos_tag])))
+                    sentence.append(random.choice(list(self.pos2words[pos_seq])))
                 else:
 
                     sentence.append(w)
