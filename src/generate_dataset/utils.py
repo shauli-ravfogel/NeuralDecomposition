@@ -10,12 +10,11 @@ DEFAULT_PARAMS = {"file_name": "resources/wikipedia.sample.tokenized",
                                           "VBP", "VBZ"],
                   "function_words": ["in", "on", "at", "the", "a", "an", "who", "that", "this", "which", "can",
                                      "cannot", "not", "no", "do", "does", "of", "these", "those", ",", ".", "'", "(",
-                                     ")", "under", "above", "near", "without", "have", "has", "got", "as", "nor", "am",
-                                     "is", "are", "although", "while", "between", "neither", "and", "or", "one",
+                                     ")", "under", "above", "near", "without", "with", "have", "having", "has", "as", "nor", "am",
+                                     "is", "are", "although", "while", "between", "neither", "and", "or",
                                      "among", "anything", "beside", "besides", "both", "off", "did", "nothing", "now",
-                                     "over", "rather", "perhaps", "sometime", "such", "still", "upon", "up", "down",
-                                     "whereas", "where", "why", "yes", "yet", "were", "was", "been", "be", "will",
-                                     "would", "amongst", "always", "along", "all", "afterwards", "its", "her", "his", "their", "your", "our", "my", "mine", "'s"]
+                                     "over", "rather", "perhaps", "sometime", "such", "upon",
+                                     "whereas", "where", "when", "who", "whom", "what", "why", "yes", "yet", "were", "was", "been", "be", "will", "would","could", "should", "amongst", "always", "along", "all", "afterwards", "'s", "during", '"', "for", "from", "to", "into", "there", "instead", "-", ":", "-", ";", "?", "about", "but", "also", "something", "out", "up", "it", "being", "just", "i", "'ve", "some", "against", "...", "'re", "much", "``", "''", "only", "least", "first", "n't", "its", "'ll", "--", "more", "such"]
                   }
 
 
