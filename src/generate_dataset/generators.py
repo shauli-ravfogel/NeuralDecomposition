@@ -175,7 +175,7 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
 class BertGenerator(EquivalentSentencesGenerator):
   
-    def __init__(self, data_filename, output_file, num_sentences):
+    def __init__(self, data_filename, output_file, num_sentences, topn = 8, ignore_first_k = 0):
 
         super().__init__(data_filename, output_file, num_sentences)
         
@@ -184,6 +184,21 @@ class BertGenerator(EquivalentSentencesGenerator):
         self.model = BertForMaskedLM.from_pretrained('bert-base-uncased')
         self.model.eval()
         self.model.to("cuda")
+        self.forbidden_guesses = set([",",".",":","?","!","-","(",")","[","]", "and", "which", "or", "...", "'", '"', ";"])
+        self.topn = topn
+        self.ignore_first_k = ignore_first_k
+        
+    def choose_word(self, guesses):
+    
+        guesses = [w for w in guesses[:500] if w not in self.forbidden_guesses]
+        
+        if self.ignore_first_k:
+        
+               guesses = guesses[self.ignore_first_k : ]
+               
+        guesses = guesses[:self.topn]
+        
+        return random.choice(guesses)
         
     def _tokenize(self, original_sentence: List[str]) -> Tuple[List[str], Dict[int, int]]:
     
@@ -211,12 +226,24 @@ class BertGenerator(EquivalentSentencesGenerator):
         return (bert_tokens, orig_to_tok_map)
 
     
-    def get_equivalent_sentences(self, original_sentence: List[str], online = True) -> List[List[str]]:
+    def get_equivalent_sentences(self, original_sentence: List[str], online = False, topn = 6) -> List[List[str]]:
+
+            raise NotImplementedError
+            
+
+class IndependentBertGenerator(BertGenerator):
+  
+    def __init__(self, data_filename, output_file, num_sentences, topn = 8):
+
+        super().__init__(data_filename, output_file, num_sentences, topn = 8)
+  
+    
+    def get_equivalent_sentences(self, original_sentence: List[str], online = False) -> List[List[str]]:
 
             equivalent_sentences = [original_sentence]
 
             bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
-            options = [] # a list of lists, containing BERT's guesses for each position in the sentence.
+            options = [] # a list of list, containing Bert's guesses for each position in the sentence.
 
             for j, w in enumerate(original_sentence):
 
@@ -242,24 +269,25 @@ class BertGenerator(EquivalentSentencesGenerator):
                     tokens_tensor = tokens_tensor.to('cuda')
                     
                     with torch.no_grad():
+                    
                          predictions = self.model(tokens_tensor)
 
-                         predicted_indices = torch.argsort(predictions[0, masked_index])[-10:].cpu().numpy()
+                         predicted_indices = torch.argsort(predictions[0, masked_index])[:].cpu().numpy()
                          guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices)
-                         guesses = list(filter(lambda w: w not in [",",".",":","?","!","-","(",")","[","]", "and", "which", "or", "...", "'", '"'], guesses))
+                         guesses = list(filter(lambda w: w not in self.forbidden_guesses, guesses))
                          
                          if guesses == []: 
                              guesses = [w]
                          
                          # if the word was splitted into subwords, we heuristically mask the first subword only
-                         # after BERT guesses the word, it is then suffixed with the (unmodified) remaining subwords.
-                         
+                         # the guessed word is then suffixed with the (unmodified) remaining subwords.
+                                                                 
                          if subwords_exist:
                      
                              suffix = bert_tokens[masked_index + 1: orig_to_tok_map[j + 1]]
                              suffix_str = "".join(suffix)
                              guesses = [w + suffix_str for w in guesses]
-                             
+                                                   
                     options.append(guesses)
             
             # randomly generate the equivalent sentences from BERT's guesses
@@ -270,8 +298,66 @@ class BertGenerator(EquivalentSentencesGenerator):
                 
                 for j in range(len(original_sentence)):
 
-                    sentence.append(random.choice(options[j]).replace("##", "")) # remove BERT's subwords markings
+                    sentence.append(random.choice(options[j]).replace("##", ""))   
                    
                 equivalent_sentences.append(sentence)
             
             return equivalent_sentences
+            
+
+class OnlineBertGenerator(BertGenerator):
+  
+    def __init__(self, data_filename, output_file, num_sentences, topn = 8, ignore_first_k = 0):
+
+        super().__init__(data_filename, output_file, num_sentences, topn = 8, ignore_first_k = 0)
+  
+    
+    def get_equivalent_sentences(self, original_sentence: List[str]) -> List[List[str]]:
+
+        equivalent_sentences = [original_sentence]
+
+        for i in range(self.num_sentences):
+        
+            bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
+            sentence = []
+
+            for j, w in enumerate(original_sentence):
+
+        
+                if (w in utils.DEFAULT_PARAMS["function_words"]):
+                
+                    sentence.append(w)
+                    
+                else:
+                
+                    masked_tokens = bert_tokens.copy()
+                    masked_index = orig_to_tok_map[j]
+                    subwords = (j != len(original_sentence) - 1) and (orig_to_tok_map[j + 1] - orig_to_tok_map[j]) > 1
+             
+                    masked_tokens[masked_index] = "[MASK]"
+
+                    indexed_tokens = self.tokenizer.convert_tokens_to_ids(masked_tokens)
+                    tokens_tensor = torch.tensor([indexed_tokens])
+                    tokens_tensor = tokens_tensor.to('cuda')
+                    
+                    with torch.no_grad():
+                         predictions = self.model(tokens_tensor)
+
+                         predicted_indices = torch.argsort(predictions[0, masked_index])[-7:].cpu().numpy()
+                         guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices)
+                     
+                         w = self.choose_word(guesses) 
+                         bert_tokens[j] = w # update the sentence with the word chosen.
+                         
+                         if subwords:
+                     
+                             suffix = bert_tokens[masked_index + 1: orig_to_tok_map[j + 1]]
+                             suffix_str = "".join(suffix)
+                             w += suffix_str
+                             
+                         sentence.append(w.replace("##", ""))
+ 
+            equivalent_sentences.append(sentence)
+
+        return equivalent_sentences
+
