@@ -51,7 +51,7 @@ if __name__ == '__main__':
                                                            args.num_sentences,
                                                            args.w2v_file, 7)
         else:  # if args.substitution_type == 'pos'
-            generator = generators.POSBasedEGenerator2(args.input_wiki, args.output_sentences,
+            generator = generators.POSBasedEGenerator(args.input_wiki, args.output_sentences,
                                                       args.pos_tags_to_replace, args.num_sentences,
                                                       args.pos2words_file)
 
