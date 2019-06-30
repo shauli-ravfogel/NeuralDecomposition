@@ -47,5 +47,21 @@ class CCASyntacticExtractor(SyntacticExtractor):
 	
 		return self.cca.transform(self.pca.transform(contextualized_vector))
 		
-		
+
+class PCASyntacticExtractor(SyntacticExtractor):
+
+	def __init__(self): 
+	
+                with open("fitted_pca.500pts.900", "rb") as f:
+                
+                        self.initial_pca = pickle.load(f)
+
+                with open("fitted_pca.500pts.450pca", "rb") as f:
+                
+                        self.pca = pickle.load(f)                       
+	
+	def extract(self, contextualized_vector: np.ndarray) -> np.ndarray:
+	
+		return self.pca.transform(self.initial_pca.transform(contextualized_vector))
+				
 #extractor = SiameseSyntacticExtractor()
