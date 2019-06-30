@@ -69,6 +69,20 @@ class Evaluator(object):
 		options_file = "../data/external/elmo_2x4096_512_2048cnn_2xhighway_options.json"
 		weight_file = "../data/external/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 		return FastElmo(options_file, weight_file)
+	
+	def _run_elmo(sentences: List[List[str]]) -> List[np.ndarray]:
+	
+	
+	        elmo_embeddings = self.elmo.embed_sentences(sentences)
+	        all_embeddings = []
+	        
+	        for sent_emn in elmo_embeddings:
+	        
+	                last_layer = sent_emn[:, -1]
+	                all_embeddings.append(last_layer)
+	        
+	        return all_embeddings
+	        
 		
 	def _load_sents(self, fname = "sents_f", max_length = 25) -> List[List[str]]:
 	
@@ -96,27 +110,61 @@ class Evaluator(object):
 				doc = proc(doc)
 				
 			deps = [token.dep_ for token in doc]
-			if len(deps) == len(sent):
-				all_deps.append(deps)
+			all_deps.append(deps)
+			
+			assert len(deps) == len(sent)
 		
 		return all_deps
 
-	def _list_vectors(self, vecs: np.ndarray, sents: List[List[str]]) -> List[Vector]:
+	def _list_vectors(self, sents_embeddings: List[np.ndarray], sents: List[List[str]]) -> List[List[Vector]]:
+	
 	
 		"""
 		Transform the list of all state vectors (as numpy arrays) to a list of Vector objects.
+		
+		Parameters
+		
+		---------
+		sents_embeddings: ``List[np.ndarray]``, required
+		
+		        A list of ELMO embeddings for all sentences. Each list element is ELMO embedding 
+		        of a different sentence, with dimensions (sentence_length, 1024)
+		
+		sents: `` List[List[str]]``, required
+		
+		        A list of all sentences. Each list contains a list representing a different sentence.
+		        
+		Returns
+		---------
+		
+		all_vectors: ``List[List[Vector]``
+		       
+		       A list of lists of Vector objects. all_vectors[i][j] is the representation of the jth word
+		       in the ith sentence.
+		        
 		"""
 		
+		print("Creating Vector objects required for nearest neighbor search...")
+		
+		assert len(sents) == len(sents_embeddings)
+		
 		num_sentences = len(sents)
-		sents_indices_and_vecs =  zip(range(num_sentences), vecs)
+		sents_indices_and_vecs =  zip(range(num_sentences), sents_embeddings)
 		all_vectors = []
 		
 		for sent_index, sent_vectors in sents_indices_and_vecs:
 		
-			for i, (w,vec) in enumerate(zip(sents[sent_index], vecs[sent_index])):   
+		        sent_vectors = []
+		        
+		        assert len(sents[sent_index]) == sent_vectors.shape[0]
+		        
+			for i, (w, vec) in enumerate(zip(sents[sent_index], sent_vectors)):   
 			
 				v = Vector(vec.detach().numpy(), sents[sent_index], i)
-				all_vectors.append(v)
+				sent_vectors.append(v)
+				
+			all_vectors.append(sent_vectors)
 				
 		return all_vectors
 
+e = Evaluator()
