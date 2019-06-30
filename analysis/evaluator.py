@@ -5,9 +5,12 @@ import copy
 import numpy as np
 import random
 random.seed(0)
-from collections import Counter
+from collections import Counter, defaultdict
 import spacy
 import tqdm
+from sklearn.cluster import KMeans
+import copy
+import termcolor
 
 class Vector(object):
     
@@ -78,27 +81,44 @@ class Evaluator(object):
                 self.sentences = self._load_sents()
                 self.parsed_sentences = self._parse(self.sentences)
                 self.elmo = self._load_elmo()
-                self.elmo_embeddings = self._run_elmo()
+                self.elmo_embeddings = self._run_elmo(self.sentences)
                 self.vec_lists = self._list_vectors(self.elmo_embeddings, self.sentences, self.parsed_sentences)
         
         
         def test(self):
         
-                print("cloest neighbor test, before the application of the syntactic extractor")
-                self.closest_vector_test()
+                print("***Cloest neighbor test, before the application of the syntactic extractor***")
+                self.closest_vector_test(apply_transformation = False)
+                print("***Cloest neighbor test, after the application of the syntactic extractor***")
+                self.closest_vector_test(apply_transformation = True, verbose = False)
                 
-        def closest_vector_test(self, n = 1000):
+                print("***Vector-dep association test, before the application of the syntactic extractor***")
+                self.vector_dep_association_test(apply_transformation = False, verbose = False)
+                print("***Vector-dep association test, After the application of the syntactic extractor***")
+                self.vector_dep_association_test(apply_transformation = True, verbose = True)
+                
+        def closest_vector_test(self, n = 1000, verbose = False, apply_transformation = False):
         
+                print("Performing closest vector test...")
+                
                 vec_lists = self.vec_lists
-                all_vecs = [v for sent_vecs in vec_lists for v in sent_vecs] # all vecs in a single list.
+                all_vecs = [copy.deepcopy(v) for sent_vecs in vec_lists for v in sent_vecs] # all vecs in a single list.
+                
+                if apply_transformation:
+                
+                        for i,v in enumerate(all_vecs):
+                        
+                               v.vec = self.extractor.extract(v.vec.copy().reshape(1, -1)).reshape(-1)
+                
                 random.shuffle(all_vecs)
                 
                 good, bad = 0., 0.
                 
+                
                 for i in range(n):
                 
                         vec = all_vecs[i]
-                        nearest_neighbor = Vector.get_closest_vector(vec, vecs)
+                        nearest_neighbor = Vector.get_closest_vector(vec, all_vecs)
                         
                         if vec.dep == nearest_neighbor.dep:
                         
@@ -107,18 +127,89 @@ class Evaluator(object):
                         else:
                                 bad += 1
                         
+                        if verbose:
+                        
+                                print("key: {} \n value: {}\n key-dep: {} \n value-dep: {} \n ------------------------------------------------".format(vec, nearest_neighbor, vec.dep, nearest_neighbor.dep))
+                        
                 acc = good / (good + bad)
-                print(acc)
+                print("Average accuracy is {}".format(acc))
+        
+        def vector_dep_association_test(self, n = 1000, clustering = "kmeans", num_clusters = 50, verbose = False, apply_transformation = False):
+        
+                print("Perfoming vector-dependency association test")
+                print("Performing clustering...")
                 
+                vec_lists = self.vec_lists
+                all_vecs = [copy.deepcopy(v.get_vector()) for sent_vecs in vec_lists for v in sent_vecs] # all vecs in a single list.
+                if apply_transformation:
+                
+                        for i,v in enumerate(all_vecs):
+                        
+                                all_vecs[i] = self.extractor.extract(v.copy().reshape(1, -1)).reshape(-1)
+                        
+                all_deps = [dep for sent_deps in self.parsed_sentences for dep in sent_deps]
+                
+                assert len(all_vecs) == len(all_deps)
+                
+                random.shuffle(all_vecs)
+                
+                if clustering == "kmeans":
+                
+                        clustering = KMeans(n_clusters=num_clusters, random_state=0).fit(all_vecs)
+                
+                print("Counting coocurrences...")
+                      
+                labels = clustering.labels_
+                clusts_and_deps = zip(labels, all_deps)
+                dep_clust_coocurrences = Counter(clusts_and_deps)
+                
+                # Create clust:dep count mapping
+                
+                clust2dep = defaultdict(dict)
+                for (clust, dep), count in dep_clust_coocurrences.items():
+                
+                     clust2dep[clust][dep] = count
+
+                # Noramlize counts
+                
+                for clust, dep_count_dict in clust2dep.items():
+                
+                        sum_counts = sum(dep_count_dict.values())
+                        for k,v in dep_count_dict.items():
+                        
+                                dep_count_dict[k] /= (1.*sum_counts)
+
+                # Calculate Entropy
+                
+                mean_ent = 0.
+                
+                for clust, dep_count_dict in clust2dep.items():
+                
+                                deps, probs = list(dep_count_dict.keys()), list(dep_count_dict.values())
+            
+                                entropy = np.sum([-prob * np.log(prob) if prob > 1e-5 else 0 for prob in probs])
+                                mean_ent += entropy 
+                                
+                                if verbose:
+                                        
+                                        max_ind = np.argmax(probs)
+                                        max_dep = deps[max_ind]
+                                        prob = probs[max_ind]
+                                        
+                                        print("Cluster {} is most associcated with dep edge {}; coocurrence prob: {}".format(clust, max_dep, prob))
+             
+                mean_ent /= len(clust2dep.keys())
+                print("Average entropy is {}".format(mean_ent))               
+                                            
         def _load_elmo(self):
         
                 print("Loading ELMO...")
                 
                 options_file = "../data/external/elmo_2x4096_512_2048cnn_2xhighway_options.json"
                 weight_file = "../data/external/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
-                return ElmoEmbedder(options_file, weight_file, cuda_device=cuda_device)
+                return ElmoEmbedder(options_file, weight_file, cuda_device=0)
         
-        def _run_elmo(sentences: List[List[str]]) -> List[np.ndarray]:
+        def _run_elmo(self, sentences: List[List[str]]) -> List[np.ndarray]:
         
                 print("Running ELMO...")
                 
@@ -131,7 +222,7 @@ class Evaluator(object):
                 
                 for sent_emn in elmo_embeddings:
                 
-                        last_layer = sent_emn[:, -1]
+                        last_layer = sent_emn[-1, :, :]
                         all_embeddings.append(last_layer)
                 
                 return all_embeddings
@@ -147,6 +238,9 @@ class Evaluator(object):
                         
                 if max_length is not None:
                         lines = list(filter(lambda sentence: len(sentence) < max_length, lines))
+                
+                lines = lines[:]
+                
                 return lines
                 
         def _parse(self, sentences: List[List[str]]) -> List[List[str]]:
@@ -216,17 +310,17 @@ class Evaluator(object):
                 all_vectors = []
                 
                 for sent_index, sent_vectors in tqdm.tqdm(sents_indices_and_vecs):
-                
-                        sent_vectors = []
+               
+                        sent_vectors_lst = []
                         
                         assert len(sents[sent_index]) == sent_vectors.shape[0]
                         
                         for i, (w, dep, vec) in enumerate(zip(sents[sent_index], parsed_sents[sent_index], sent_vectors)):   
                         
-                                v = Vector(vec.detach().numpy(), sents[sent_index], i, dep)
-                                sent_vectors.append(v)
+                                v = Vector(vec, sents[sent_index], i, dep)
+                                sent_vectors_lst.append(v)
                                 
-                        all_vectors.append(sent_vectors)
+                        all_vectors.append(sent_vectors_lst)
                                 
                 return all_vectors
 
