@@ -13,13 +13,42 @@ from sklearn.cross_decomposition import CCA
 
 class CCADecomposition(object):
 
-        def __init__(self, data_filename):
+        def __init__(self, dim, reduce_first, reduce_dim, num_sents, data_filename, load = False):
         
+                self.dim = dim
+                self.reduce_first = reduce_first
+                self.reduce_dim = reduce_dim
+                self.num_sents = num_sents
                 self.data_filename = data_filename
                 self.data, (self.view1, self.view2) = self.collect_data()
-                self.perform_cca()
+                
+                if load:
+                
+                        self._load_and_plot()
+                else:
+                        self.perform_cca()
 
-                                        
+        def _load_and_plot(self):
+        
+                        with open("trained_pca.500pts.900", "rb") as f:
+                        
+                                pca = pickle.load(f)
+                                
+                        with open("trained_cca.500pts.900pca.64cca", "rb") as f:
+                        
+                                cca = pickle.load(f)
+                                
+                        self.view1, self.view2 = pca.transform(self.view1), pca.transform(self.view2)
+                        X_c, Y_c = cca.transform(self.view1, self.view2)
+                        import scipy.stats
+                        correlations = []
+                        for dim in range(X_c.shape[1]):
+                        
+                                corrcoef,p_value = scipy.stats.pearsonr(X_c[:, dim],Y_c[:, dim])
+                                correlations.append(corrcoef)
+                        plt.plot(range(64), correlations)
+                        plt.show()     
+                                                                   
         def _print_after_projection(self, pca_before, pca_after):
         
                 num_groups = 1000
@@ -66,9 +95,9 @@ class CCADecomposition(object):
                 plt.legend()
                 plt.show()
 
-        def collect_data(self, n = 500):
+        def collect_data(self):
         
-                print("Collecting data from {} sentences...".format(n))
+                print("Collecting data from {} sentences...".format(self.num_sents))
                 
                 A, B = [], [] # view matrices
                 
@@ -76,7 +105,7 @@ class CCADecomposition(object):
                 
                         vecs = []
                         
-                        for i in tqdm.tqdm(range(n)):
+                        for i in tqdm.tqdm(range(self.num_sents)):
                         
                                line = f.readline()
                                data, sents = self.read_one_set(line)
@@ -94,21 +123,22 @@ class CCADecomposition(object):
                         return np.stack(vecs), (A,B)
 
                                            
-        def perform_cca(self, n_components = 64, pca_componenets = 900):
+        def perform_cca(self):
         
                 # Perform pca
                 
-                print("Perorming PCA with {} components on {} vectors...".format(pca_componenets, len(self.data)))
+                if self.reduce_first:
+                        print("Perorming PCA with {} components on {} vectors...".format(self.reduce_dim, len(self.data)))
                
-                pca = decomposition.PCA(n_components = pca_componenets)
-                pca.fit(self.data)
-                self.view1, self.view2 = pca.transform(self.view1), pca.transform(self.view2) 
+                        pca = decomposition.PCA(n_components = self.reduce_dim)
+                        pca.fit(self.data)
+                        self.view1, self.view2 = pca.transform(self.view1), pca.transform(self.view2) 
                 
                 # Perform cca
                 
-                print("Perorming CCA with {} components on {} vectors...".format(n_components, len(self.view1)))
+                print("Perorming CCA with {} components on {} vectors...".format(self.dim, len(self.view1)))
                 
-                cca = CCA(n_components = n_components, max_iter = 500000)
+                cca = CCA(n_components = self.dim, max_iter = 500000)
                 cca.fit(self.view1, self.view2)
                 X_transformed, Y_transformed = cca.transform(self.view1, self.view2)
                 
