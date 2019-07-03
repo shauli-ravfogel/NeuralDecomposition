@@ -16,6 +16,90 @@ from pytorch_pretrained_bert import BertTokenizer, BertModel, BertForMaskedLM
 class POSBasedEGenerator(EquivalentSentencesGenerator):
 
     def __init__(self, data_filename, output_file, pos_tags_to_replace, num_sentences,
+                 pos2words_file):
+
+        super().__init__(data_filename, output_file, num_sentences)
+
+        self.nlp = spacy.load('en_core_web_sm')
+        self.data_filename = data_filename
+        self.pos2words_file = pos2words_file
+        self.pos2words = self._get_POS2words_mapping()
+        self.pos_tags_to_replace = pos_tags_to_replace
+
+    def _get_POS2words_mapping(self, min_occurrence=50) -> DefaultDict[str, set]:
+        """
+        Iterate over the dataset, and find the words belonging to each POS tag.
+        return: pos2words, a dictionary mapping pos tags (strings) to sets of words.
+        """
+
+        pos2words_filename = self.pos2words_file
+
+        if os.path.isfile(pos2words_filename):
+
+            with open(pos2words_filename, 'rb') as f:
+                pos2words = pickle.load(f)
+
+        else:
+
+            print("Collecting POS:words mapping...")
+
+            pos2words = defaultdict(list)
+
+            sentences = utils.read_sentences(self.data_filename)
+
+            for sentence in tqdm.tqdm(sentences):
+
+                pos_tags = self._get_pos_tags(sentence)
+
+                for (w, pos_tag) in zip(sentence, pos_tags):
+                    pos2words[pos_tag].append(w)
+
+            for pos, words in pos2words.items():
+            
+                # filter rare words
+
+                counter = Counter(words)
+                words = set([w for w, count in counter.items() if count > min_occurrence])
+                pos2words[pos] = words
+
+            with open(pos2words_filename, 'wb') as f:
+                pickle.dump(pos2words, f)
+
+        return pos2words
+
+    def _get_pos_tags(self, sentence: List[str]) -> List[str]:
+
+        doc = spacy.tokens.Doc(vocab=self.nlp.vocab, words=sentence)
+        for name, proc in self.nlp.pipeline:
+            doc = proc(doc)
+        pos_tags = [token.tag_ for token in doc]
+        return pos_tags
+
+    def get_equivalent_sentences(self, original_sentence: List[str], ) -> List[List[str]]:
+
+        pos_tags = self._get_pos_tags(original_sentence)
+        equivalent_sentences = [original_sentence]
+
+        for i in range(self.num_sentences):
+
+            sentence = []
+
+            for j, (w, pos_tag) in enumerate(zip(original_sentence, pos_tags)):
+
+                if (pos_tag in self.pos_tags_to_replace) and (len(self.pos2words[pos_tag]) > 0) and (w not in utils.DEFAULT_PARAMS['function_words']):
+
+                    sentence.append(random.choice(list(self.pos2words[pos_tag])))
+                else:
+
+                    sentence.append(w)
+
+            equivalent_sentences.append(sentence)
+
+        return equivalent_sentences
+
+class POSBasedEGenerator2(EquivalentSentencesGenerator):
+
+    def __init__(self, data_filename, output_file, pos_tags_to_replace, num_sentences,
                  pos2words_file, order = 1):
 
         super().__init__(data_filename, output_file, num_sentences)
@@ -107,10 +191,10 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
 
         pos_tags = self._get_pos_tags(original_sentence)
         
-        original_sentence, pos_tags = self._pad(original_sentence, pos_tags)
+        sentence, pos_tags = self._pad(original_sentence[:], pos_tags)
                         
         equivalent_sentences = [original_sentence]
-        words_ngrams, pos_ngrams = self._get_ngrams(original_sentence, pos_tags)
+        words_ngrams, pos_ngrams = self._get_ngrams(sentence, pos_tags)
         
         for i in range(self.num_sentences):
 
@@ -131,7 +215,6 @@ class POSBasedEGenerator(EquivalentSentencesGenerator):
             equivalent_sentences.append(sentence)
 
         return equivalent_sentences
-
 
 class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
@@ -171,8 +254,6 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
         return equivalent_sentences
         
 
-
-
 class BertGenerator(EquivalentSentencesGenerator):
   
     def __init__(self, data_filename, output_file, num_sentences, topn = 8, ignore_first_k = 0):
@@ -184,7 +265,7 @@ class BertGenerator(EquivalentSentencesGenerator):
         self.model = BertForMaskedLM.from_pretrained('bert-base-uncased')
         self.model.eval()
         self.model.to("cuda")
-        self.forbidden_guesses = set([",",".",":","?","!","-","(",")","[","]", "and", "which", "or", "...", "'", '"', ";"])
+        self.forbidden_guesses = utils.DEFAULT_PARAMS["function_words"]
         self.topn = topn
         self.ignore_first_k = ignore_first_k
         
@@ -307,19 +388,21 @@ class IndependentBertGenerator(BertGenerator):
 
 class OnlineBertGenerator(BertGenerator):
   
-    def __init__(self, data_filename, output_file, num_sentences, topn = 8, ignore_first_k = 0):
+    def __init__(self, data_filename, output_file, num_sentences, topn = 9, ignore_first_k = 2):
 
-        super().__init__(data_filename, output_file, num_sentences, topn = 8, ignore_first_k = 0)
+        super().__init__(data_filename, output_file, num_sentences, topn = topn, ignore_first_k = ignore_first_k)
   
-    
     def get_equivalent_sentences(self, original_sentence: List[str]) -> List[List[str]]:
 
         equivalent_sentences = [original_sentence]
-
+        
         for i in range(self.num_sentences):
         
             bert_tokens, orig_to_tok_map = self._tokenize(original_sentence)
             sentence = []
+            
+            tokens_tensor = torch.zeros(1, len(bert_tokens), dtype = torch.long)
+            tokens_tensor = tokens_tensor.to('cuda')
 
             for j, w in enumerate(original_sentence):
 
@@ -330,34 +413,47 @@ class OnlineBertGenerator(BertGenerator):
                     
                 else:
                 
-                    masked_tokens = bert_tokens.copy()
+                    
+                    masked_tokens = bert_tokens#.copy()
                     masked_index = orig_to_tok_map[j]
-                    subwords = (j != len(original_sentence) - 1) and (orig_to_tok_map[j + 1] - orig_to_tok_map[j]) > 1
+                    subwords_exist = (j != len(original_sentence) - 1) and (orig_to_tok_map[j + 1] - orig_to_tok_map[j]) > 1
              
+                    masked_word = bert_tokens[masked_index]
                     masked_tokens[masked_index] = "[MASK]"
 
+                    #for l in range(min(masked_index + 3, len(original_sentence) - 1), len(original_sentence)):
+                    
+                    #    masked_tokens[l] = "[MASK]"
+                    
                     indexed_tokens = self.tokenizer.convert_tokens_to_ids(masked_tokens)
-                    tokens_tensor = torch.tensor([indexed_tokens])
-                    tokens_tensor = tokens_tensor.to('cuda')
+                    tokens_tensor = tokens_tensor.copy_(torch.tensor([indexed_tokens]))
+                    #print(tokens_tensor.shape, torch.tensor(indexed_tokens).shape)
                     
                     with torch.no_grad():
+                    
                          predictions = self.model(tokens_tensor)
-
-                         predicted_indices = torch.argsort(predictions[0, masked_index])[-7:].cpu().numpy()
-                         guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices)
-                     
+  
+                         _, predicted_indices = torch.topk(predictions[0, masked_index], k = 50, sorted = True, largest = True)
+                         #predicted_indices = torch.argsort(predictions[0, masked_index])[-100:]
+                         guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices.cpu().numpy())[::-1]
+                        
+                         #print(w, " ".join(original_sentence), guesses)
+                        
                          w = self.choose_word(guesses) 
-                         bert_tokens[j] = w # update the sentence with the word chosen.
+                         bert_tokens[masked_index] = w # update the sentence with the word chosen.
                          
-                         if subwords:
+                         if subwords_exist:
                      
                              suffix = bert_tokens[masked_index + 1: orig_to_tok_map[j + 1]]
                              suffix_str = "".join(suffix)
                              w += suffix_str
                              
                          sentence.append(w.replace("##", ""))
- 
+                         
+                     #bert_tokens[masked_index] = masked_word
+                     
             equivalent_sentences.append(sentence)
 
         return equivalent_sentences
+
 
