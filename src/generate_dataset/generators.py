@@ -254,10 +254,9 @@ class EmbeddingBasedGenerator(EquivalentSentencesGenerator):
 
         return equivalent_sentences
         
-
 class BertGenerator(EquivalentSentencesGenerator):
   
-    def __init__(self, data_filename, output_file, num_sentences, topn = 8, ignore_first_k = 0):
+    def __init__(self, data_filename, output_file, num_sentences, topn = 8, ignore_first_k = 0, maintain_pos = False):
 
         super().__init__(data_filename, output_file, num_sentences)
         
@@ -269,10 +268,15 @@ class BertGenerator(EquivalentSentencesGenerator):
         self.forbidden_guesses = utils.DEFAULT_PARAMS["function_words"]
         self.topn = topn
         self.ignore_first_k = ignore_first_k
+        self.maintain_pos = maintain_pos
         
-    def choose_word(self, guesses):
-    
-        guesses = [w for w in guesses[:500] if w not in self.forbidden_guesses]
+    def choose_word(self, guesses, original_pos = None):
+
+        has_same_pos = lambda w: True if (not self.maintain_pos) else original_pos == nltk.pos_tag([w])[0][1]
+        not_function_word = lambda w: w not in self.forbidden_guesses
+        guesses = list(filter(filter_pos, filter(not_function_word, guesses)))
+            
+        #guesses = [w for w in guesses[:500] if w not in self.forbidden_guesses]
         
         if self.ignore_first_k:
         
@@ -466,13 +470,11 @@ class OnlineBertGenerator(BertGenerator):
 
 
 
-
-
 class BatchedOnlineBertGenerator(BertGenerator):
   
-    def __init__(self, data_filename, output_file, num_sentences, topn = 9, ignore_first_k = 2):
+    def __init__(self, data_filename, output_file, num_sentences, topn = 9, ignore_first_k = 2, maintain_pos = False):
 
-        super().__init__(data_filename, output_file, num_sentences, topn = topn, ignore_first_k = ignore_first_k)
+        super().__init__(data_filename, output_file, num_sentences, topn = topn, ignore_first_k = ignore_first_k, maintain_pos = maintain_pos)
   
     def get_equivalent_sentences(self, original_sentence: List[str]) -> List[List[str]]:
 
@@ -481,16 +483,21 @@ class BatchedOnlineBertGenerator(BertGenerator):
         
         batch_bert_tokens = np.empty((self.num_sentences, len(bert_tokens)), dtype =object)
         
-        for i in range(self.num_sentences):
+        batch_bert_tokens[:,] = bert_tokens.copy()
+        #for i in range(self.num_sentences):
         
-                batch_bert_tokens[i] = np.array(bert_tokens.copy())
+        #        batch_bert_tokens[i] = np.array(bert_tokens.copy())
 
 
         equivalent_sentences = np.empty((self.num_sentences, len(original_sentence)), dtype = object)
         equivalent_sentences[0, :] = original_sentence.copy()
         tokens_tensor = torch.zeros((self.num_sentences, len(bert_tokens)), dtype = torch.long)
         tokens_tensor = tokens_tensor.to('cuda')
- 
+        
+        if self.maintain_pos:
+        
+               original_pos_tags = nltk.pos_tag(original_sentence) 
+               
         for j, w in enumerate(original_sentence):
 
                 if (w in utils.DEFAULT_PARAMS["function_words"]):
@@ -498,30 +505,30 @@ class BatchedOnlineBertGenerator(BertGenerator):
                         equivalent_sentences[:, j].fill(w)  
                 
                 else:
-
+                        
                         masked_index = orig_to_tok_map[j]
-                        subwords_exist = (j != len(original_sentence) - 1) and (orig_to_tok_map[j + 1] - orig_to_tok_map[j]) > 1                                      
+                        subwords_exist = (j != len(original_sentence) - 1) and (orig_to_tok_map[j + 1] - orig_to_tok_map[j]) > 1
+                        original_pos = original_pos_tags[j] if (self.maintain.pos and (not subwords_exist)) else None                                   
                         batch_bert_tokens[:, masked_index] = "[MASK]"
                         indexed_tokens = np.empty_like(batch_bert_tokens, dtype = int)
                         
                         for i in range(self.num_sentences):
                         
                                 indexed_tokens[i, :] = self.tokenizer.convert_tokens_to_ids(batch_bert_tokens[i])
-                        
-                                
+                                                        
                         tokens_tensor = tokens_tensor.copy_(torch.from_numpy(indexed_tokens))    
                                             
                         with torch.no_grad():
                     
                                 predictions = self.model(tokens_tensor)  #(num_sentences, len(bert_tokens), voc_size)
                                                      
-                        _, predicted_indices = torch.topk(predictions[:, masked_index ,:], k = 50, sorted = True, largest = True, dim = -1)
+                        _, predicted_indices = torch.topk(predictions[:, masked_index ,:], k = 300, sorted = True, largest = True, dim = -1)
                         predicted_indices = predicted_indices.cpu().numpy() #(num_sentences, k)
                                 
                         for i in range(1, self.num_sentences): # the first sentence remains the original one
                                 
                                 guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices[i])[::-1] # (k,)
-                                chosen_w = self.choose_word(guesses) 
+                                chosen_w = self.choose_word(guesses, original_pos = original_pos) 
 
                                 if chosen_w is not None:
                                 
@@ -535,3 +542,4 @@ class BatchedOnlineBertGenerator(BertGenerator):
                                                 
                                 equivalent_sentences[i, j] = chosen_w.replace("##", "") if chosen_w is not None else w # update the sentence with the word chosen.                         
         return equivalent_sentences
+
