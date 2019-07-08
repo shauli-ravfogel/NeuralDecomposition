@@ -24,8 +24,9 @@ class EquivalentSentencesGenerator:
             equivalent_sentences = self.get_equivalent_sentences(sentence)
             sents_dict[i] = equivalent_sentences
 
-        with open(self.output_file, 'wb') as f:
-            pickle.dump(sents_dict, f)
+        if (i % 100 == 0 and i != 0) or (i == len(self.sentences) - 1):
+            with open(self.output_file, 'wb') as f:
+                pickle.dump(sents_dict, f)
 
         return sents_dict
 
