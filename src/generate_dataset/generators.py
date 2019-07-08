@@ -272,9 +272,16 @@ class BertGenerator(EquivalentSentencesGenerator):
         self.ignore_first_k = ignore_first_k
         self.maintain_pos = maintain_pos
         
+        if self.maintain_pos:
+        
+                from nltk.corpus import brown
+                brown_tagged_sents = brown.tagged_sents()
+                brown_sents = brown.sents()
+                self.unigram_tagger = nltk.UnigramTagger(brown_tagged_sents)
+        
     def choose_word(self, guesses, original_pos = None):
 
-        has_same_pos = lambda w: True if (original_pos is None) else original_pos == nltk.pos_tag([w])[0][1]
+        has_same_pos = lambda w: True if (original_pos is None) else True if self.unigram_tagger.tag([w])[0][1] is None else original_pos == self.unigram_tagger.tag([w])[0][1]
         not_function_word = lambda w: w not in self.forbidden_guesses
         guesses = [w for w in guesses if not_function_word(w) and has_same_pos(w)]
        
