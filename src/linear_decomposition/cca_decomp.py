@@ -9,17 +9,23 @@ import random
 import pickle
 import tqdm
 from sklearn.cross_decomposition import CCA
+import rcca
+import sys
+import gc
 
+sys.path.append('../generate_dataset')
+import utils
 
 class CCADecomposition(object):
 
-        def __init__(self, dim, reduce_first, reduce_dim, num_sents, data_filename, load = False):
+        def __init__(self, dim, reduce_first, reduce_dim, num_sents, data_filename, output_filename, load = False):
         
                 self.dim = dim
                 self.reduce_first = reduce_first
                 self.reduce_dim = reduce_dim
                 self.num_sents = num_sents
                 self.data_filename = data_filename
+                self.output_filename = output_filename
                 self.data, (self.view1, self.view2) = self.collect_data()
                 
                 if load:
@@ -30,15 +36,18 @@ class CCADecomposition(object):
 
         def _load_and_plot(self):
         
-                        with open("trained_pca.500pts.900", "rb") as f:
+                        with open("trained_pca.1500pts.900", "rb") as f:
                         
                                 pca = pickle.load(f)
                                 
-                        with open("trained_cca.500pts.900pca.64cca", "rb") as f:
+                        with open("trained_cca.1500pts.950pca.45cca", "rb") as f:
                         
                                 cca = pickle.load(f)
                                 
-                        self.view1, self.view2 = pca.transform(self.view1), pca.transform(self.view2)
+                        self.view1, self.view2 = pca.inverse_transform(pca.transform(self.view1)), pca.inverse_transform(pca.transform(self.view2))
+                        print(self.view1.shape)
+                        print(self.view2.shape)
+                        #exit()
                         X_c, Y_c = cca.transform(self.view1, self.view2)
                         import scipy.stats
                         correlations = []
@@ -46,7 +55,7 @@ class CCADecomposition(object):
                         
                                 corrcoef,p_value = scipy.stats.pearsonr(X_c[:, dim],Y_c[:, dim])
                                 correlations.append(corrcoef)
-                        plt.plot(range(64), correlations)
+                        plt.plot(range(100), correlations)
                         plt.show()     
                                                                    
         def _print_after_projection(self, pca_before, pca_after):
@@ -112,6 +121,9 @@ class CCADecomposition(object):
                                
                                for sent_index in range(data.shape[1]):
                                        
+                                       words = [sent[sent_index] for sent in sents]
+                                       if (words[0] == words[-1]) or (words[0] in utils.DEFAULT_PARAMS["function_words"]): continue
+                                    
                                        group = data[:, sent_index, :] # (num_equivalent_sents, 1024)
                                        view1, view2 = group[::2, :], group[1::2, :]
                                        q = min(view1.shape[0], view2.shape[0])
@@ -132,21 +144,26 @@ class CCADecomposition(object):
                
                         pca = decomposition.PCA(n_components = self.reduce_dim)
                         pca.fit(self.data)
-                        self.view1, self.view2 = pca.transform(self.view1), pca.transform(self.view2) 
+                        self.view1, self.view2 = pca.inverse_transform(pca.transform(self.view1)), pca.inverse_transform(pca.transform(self.view2)) 
                 
                 # Perform cca
                 
                 print("Perorming CCA with {} components on {} vectors...".format(self.dim, len(self.view1)))
                 
-                cca = CCA(n_components = self.dim, max_iter = 500000)
-                cca.fit(self.view1, self.view2)
-                X_transformed, Y_transformed = cca.transform(self.view1, self.view2)
+                del self.data
+                gc.collect()
                 
-                with open("trained_cca.500pts.900pca.128cca", "wb") as f:
+                cca = CCA(n_components = self.dim, max_iter = 500000, tol = 10 * 1e-5)
+                #cca = rcca.CCA(kernelcca = True, reg = 0., numCC = self.dim)
+                cca.fit(self.view1, self.view2)
+                #cca.train([self.view1, self.view2])
+                #X_transformed, Y_transformed = cca.transform(self.view1, self.view2)
+                
+                with open("trained_cca.1500pts.950pca.45cca", "wb") as f:
                         pickle.dump(cca, f)
                         
-                with open("trained_pca.500pts.900", "wb") as f:
-                        pickle.dump(pca, f)
+                with open("trained_pca.1500pts.900", "wb") as f:
+                        pickle.dump(pca, f).r
                         
                 print(cca.x_weights_[:8,:8])
                 print("---------------------")
@@ -154,7 +171,7 @@ class CCADecomposition(object):
                 return
                                     
         def read_one_set(self, line):
-  
+
                 all_vecs_and_sents = line.strip().split("\t")
                 
                 zipped = [] # tuples of (list_of_vecs, sent)
@@ -166,22 +183,27 @@ class CCADecomposition(object):
                 all_vecs = []
                 all_sents = []
                 
-                for vecs, sent_str in zipped:
+                for q, (vecs, sent_str) in enumerate(zipped):
                 
+                        if q == 0:
+                        
+                                good_indices = [i for i in range(len(sent_str.split(" "))) if sent_str.split(" ")[i] not in utils.DEFAULT_PARAMS["function_words"]]
+                        
                         vecs_str_lst = vecs.split("*")
                         
                         vecs = np.array([np.array([float(x) for x in v.split(" ")]) for v in vecs_str_lst])
 
                         assert len(vecs_str_lst) == len(sent_str.split(" "))
-                        
-                        all_vecs.append(vecs)
-                        all_sents.append(sent_str)
 
-                sent_length = len(all_sents[0].split(" "))  
+                        all_sents.append(sent_str.split(" "))                       
+                        all_vecs.append(vecs[good_indices])
+
+
+                sent_length = len(all_sents[0])  
                 all_vecs = np.stack(all_vecs)
                 
                 assert all_vecs.shape[0] == len(all_sents)
-                assert all_vecs.shape[1] == sent_length
+                #assert all_vecs.shape[1] == sent_length
                 assert all_vecs.shape[2] == 1024
                 
                 return all_vecs, all_sents
