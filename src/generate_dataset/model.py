@@ -4,18 +4,19 @@ from model_interface import ModelInterface
 
 class Elmo(ModelInterface):
 
-    def __init__(self, elmo_options, elmo_weights, cuda_device):
+    def __init__(self, elmo_options, elmo_weights, cuda_device, layers):
         options_file = elmo_options
         weight_file = elmo_weights
         self.elmo = ElmoEmbedder(options_file, weight_file, cuda_device=cuda_device)
+        self.layers = layers
 
-    def run(self, sents, layer=-1):
+    def run(self, sents):
         embeddings = self.elmo.embed_batch(sents)
 
         vecs = []
 
         for i in range(len(sents)):
-            sent_embs = embeddings[i][layer]
+            sent_embs = np.concatenate([embeddings[i][layer] for layer in self.layers], axis = 1)
             vecs.append(sent_embs)
 
         return vecs
