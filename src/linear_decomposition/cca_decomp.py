@@ -159,11 +159,11 @@ class CCADecomposition(object):
                 #cca.train([self.view1, self.view2])
                 #X_transformed, Y_transformed = cca.transform(self.view1, self.view2)
                 
-                with open("trained_cca.1500pts.950pca.45cca", "wb") as f:
+                with open("PCAModel." + self.output_filename, "wb") as f:
                         pickle.dump(cca, f)
                         
-                with open("trained_pca.1500pts.900", "wb") as f:
-                        pickle.dump(pca, f).r
+                with open("CCAModel." + self.output_filename, "wb") as f:
+                        pickle.dump(pca, f)
                         
                 print(cca.x_weights_[:8,:8])
                 print("---------------------")
@@ -204,6 +204,6 @@ class CCADecomposition(object):
                 
                 assert all_vecs.shape[0] == len(all_sents)
                 #assert all_vecs.shape[1] == sent_length
-                assert all_vecs.shape[2] == 1024
+                assert all_vecs.shape[2] == 2048
                 
                 return all_vecs, all_sents
