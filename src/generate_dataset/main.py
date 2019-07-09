@@ -43,9 +43,14 @@ if __name__ == '__main__':
                         help='cuda device to run the LM on')
     parser.add_argument('--dataset-type', dest='dataset_type', type=str, default="all",
                         help='all / pairs')
-                        
-    args = parser.parse_args()
+    parser.add_argument('--layers', '--list', help='list of ELMO layers to include', type=str, default ="1,2")
 
+   
+    args = parser.parse_args()
+    
+    layers = [int(item) for item in args.list.split(',')]
+                        
+                        
     # If no substitution file is provided, need to build these
     if args.substitution_file == '':
 
@@ -75,7 +80,7 @@ if __name__ == '__main__':
 
     model = model.Elmo(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
                        elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
-                       args.cuda_device)
+                       args.cuda_device, layers)
                        
     if args.dataset_type == "pairs":
         model_runner = TuplesModelRunner(model, equivalent_sentences, args.output_data, persist=True)
