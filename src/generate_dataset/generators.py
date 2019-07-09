@@ -11,6 +11,10 @@ import gensim
 from functools import lru_cache
 import numpy as np
 import nltk
+#import torch.backends
+#torch.backends.cudnn.benchmark=True
+#torch.backends.cudnn.fastest=True
+
 
 import torch
 from pytorch_pretrained_bert import BertTokenizer, BertModel, BertForMaskedLM
@@ -281,10 +285,13 @@ class BertGenerator(EquivalentSentencesGenerator):
         
     def choose_word(self, guesses, original_pos = None):
 
-        has_same_pos = lambda w: True if (original_pos is None) else True if self.unigram_tagger.tag([w])[0][1] is None else original_pos == self.unigram_tagger.tag([w])[0][1]
-        not_function_word = lambda w: w not in self.forbidden_guesses
-        guesses = [w for w in guesses if not_function_word(w) and has_same_pos(w)]
-       
+        
+        
+        if self.maintain_pos and original_pos is not None:
+
+                guesses = [w for w, pos in self.unigram_tagger.tag(guesses) if (w not in self.forbidden_guesses) and ((pos is None) or original_pos == pos)]
+        else:
+                guesses = [w for w in guesses if w not in self.forbidden_guesses] 
         #guesses = [w for w in guesses[:500] if w not in self.forbidden_guesses]
         
         if self.ignore_first_k:
@@ -451,7 +458,7 @@ class OnlineBertGenerator(BertGenerator):
                     
                          predictions = self.model(tokens_tensor)
   
-                         _, predicted_indices = torch.topk(predictions[0, masked_index], k = 50, sorted = True, largest = True)
+                         _, predicted_indices = torch.topk(predictions[0, masked_index], k = 40, sorted = True, largest = True)
                          #predicted_indices = torch.argsort(predictions[0, masked_index])[-100:]
                          guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices.cpu().numpy())[::-1]
                         
