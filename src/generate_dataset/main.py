@@ -4,6 +4,10 @@ import model
 from model_runner import ModelRunner, TuplesModelRunner
 import pickle
 
+#import torch.backends
+#torch.backends.cudnn.benchmark=True
+#torch.backends.cudnn.fastest=True
+
 pos_tags_to_replace = ["NN", "NNS", "NNP", "NNPS", "PRP$", "JJ", "CD", "VB", "VBD", "VBG", "VBN",
                        "VBP", "VBZ"]
 
@@ -37,7 +41,7 @@ if __name__ == '__main__':
                         default='../../data/external')
     parser.add_argument('--cuda-device', dest='cuda_device', type=int, default=0,
                         help='cuda device to run the LM on')
-    parser.add_argument('--dataset-type', dest='dataset_type', type=int, default=0,
+    parser.add_argument('--dataset-type', dest='dataset_type', type=str, default="all",
                         help='all / pairs')
                         
     args = parser.parse_args()
@@ -58,7 +62,7 @@ if __name__ == '__main__':
             #generator = generators.OnlineBertGenerator(args.input_wiki, args.output_sentences,
             #                                          args.num_sentences)
             generator = generators.BatchedOnlineBertGenerator(args.input_wiki, args.output_sentences,
-                                                      args.num_sentences, topn = 25, ignore_first_k = 0, maintain_pos = True)
+                                                      args.num_sentences, topn = 13, ignore_first_k = 0, maintain_pos = True)
 
         equivalent_sentences = generator.generate()
     # otherwise, reading that file
