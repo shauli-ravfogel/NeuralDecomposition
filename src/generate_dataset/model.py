@@ -1,6 +1,6 @@
 from allennlp.commands.elmo import ElmoEmbedder
 from model_interface import ModelInterface
-
+import numpy as np
 
 class Elmo(ModelInterface):
 
