@@ -24,7 +24,7 @@ class ModelRunner(object):
 
         N = len(self.equivalent_sentences_dict)
 
-        with open(self.output_file, "w") as f:
+        with open(self.output_file, "w", encoding = "utf8") as f:
 
             for i in tqdm.tqdm(range(N)):
             
@@ -68,7 +68,7 @@ class TuplesModelRunner(object):
 
         N = len(self.equivalent_sentences_dict)
 
-        with open(self.output_file, "w") as f:
+        with open(self.output_file, "w", encoding = "utf8") as f:
 
             for i in tqdm.tqdm(range(N)):
 
