@@ -110,7 +110,7 @@ class CCADecomposition(object):
                 
                 A, B = [], [] # view matrices
                 
-                with open(self.data_filename, "r") as f:
+                with open(self.data_filename, "r", encoding = "utf8") as f:
                 
                         vecs = []
                         
@@ -160,10 +160,10 @@ class CCADecomposition(object):
                 #X_transformed, Y_transformed = cca.transform(self.view1, self.view2)
                 
                 with open("PCAModel." + self.output_filename, "wb") as f:
-                        pickle.dump(cca, f)
+                        pickle.dump(pca, f)
                         
                 with open("CCAModel." + self.output_filename, "wb") as f:
-                        pickle.dump(pca, f)
+                        pickle.dump(cca, f)
                         
                 print(cca.x_weights_[:8,:8])
                 print("---------------------")
