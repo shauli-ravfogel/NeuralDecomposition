@@ -43,7 +43,7 @@ if __name__ == '__main__':
                         help='cuda device to run the LM on')
     parser.add_argument('--dataset-type', dest='dataset_type', type=str, default="all",
                         help='all / pairs')
-    parser.add_argument('--layers', '--list', help='list of ELMO layers to include', type=str, default ="1,2")
+    parser.add_argument('--layers', '--list', dest="list", help='list of ELMO layers to include', type=str, default ="1,2")
 
    
     args = parser.parse_args()
