@@ -15,12 +15,14 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib
-matplotlib.use('tkagg')
+#matplotlib.use('tkagg')
 import sys
 sys.path.append('../src/generate_dataset')
 import utils
 import pylab
                 
+
+# (num_layers, sent_length, 1024)
                 
 class Vector(object):
     
@@ -58,7 +60,8 @@ class Vector(object):
         i = self.get_index()
         before = " ".join(words[:i])
         after = " ".join(words[i + 1:])
-        word = "***"+termcolor.colored(self.get_word(), "blue", attrs = ['bold'])+"***"
+        #word = "***"+termcolor.colored(self.get_word(), "blue", attrs = ['bold'])+"***"
+        word = "***" + self.get_word() + "***"
         sent = '""' + before + " " + word + " " + after + '"' + "***WORD: {} ***".format(self.get_word())
         return sent
     
@@ -161,7 +164,7 @@ class Evaluator(object):
                 
                 sents_repres = []
                 sents_strs = []
-                
+		                
                 for i, sent_vecs in tqdm.tqdm(enumerate(self.vec_lists)):
                 
                         #sent_vecs_np = np.array([self.extractor.extract([v.get_vector()]).reshape(-1)[1:] for v in sent_vecs])
@@ -180,25 +183,26 @@ class Evaluator(object):
                         sents_repres[i] /= np.linalg.norm(sents_repres[i])
                         
                 print(sents_repres[0].shape)
-                
-                for i in range(min(n, len(self.vec_lists))):
+
+                with open("closest_sentence." + "transformation:{}".format(apply_transformation) + ".txt", "w", encoding = "utf8") as f:                
+                    
+                    for i in range(min(n, len(self.vec_lists))):
                 
                         similarity_scores = sents_repres.dot(sents_repres[i].T)
                         three_largest = similarity_scores.argsort()[-3:][::-1]
                         j = three_largest[1]
                         sent_i, sent_j = sents_strs[i], sents_strs[j]
                         
-                        print(" ".join(sent_i))
-                        print("-------------------")
-                        print(" ".join(sent_j))
-                        print("====================================================")
+                        f.write(" ".join(sent_i) + "\n")
+                        f.write("-------------------\n")
+                        f.write(" ".join(sent_j) + "\n")
+                        f.write("====================================================\n")
                         
                                 
                 
                         
                                                         
-        def closest_vector_test(self, n = 1000, verbose = False, apply_transformation = False):
-        
+        def closest_vector_test(self, n = 1000, verbose = False, apply_transformation = False, ignore = 0):       
                 random.seed(0)
                 
                 print("Performing closest vector test...")
@@ -211,29 +215,33 @@ class Evaluator(object):
                 
                         for i,v in enumerate(all_vecs):
                         
-                               v.vec = self.extractor.extract([v.vec.copy()]).reshape(-1)
+                               v.vec = self.extractor.extract([v.vec.copy()]).reshape(-1)[ignore:]
                 
                 random.shuffle(all_vecs)
                 
                 good, bad = 0., 0.
                 
+                filename = "closest_vector" + ("before" if not apply_transformation else "after") + ".ignore:" + str(ignore) + ".txt"
                 
-                for i in range(min(len(all_vecs), 1000)):
-                
-                        vec = all_vecs[i]
-                        nearest_neighbor = Vector.get_closest_vector(vec, all_vecs)
-                        correct = False
+                with open(filename, "w", encoding = "utf8") as f:
+
+                        for i in range(min(len(all_vecs), 1000)):
+                                        
+                                vec = all_vecs[i]
+                                nearest_neighbor = Vector.get_closest_vector(vec, all_vecs)
+                                correct = False
                         
-                        if vec.dep == nearest_neighbor.dep:
-                                correct = True
-                                good += 1
+                                if vec.dep == nearest_neighbor.dep:
+                                        correct = True
+                                        good += 1
                         
-                        else:
-                                bad += 1
+                                else:
+                                        bad += 1
                         
-                        if verbose and i < 300:
+                                if verbose and i < 1000:
                         
-                                print("key: {} \n value: {}\n key-dep: {} \n value-dep: {} \n ------------------------------------------------".format(vec, nearest_neighbor, vec.dep, nearest_neighbor.dep))
+                                        s = "key: {} \n value: {}\n key-dep: {} \n value-dep: {} \n ------------------------------------------------".format(vec, nearest_neighbor, vec.dep, nearest_neighbor.dep)
+                                        f.write(s + "\n")
                         
                 acc = good / (good + bad)
                 print("Average accuracy is {}".format(acc))
@@ -314,7 +322,7 @@ class Evaluator(object):
                 
                 options_file = "../data/external/elmo_2x4096_512_2048cnn_2xhighway_options.json"
                 weight_file = "../data/external/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
-                return ElmoEmbedder(options_file, weight_file, cuda_device=0)
+                return ElmoEmbedder(options_file, weight_file, cuda_device=1)
                 return ElmoEmbedder(options_file, weight_file)
         
         def _run_elmo(self, sentences: List[List[str]]) -> List[np.ndarray]:
@@ -328,11 +336,17 @@ class Evaluator(object):
                         
                 all_embeddings = []
                 
+                #print(elmo_embeddings[0].shape)
+                #exit()
                 for sent_emn in elmo_embeddings:
                 
                         last_layer = sent_emn[-1, :, :]
-                        all_embeddings.append(last_layer)
+                        second_layer = sent_emn[-2, :, :]
+                        
+                        all_embeddings.append(np.concatenate([second_layer, last_layer], axis = 1))
                 
+                #print(all_embeddings[0].shape)
+                #exit()
                 return all_embeddings
                 
                 
@@ -340,14 +354,14 @@ class Evaluator(object):
         
                 print("Loading sentences...")
                 
-                with open(fname, "r") as f:
+                with open(fname, "r", encoding = "utf8") as f:
                         lines = f.readlines()
                         lines =  [line.strip().split(" ") for line in lines]
                         
                 if max_length is not None:
                         lines = list(filter(lambda sentence: len(sentence) < max_length, lines))
                 
-                lines = lines[:45000]
+                lines = lines[:]
                 
                 return lines
                 
