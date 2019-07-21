@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 from syntactic_extractor import SyntacticExtractor
 from allennlp.commands.elmo import ElmoEmbedder
 from typing import List
@@ -102,7 +105,8 @@ class Evaluator(object):
         
                 #self.plot()
 
-                self.get_closest_sentence()
+                self.get_closest_sentence(apply_transformation = False)
+                self.get_closest_sentence(apply_transformation = True)
 
                 print("***Cloest neighbor test, before the application of the syntactic extractor***")
                 self.closest_vector_test(apply_transformation = False, verbose = True)
@@ -157,7 +161,7 @@ class Evaluator(object):
                 #plt.show()                
                 #plt.show()
         
-        def get_closest_sentence(self, n = 1000, apply_transformation  = False):
+        def get_closest_sentence(self, n = 2000, apply_transformation  = False):
         
                 random.seed(0)
                 vec_lists = self.vec_lists
@@ -168,10 +172,19 @@ class Evaluator(object):
                 for i, sent_vecs in tqdm.tqdm(enumerate(self.vec_lists)):
                 
                         #sent_vecs_np = np.array([self.extractor.extract([v.get_vector()]).reshape(-1)[1:] for v in sent_vecs])
-                        sent_vecs_np = np.array([self.extractor.extract([v.get_vector()]).reshape(-1)[:] for v in sent_vecs])
+
+                        if apply_transformation:
+                                sent_vecs_np = np.array([self.extractor.extract([v.get_vector()]).reshape(-1)[:] for v in sent_vecs])
+                        
+                        else:
+
+                               sent_vecs_np = np.array([v.get_vector().reshape(-1)[:] for v in sent_vecs])
                         #sent_vecs_np = np.stack([v.get_vector()[1:] for v in sent_vecs])
                         sent_lst = sent_vecs[0].sentence#.split(" ")
                         good_indices = np.array([i for i in range(len(sent_lst)) if sent_lst[i] not in utils.DEFAULT_PARAMS["function_words"]])
+                        if not good_indices: continue
+                        #print(good_indices, " ".join(sent_lst).encode('utf-8'))
+
                         sent_vecs_np = sent_vecs_np[good_indices]
                         sent_mean_vec = np.mean(sent_vecs_np, axis = 0)
                         sents_repres.append(sent_mean_vec)
@@ -350,7 +363,7 @@ class Evaluator(object):
                 return all_embeddings
                 
                 
-        def _load_sents(self, fname = "sents_f", max_length = 35) -> List[List[str]]:
+        def _load_sents(self, fname = "../data/external/wiki.clean.250k", max_length = 35) -> List[List[str]]:
         
                 print("Loading sentences...")
                 
