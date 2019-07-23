@@ -43,3 +43,31 @@ class CCALayer(nn.Module):
 
         return X, Y
 
+
+if __name__ == '__main__':
+    train_size = 300
+    dim = 2
+
+    cca = CCALayer()
+    X = torch.rand(train_size, dim) - 0.5
+    Y = 1.5 * copy.deepcopy(X)
+
+    X_original, Y_original = copy.deepcopy(X), copy.deepcopy(Y)
+
+    print("Performing CCA via CCA layer")
+
+    X_cca, Y_cca = cca(X, Y)
+
+    print(X_cca.detach().numpy()[:20, :])
+    print("=========================")
+    print(Y_cca.detach().numpy()[:20, :])
+
+    print("============================================================")
+    print("Performing gold CCA projection")
+
+    gold_cca = CCA(n_components=dim)
+    gold_cca.fit(X_original, Y_original)
+    X_cca_true, Y_cca_true = gold_cca.transform(X_original, Y_original)
+    print(X_cca_true[:20, :])
+    print("=========================")
+    print(Y_cca_true[:20, :])
