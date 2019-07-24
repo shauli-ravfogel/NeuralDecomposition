@@ -9,13 +9,10 @@ class SimilarityLoss(torch.nn.Module):
 
     def forward(self, X, Y):
 
-        X = F.normalize(X, p = 2, dim = 1)
-        Y = F.normalize(Y, p=2, dim=1)
-        XY = torch.mm(X, torch.t(Y))
-        similarities = torch.abs(torch.diag(XY))
+        similarities = torch.abs(F.cosine_similarity(X,Y))
         differences = 1. - similarities
 
-        return torch.sum(differences)
+        return torch.mean(differences)
 
 if __name__ == '__main__':
 
@@ -23,5 +20,5 @@ if __name__ == '__main__':
     dim = 1024
     loss = SimilarityLoss()
     X = torch.rand(train_size, dim) - 0.5
-    Y = -2.5 * copy.deepcopy(X)
+    Y = -2.5 * copy.deepcopy(X) + 0.5 * torch.rand(train_size, dim)
     print(loss(X,Y))
