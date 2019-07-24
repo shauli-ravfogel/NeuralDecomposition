@@ -11,7 +11,7 @@ class CCALayer(nn.Module):
     def __init__(self):
         super(CCALayer, self).__init__()
 
-    def forward(self, X, Y, r=1e-5):
+    def forward(self, X, Y, r = 1e-4):
         # X,Y = torch.t(X), torch.t(Y) # X and Y are (num_dims, num_samples)
 
         mean_x = torch.mean(X, dim = 0)
@@ -26,23 +26,23 @@ class CCALayer(nn.Module):
         cov_yy = (1. / (m - 1)) * torch.mm(torch.t(Y), Y) + r * torch.eye(m)
         cov_xy = (1. / (m - 1)) * torch.mm(torch.t(X), Y) + r * torch.eye(m)
 
-        #print("Covariance matrix:\n", cov_xx)
-        cov_xx_inverse_squared = torch.inverse(torch.cholesky(cov_xx))
-        cov_yy_inverse_squared = torch.inverse(torch.cholesky(cov_yy))
+        cov_xx_inverse_sqrt = torch.inverse(torch.cholesky(cov_xx))
+        cov_yy_inverse_sqrt = torch.inverse(torch.cholesky(cov_yy))
 
-        T = torch.mm(torch.mm(cov_xx_inverse_squared, cov_xy), torch.t(cov_yy_inverse_squared))
-        #print("T:\n")
-        #print(T, torch.min(T.view(-1)), torch.max(T.view(-1)), T.shape, T.view(-1).shape)
-        U, S, V = torch.svd(T)
+        T = torch.mm(torch.mm(cov_xx_inverse_sqrt, cov_xy), torch.t(cov_yy_inverse_sqrt))
 
-        A = torch.mm(cov_xx_inverse_squared, U)
-        B = torch.mm(cov_yy_inverse_squared, V)
+        U, S, V = torch.svd(T + r * torch.eye(m))
 
-        self.A = A
-        self.B = B
+        #tt = T.detach().numpy()
+        #tt = tt.dot(tt.T)
+        #print(np.linalg.cond(tt))
+
+        A = torch.mm(cov_xx_inverse_sqrt, U)
+        B = torch.mm(cov_yy_inverse_sqrt, V)
 
         X_proj = torch.mm(X, A)
         Y_proj = torch.mm(Y, B)
+
 
         return X_proj, Y_proj
 

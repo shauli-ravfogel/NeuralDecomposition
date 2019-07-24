@@ -1,5 +1,6 @@
 import torch
 import tqdm
+from torch import autograd
 
 def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epochs=200):
     lowest_loss = 1e9
@@ -8,6 +9,8 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
 
         model.zero_grad()
         model.cca.zero_grad()
+
+
 
         print("Evaluating...(Lowest dev set loss so far is {})".format(lowest_loss))
         loss = evaluate(model, dev_generator, loss_fn)
@@ -28,9 +31,12 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
 
             i += 1
 
-            X_proj, Y_proj = model(view1, view2)
-            loss = loss_fn(X_proj, Y_proj)
-            loss.backward()
+            with autograd.detect_anomaly():
+
+                X_proj, Y_proj = model(view1, view2)
+                loss = loss_fn(X_proj, Y_proj)
+                loss.backward()
+
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.)
             optimizer.step()
             model.zero_grad()

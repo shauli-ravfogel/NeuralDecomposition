@@ -13,8 +13,7 @@ class SimilarityLoss(torch.nn.Module):
         differences = 1. - similarities
 
         loss = torch.mean(differences)
-        #print(loss)
-        return loss
+        return loss #torch.dist(X,Y)
 
 if __name__ == '__main__':
 

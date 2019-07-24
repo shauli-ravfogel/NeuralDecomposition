@@ -17,7 +17,7 @@ if __name__ == '__main__':
     network = model.ProjectionNetwork()#.cuda()
     optimizer = optim.Adam(network.parameters())
     train = dataset.Dataset("../view1.25.txt", "../view2.25.txt")
-    training_generator = data.DataLoader(train, batch_size=25, shuffle=True)
-    dev_generator = data.DataLoader(train, batch_size=25, shuffle=False)
+    training_generator = data.DataLoader(train, batch_size=500, shuffle=True)
+    dev_generator = data.DataLoader(train, batch_size=500, shuffle=False)
 
     training.train(network, training_generator, dev_generator, loss_fn, optimizer)
