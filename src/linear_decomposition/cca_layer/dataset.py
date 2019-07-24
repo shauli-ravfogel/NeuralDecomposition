@@ -14,11 +14,11 @@ class Dataset(data.Dataset):
 
     def _load_data(self, view1_location, view2_location):
 
-        with open(view2_location, "r") as f:
+        with open(view1_location, "rb") as f:
 
             view1 = pickle.load(f)
 
-        with open(view2_location, "r") as f:
+        with open(view2_location, "rb") as f:
 
             view2 = pickle.load(f)
 
@@ -29,5 +29,5 @@ class Dataset(data.Dataset):
         return len(self.view1)
 
     def __getitem__(self, index):
-
-        return (torch.from_numpy(self.view1[index]), torch.from_numpy(self.view2[index]))
+        with torch.no_grad():
+            return (torch.from_numpy(self.view1[index]).float(), torch.from_numpy(self.view2[index]).float())
