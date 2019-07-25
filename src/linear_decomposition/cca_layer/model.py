@@ -13,10 +13,13 @@ class ProjectionNetwork(nn.Module):
         super(ProjectionNetwork, self).__init__()
 
         layers = []
-        layers.append(nn.Linear(dim, 10))
-        layers.append(nn.Tanh())
-        layers.append(nn.Linear(10,10))
-        layers.append(nn.Tanh())
+        layers.append(nn.Linear(dim, 1024))
+        layers.append(nn.ReLU())
+        layers.append(nn.Linear(1024, 512))
+        layers.append(nn.ReLU())
+        layers.append(nn.Linear(512, 256))
+        layers.append(nn.ReLU())
+        layers.append(nn.Linear(256, 128))
 
         self.W = torch.nn.Parameter(0.0001 * (torch.randn(dim, 100) - 0.5))
 

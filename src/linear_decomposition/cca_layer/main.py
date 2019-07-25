@@ -16,8 +16,8 @@ if __name__ == '__main__':
     loss_fn = loss.SimilarityLoss()
     network = model.ProjectionNetwork()#.cuda()
     optimizer = optim.Adam(network.parameters())
-    train = dataset.Dataset("../view1.25.txt", "../view2.25.txt")
-    training_generator = data.DataLoader(train, batch_size=500, shuffle=True)
-    dev_generator = data.DataLoader(train, batch_size=500, shuffle=False)
+    train = dataset.Dataset("../view1.160.txt", "../view2.160.txt")
+    training_generator = data.DataLoader(train, batch_size=1250, shuffle=True)
+    dev_generator = data.DataLoader(train, batch_size=1250, shuffle=False)
 
     training.train(network, training_generator, dev_generator, loss_fn, optimizer)
