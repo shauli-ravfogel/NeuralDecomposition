@@ -32,7 +32,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
             with autograd.detect_anomaly():
 
                 T, (X_proj, Y_proj) = model(view1, view2)
-                loss = loss_fn(X_proj, Y_proj)
+                loss = loss_fn(X_proj, Y_proj, T)
                 loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 50.)
@@ -53,7 +53,7 @@ def evaluate(model, eval_generator, loss_fn):
             for view1, view2 in t:
 
                 T, (X_proj, Y_proj) = model(view1, view2)
-                loss = loss_fn(X_proj, Y_proj)
+                loss = loss_fn(X_proj, Y_proj, T)
                 average_loss += loss
 
 

@@ -30,7 +30,7 @@ class CCALayer(nn.Module):
         cov_yy_inverse_sqrt = torch.inverse(torch.cholesky(cov_yy))
 
         T = torch.mm(torch.mm(cov_xx_inverse_sqrt, cov_xy), torch.t(cov_yy_inverse_sqrt))
-        print(torch.trace(T))
+        #print(torch.trace(T))
         U, S, V = torch.svd(T + r * torch.eye(m))
 
         #tt = T.detach().numpy()
