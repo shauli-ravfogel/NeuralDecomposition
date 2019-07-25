@@ -4,22 +4,23 @@ import copy
 import torch.nn.functional as F
 
 class SimilarityLoss(torch.nn.Module):
+
     def __init__(self):
+
         super(SimilarityLoss, self).__init__()
 
     def forward(self, X, Y, T):
 
         trace = -torch.trace(T)/X.shape[1]
-        print(trace)
-
-        return trace
+        loss = 1. - torch.abs(trace)
+        return loss
 
         similarities = torch.abs(F.cosine_similarity(X,Y))
         differences = 1. - similarities
 
         loss = torch.mean(differences)
 
-        return loss #torch.dist(X,Y)
+        return loss  #torch.dist(X,Y)
 
 if __name__ == '__main__':
 

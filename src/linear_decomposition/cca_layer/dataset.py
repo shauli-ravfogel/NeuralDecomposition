@@ -30,4 +30,4 @@ class Dataset(data.Dataset):
 
     def __getitem__(self, index):
         with torch.no_grad():
-            return (torch.from_numpy(self.view1[index]).float(), torch.from_numpy(self.view2[index]).float())
+            return (torch.from_numpy(self.view1[index]).float().cuda(), torch.from_numpy(self.view2[index]).float().cuda())

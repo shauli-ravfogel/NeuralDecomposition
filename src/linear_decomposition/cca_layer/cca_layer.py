@@ -12,7 +12,6 @@ class CCALayer(nn.Module):
         super(CCALayer, self).__init__()
 
     def forward(self, X, Y, r = 1e-4):
-        # X,Y = torch.t(X), torch.t(Y) # X and Y are (num_dims, num_samples)
 
         mean_x = torch.mean(X, dim = 0)
         mean_y = torch.mean(Y, dim = 0)
@@ -22,16 +21,16 @@ class CCALayer(nn.Module):
         X = X - mean_x
         Y = Y - mean_y
 
-        cov_xx = (1. / (m - 1)) * torch.mm(torch.t(X), X) + r * torch.eye(m)
-        cov_yy = (1. / (m - 1)) * torch.mm(torch.t(Y), Y) + r * torch.eye(m)
-        cov_xy = (1. / (m - 1)) * torch.mm(torch.t(X), Y) + r * torch.eye(m)
+        cov_xx = (1. / (m - 1)) * torch.mm(torch.t(X), X) + r * torch.eye(m).cuda()
+        cov_yy = (1. / (m - 1)) * torch.mm(torch.t(Y), Y) + r * torch.eye(m).cuda()
+        cov_xy = (1. / (m - 1)) * torch.mm(torch.t(X), Y) + r * torch.eye(m).cuda()
 
         cov_xx_inverse_sqrt = torch.inverse(torch.cholesky(cov_xx))
         cov_yy_inverse_sqrt = torch.inverse(torch.cholesky(cov_yy))
 
         T = torch.mm(torch.mm(cov_xx_inverse_sqrt, cov_xy), torch.t(cov_yy_inverse_sqrt))
         #print(torch.trace(T))
-        U, S, V = torch.svd(T + r * torch.eye(m))
+        U, S, V = torch.svd(T + r * torch.eye(m).cuda())
 
         #tt = T.detach().numpy()
         #tt = tt.dot(tt.T)

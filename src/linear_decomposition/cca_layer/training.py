@@ -23,7 +23,6 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
         t = tqdm.tqdm(iter(training_generator), leave=False, total=len(training_generator))
         t = iter(training_generator)
         i = 0
-        loss = torch.zeros([1, 1])
 
         for view1, view2 in t:
 
