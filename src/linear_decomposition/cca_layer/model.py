@@ -8,21 +8,21 @@ import copy
 
 class ProjectionNetwork(nn.Module):
 
-    def __init__(self, dim = 2048):
+    def __init__(self, dim = 2048, final_dim  = 512):
 
         super(ProjectionNetwork, self).__init__()
 
         layers = []
         layers.append(nn.Linear(dim, 1024))
         layers.append(nn.ReLU())
-        layers.append(nn.Linear(1024, 512))
+        layers.append(nn.Linear(1024, final_dim))
         #layers.append(nn.ReLU())
         #layers.append(nn.Linear(512, 512))
 
         self.W = torch.nn.Parameter(0.0001 * (torch.randn(dim, 100) - 0.5))
 
         self.layers = nn.Sequential(*layers)
-        self.cca = cca_layer.CCALayer()
+        self.cca = cca_layer.CCALayer(dim, final_dim)
 
     def forward(self, X, Y):
 
@@ -38,14 +38,14 @@ class ProjectionNetwork(nn.Module):
         #print(X_h, X_h.shape)
         #print("Y before CCA layer:\n")
         #print(Y_h)
-        X_projected, Y_projected = self.cca(X_h,Y_h, is_training = self.training)
+        T, (X_projected, Y_projected) = self.cca(X_h,Y_h, is_training = self.training)
 
         #print("X after CCA :\n")
         #print(X_projected)
         #print("Y after CCA :\n")
         #print(Y_projected)
 
-        return X_projected, Y_projected
+        return T, (X_projected, Y_projected)
 
 if __name__ == '__main__':
 

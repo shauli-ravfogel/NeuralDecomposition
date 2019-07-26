@@ -7,6 +7,7 @@ class Dataset(data.Dataset):
     def __init__(self, view1_location, view2_location):
 
         self.view1, self.view2 = self._load_data(view1_location, view2_location)
+        print("Training set size is {}".format(len(self.view1)))
 
     def _from_string(self, vec_str):
 

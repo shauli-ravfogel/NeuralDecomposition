@@ -8,8 +8,17 @@ import numpy as np
 
 
 class CCALayer(nn.Module):
-    def __init__(self):
+
+    def __init__(self, dim, final_dim):
         super(CCALayer, self).__init__()
+
+        """
+        self.mean_x = nn.Parameter(torch.zeros(dim, requires_grad = False))
+        self.mean_y = nn.Parameter(torch.zeros(dim, requires_grad = False))
+        self.T = nn.Parameter(torch.zeros((final_dim, final_dim), requires_grad = False))
+        self.A = nn.Parameter(torch.zeros((final_dim, final_dim), requires_grad = False))
+        self.B = nn.Parameter(torch.zeros((final_dim, final_dim), requires_grad = False))
+        """
 
     def forward(self, X, Y, r = 1e-5, is_training = True):
 
@@ -18,6 +27,8 @@ class CCALayer(nn.Module):
 
             mean_x = torch.mean(X, dim = 0)
             mean_y = torch.mean(Y, dim = 0)
+            #self.mean_x = nn.Parameter(mean_x, requires_grad = True)
+            #self.mean_y = nn.Parameter(mean_y, requires_grad = True)
             self.mean_x = mean_x
             self.mean_y = mean_y
 
@@ -34,12 +45,15 @@ class CCALayer(nn.Module):
             cov_yy_inverse_sqrt = torch.inverse(torch.cholesky(cov_yy))
 
             T = torch.mm(torch.mm(cov_xx_inverse_sqrt, cov_xy), torch.t(cov_yy_inverse_sqrt))
+            #self.T = nn.Parameter(T, requires_grad = True)
             self.T = T
 
             U, S, V = torch.svd(T + r * torch.eye(m).cuda())
 
             A = torch.mm(cov_xx_inverse_sqrt, U)
             B = torch.mm(cov_yy_inverse_sqrt, V)
+            #self.A = nn.Parameter(A, requires_grad = True)
+            #self.B = nn.Parameter(B, requires_grad = True)
             self.A = A
             self.B = B
 

@@ -11,7 +11,7 @@ class SimilarityLoss(torch.nn.Module):
 
     def forward(self, X, Y, T):
 
-        trace = -torch.trace(T)/X.shape[1]
+        trace = torch.trace(T)/X.shape[1]
         loss = 1. - torch.abs(trace)
         return loss
 

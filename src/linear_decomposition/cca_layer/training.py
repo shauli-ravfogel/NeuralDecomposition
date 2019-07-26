@@ -2,7 +2,7 @@ import torch
 import tqdm
 from torch import autograd
 
-def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epochs=2000):
+def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epochs=100):
     lowest_loss = 1e9
 
     for epoch in range(num_epochs):
@@ -16,7 +16,9 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
 
             if loss < lowest_loss:
                 lowest_loss = loss
-                torch.save(model.state_dict(), "NeuralCCA.pickle")
+                #torch.save(model.state_dict(), "NeuralCCA.pickle")
+                torch.save(model, "NeuralCCA.pickle")
+                #print(q.cca.mean_x)
 
         print("Epoch {}".format(epoch))
 
@@ -33,6 +35,8 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
             with autograd.detect_anomaly():
 
                 T, (X_proj, Y_proj) = model(view1, view2)
+                #print(torch.diag(T)[:25])
+                #print("---------------------------------")
                 loss = loss_fn(X_proj, Y_proj, T)
                 loss.backward()
 

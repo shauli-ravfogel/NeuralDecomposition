@@ -20,6 +20,6 @@ if __name__ == '__main__':
     optimizer = optim.Adam(network.parameters())
     train = dataset.Dataset("../view1.160.txt", "../view2.160.txt")
     training_generator = data.DataLoader(train, batch_size=1250, shuffle=True)
-    dev_generator = data.DataLoader(train, batch_size=1250, shuffle=False)
+    dev_generator = data.DataLoader(train, batch_size=1, shuffle=False)
 
     training.train(network, training_generator, dev_generator, loss_fn, optimizer)
