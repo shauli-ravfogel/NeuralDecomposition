@@ -10,11 +10,13 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
         model.zero_grad()
         model.cca.zero_grad()
 
-        print("Evaluating...(Lowest dev set loss so far is {})".format(lowest_loss))
-        loss = evaluate(model, dev_generator, loss_fn)
-        if loss < lowest_loss:
-            lowest_loss = loss
-            torch.save(model.state_dict(), "model.pickle")
+        if epoch > 0:
+            loss = evaluate(model, dev_generator, loss_fn)
+            print("Evaluating...(Lowest dev set loss so far is {})".format(lowest_loss))
+
+            if loss < lowest_loss:
+                lowest_loss = loss
+                torch.save(model.state_dict(), "NeuralCCA.pickle")
 
         print("Epoch {}".format(epoch))
 
@@ -34,7 +36,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
                 loss = loss_fn(X_proj, Y_proj, T)
                 loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 50.)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 100.)
             optimizer.step()
             model.zero_grad()
             model.cca.zero_grad()

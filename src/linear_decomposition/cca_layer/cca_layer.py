@@ -11,39 +11,48 @@ class CCALayer(nn.Module):
     def __init__(self):
         super(CCALayer, self).__init__()
 
-    def forward(self, X, Y, r = 1e-4):
-
-        mean_x = torch.mean(X, dim = 0)
-        mean_y = torch.mean(Y, dim = 0)
-
-        m = X.shape[1]
-
-        X = X - mean_x
-        Y = Y - mean_y
-
-        cov_xx = (1. / (m - 1)) * torch.mm(torch.t(X), X) + r * torch.eye(m).cuda()
-        cov_yy = (1. / (m - 1)) * torch.mm(torch.t(Y), Y) + r * torch.eye(m).cuda()
-        cov_xy = (1. / (m - 1)) * torch.mm(torch.t(X), Y) + r * torch.eye(m).cuda()
-
-        cov_xx_inverse_sqrt = torch.inverse(torch.cholesky(cov_xx))
-        cov_yy_inverse_sqrt = torch.inverse(torch.cholesky(cov_yy))
-
-        T = torch.mm(torch.mm(cov_xx_inverse_sqrt, cov_xy), torch.t(cov_yy_inverse_sqrt))
-        #print(torch.trace(T))
-        U, S, V = torch.svd(T + r * torch.eye(m).cuda())
-
-        #tt = T.detach().numpy()
-        #tt = tt.dot(tt.T)
-        #print(np.linalg.cond(tt))
-
-        A = torch.mm(cov_xx_inverse_sqrt, U)
-        B = torch.mm(cov_yy_inverse_sqrt, V)
-
-        X_proj = torch.mm(X, A)
-        Y_proj = torch.mm(Y, B)
+    def forward(self, X, Y, r = 1e-5, is_training = True):
 
 
-        return T, (X_proj, Y_proj)
+        if is_training:
+
+            mean_x = torch.mean(X, dim = 0)
+            mean_y = torch.mean(Y, dim = 0)
+            self.mean_x = mean_x
+            self.mean_y = mean_y
+
+            m = X.shape[1]
+
+            X = X - mean_x
+            Y = Y - mean_y
+
+            cov_xx = (1. / (m - 1)) * torch.mm(torch.t(X), X) + r * torch.eye(m).cuda()
+            cov_yy = (1. / (m - 1)) * torch.mm(torch.t(Y), Y) + r * torch.eye(m).cuda()
+            cov_xy = (1. / (m - 1)) * torch.mm(torch.t(X), Y) + r * torch.eye(m).cuda()
+
+            cov_xx_inverse_sqrt = torch.inverse(torch.cholesky(cov_xx))
+            cov_yy_inverse_sqrt = torch.inverse(torch.cholesky(cov_yy))
+
+            T = torch.mm(torch.mm(cov_xx_inverse_sqrt, cov_xy), torch.t(cov_yy_inverse_sqrt))
+            self.T = T
+
+            U, S, V = torch.svd(T + r * torch.eye(m).cuda())
+
+            A = torch.mm(cov_xx_inverse_sqrt, U)
+            B = torch.mm(cov_yy_inverse_sqrt, V)
+            self.A = A
+            self.B = B
+
+        else:
+
+            X = X - self.mean_x
+            Y = Y - self.mean_y
+
+        X_proj = torch.mm(X, self.A)
+        Y_proj = torch.mm(Y, self.B)
+
+
+        return self.T, (X_proj, Y_proj)
 
 
 if __name__ == '__main__':

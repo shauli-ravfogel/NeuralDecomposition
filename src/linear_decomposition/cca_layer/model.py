@@ -16,10 +16,8 @@ class ProjectionNetwork(nn.Module):
         layers.append(nn.Linear(dim, 1024))
         layers.append(nn.ReLU())
         layers.append(nn.Linear(1024, 512))
-        layers.append(nn.ReLU())
-        layers.append(nn.Linear(512, 256))
-        layers.append(nn.ReLU())
-        layers.append(nn.Linear(256, 128))
+        #layers.append(nn.ReLU())
+        #layers.append(nn.Linear(512, 512))
 
         self.W = torch.nn.Parameter(0.0001 * (torch.randn(dim, 100) - 0.5))
 
@@ -40,7 +38,7 @@ class ProjectionNetwork(nn.Module):
         #print(X_h, X_h.shape)
         #print("Y before CCA layer:\n")
         #print(Y_h)
-        X_projected, Y_projected = self.cca(X_h,Y_h)
+        X_projected, Y_projected = self.cca(X_h,Y_h, is_training = self.training)
 
         #print("X after CCA :\n")
         #print(X_projected)
