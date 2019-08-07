@@ -9,9 +9,9 @@ class SimilarityLoss(torch.nn.Module):
 
         super(SimilarityLoss, self).__init__()
 
-    def forward(self, X, Y, T):
+    def forward(self, X, Y, total_corr):
 
-        trace = torch.trace(T)/X.shape[1]
+        trace = 1 - total_corr
         loss = 1. - torch.abs(trace)
         return loss
 
