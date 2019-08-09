@@ -40,7 +40,7 @@ class CCASyntacticExtractor(SyntacticExtractor):
                 
                         self.pca = pickle.load(f)
 
-                with open("models/PCA/decomposition/CCAModel.PCA:1900.Method:cca.Dim:80.Data:bert_same_pos.Sentences:16000.pickle", "rb") as f:
+                with open("models/CCAModel.PCA:1900.Method:cca.Dim:80.Data:bert_same_pos.Sentences:16000.pickle", "rb") as f:
                 
                         self.cca = pickle.load(f)                       
         

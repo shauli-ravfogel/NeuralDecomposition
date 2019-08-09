@@ -5,6 +5,7 @@ import argparse
 import syntactic_extractor
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser(description='Equivalent sentences generator',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--input-wiki', dest='input_wiki', type=str,
@@ -19,13 +20,13 @@ if __name__ == '__main__':
     parser.add_argument('--elmo_folder', dest='elmo_folder', type=str,
                         default='../data/external')
     parser.add_argument('--method', dest='method', type=str,
-                        default='euc', help = "similarity method (cosine / euc)")
+                        default='cosine', help = "similarity method (cosine / euc)")
     parser.add_argument('--cuda-device', dest='cuda_device', type=int, default=0,
                         help='cuda device to run the LM on')
-    parser.add_argument('--num_sents', dest='num_sents', type=int, default=100,
+    parser.add_argument('--num_sents', dest='num_sents', type=int, default=25000,
                         help='number of wiki sentences to use')
-    parser.add_argument('--num_words', dest='num_words', type=int, default=50,
-                        help='number of total words to use (needs to be > num_sents)')
+    parser.add_argument('--num_words', dest='num_words', type=int, default=50000,
+                        help='number of total words to collect')
     parser.add_argument('--num_queries', dest='num_queries', type=int, default=500,
                         help='number of closest-vector queries to perform within the tests.')
     parser.add_argument('--extractor', dest='extractor', type=str, default="cca",
@@ -58,24 +59,4 @@ if __name__ == '__main__':
     # Run tests.
     
     evaluate.run_tests(data, extractor, num_queries = args.num_queries, method = args.method, num_words = args.num_words, ignore_function_words = True)
-    
-    """
    
-    embds_sents_and_deps = evaluate.get_sentence_representations(data)
-   
-    # closest-word, with ELMO alone (basline)
-    
-    evaluate.closest_word_test(embds_sents_and_deps, num_queries = args.num_queries, method = args.method, extractor = None, num_words = args.num_words)
-    
-    # closest-word, with ELMO + syntactic extractor
-    
-    evaluate.closest_word_test(embds_sents_and_deps, num_queries = args.num_queries, method = args.method, extractor = extractor, num_words = args.num_words)
-   
-    # closest-sentence, with ELMO alone (basline)
-   
-    evaluate.closest_sentence_test(embds_sents_and_deps, num_queries = args.num_queries, method = args.method, extractor = None)
-   
-    # closest-sentence, with ELMO + syntactic extractor
-    
-    evaluate.closest_sentence_test(embds_sents_and_deps, num_queries = args.num_queries, method = args.method, extractor = extractor)
-   """
