@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import pickle
+import torch
 
 class SyntacticExtractor(object):
 
@@ -35,42 +36,46 @@ class CCASyntacticExtractor(SyntacticExtractor):
 
         def __init__(self): 
         
-                with open("trained_pca.1500pts.900", "rb") as f:
+                with open("models/PCAModel.PCA:1900.Method:cca.Dim:80.Data:bert_same_pos.Sentences:16000.pickle", "rb") as f:
                 
                         self.pca = pickle.load(f)
 
-                with open("trained_cca.1500pts.950pca.45cca", "rb") as f:
+                with open("models/PCA/decomposition/CCAModel.PCA:1900.Method:cca.Dim:80.Data:bert_same_pos.Sentences:16000.pickle", "rb") as f:
                 
                         self.cca = pickle.load(f)                       
         
         def extract(self, contextualized_vector: np.ndarray) -> np.ndarray:
         
-                x = self.pca.inverse_transform(self.pca.transform(contextualized_vector))
-                return self.cca.transform(x)
-                
+                x = self.pca.inverse_transform(self.pca.transform([contextualized_vector] if len(contextualized_vector.shape) == 1 else contextualized_vector))
+                return self.cca.transform(x)[:]
 
-class PCASyntacticExtractor(SyntacticExtractor):
+class NeuralCCASyntacticExtractor(SyntacticExtractor):
 
-        def __init__(self): 
-        
-                with open("fitted_pca.init.dim900", "rb") as f:
-                
-                        self.initial_pca = pickle.load(f)
+        def __init__(self):                      
 
-                with open("fitted_pca.500pts.900.pca-init.100pca", "rb") as f:
+                import model
+                #self.model = model.ProjectionNetwork()
+                #self.model.load_state_dict(torch.load("NeuralCCA.pickle"))
+                self.model = torch.load("NeuralCCA.pickle")
+                self.model.eval()
+                self.model.cpu()
+                self.model.cca.mean_x.cpu()
+                self.model.cca.mean_y.cpu()
+                self.model.cca.A.cpu()
+                self.model.cca.B.cpu()
                 
-                        self.pca = pickle.load(f)
-        
         def extract(self, contextualized_vector: np.ndarray) -> np.ndarray:
         
-                """
-                x = self.initial_pca.transform(contextualized_vector)
-                y = x - self.pca.inverse_transform(self.pca.transform(x))
-                """
+                with torch.no_grad():
                 
-                x = self.initial_pca.inverse_transform(self.initial_pca.transform(contextualized_vector))
-                y = self.pca.inverse_transform(self.pca.transform(x))
+                        x = torch.from_numpy(contextualized_vector).float()
+                        h = self.model.layers(x.unsqueeze(0) if len(x.shape) == 1 else x)
+                        return h.detach().numpy()[:,:]
+                        
+                        T, (o, _) = self.model.cca(h.cuda(),h.cuda(), is_training = False)
+                        corr = torch.diag(T).detach().cpu().numpy()
+
+                        #print("---------------------------------------------------------")
+                        return o.detach().cpu().numpy()[:,:]
                 
-                return y
-                                
-#extractor = SiameseSyntacticExtractor()
+              

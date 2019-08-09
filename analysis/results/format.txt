@@ -1,0 +1,8 @@
+closest_sentences.extractor:False.txt: contains the results of the closest-sentence test, berfore the application of the syntactic extractor. Format: query-sentence tab closest-sentence tab kernel-similarity tab edit-distance-similarity.
+
+losest_sentences.extractor:True.txt: as above, after the applciation of the syntactic extractor.
+              
+closest_words.extractor:False.txt: contains the results of the closest-word test, berfore the application of the syntactic extractor. Format: query-word tab closest-word tab query-word-dep tab closest-word-dep tab correct.
+              The full context of the sentence is provided, and the words are marked by ***asterisks***.
+              
+closest_words.extractor:True.txt: as above, after the application of the syntactic extractor.
