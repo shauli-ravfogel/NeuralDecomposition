@@ -49,7 +49,9 @@ class CCALayer(nn.Module):
             self.T = T
 
             U, S, V = torch.svd(T + r * torch.eye(m).cuda())
-
+            S = torch.clamp(S, 1e-6, 0.9999)
+            self.S = S
+            
             A = torch.mm(cov_xx_inverse_sqrt, U)
             B = torch.mm(cov_yy_inverse_sqrt, V)
             #self.A = nn.Parameter(A, requires_grad = True)
@@ -66,7 +68,7 @@ class CCALayer(nn.Module):
         Y_proj = torch.mm(Y, self.B)
 
 
-        return self.T, (X_proj, Y_proj)
+        return torch.mean(self.S), (X_proj, Y_proj)
 
 
 if __name__ == '__main__':
