@@ -25,7 +25,7 @@ if __name__ == '__main__':
                         help='cuda device to run the LM on')
     parser.add_argument('--num_sents', dest='num_sents', type=int, default=25000,
                         help='number of wiki sentences to use')
-    parser.add_argument('--num_words', dest='num_words', type=int, default=50000,
+    parser.add_argument('--num_words', dest='num_words', type=int, default=100000,
                         help='number of total words to collect')
     parser.add_argument('--num_queries', dest='num_queries', type=int, default=500,
                         help='number of closest-vector queries to perform within the tests.')
