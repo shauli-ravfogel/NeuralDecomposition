@@ -329,3 +329,88 @@ def closest_word_test(words_reprs: List[Word_vector], extractor = None, num_quer
         acc = good / (good + bad)                        
         print("Percentage of closest-words pairs with the same dependency-edge: {}".format(acc))
 
+        
+def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs = 1000, color_by = "position", metric = "euclidean"):
+
+        random.seed(0)
+        data = random.choices(words_reprs, k = num_vecs)
+        
+        # Apply syntactic extractor
+        
+        if extractor is not None:
+        
+                print("Applying syntactic extractor...")
+                
+                for i, word_representation in tqdm(enumerate(data), total = len(data)):
+                
+                        data[i] = word_representation._replace(word_vector = extractor.extract(word_representation.word_vector).reshape(-1)[:])
+        
+        # Collect vectors & labels
+        
+        embeddings, labels = [], []
+
+        dep_counter = Counter()
+        position_counter = Counter()
+        
+        for word_repr in data:
+        
+                vec, dep, ind = word_repr.word_vector, word_repr.dep_edge, word_repr.index
+                embeddings.append(vec)
+                labels.append(dep if color_by == "dep" else ind)
+                dep_counter[dep] += 1
+                position_counter[ind] += 1
+        
+        counter = position_counter if color_by == "position" else dep_counter
+        label_set = [label for (label, count) in counter.most_common(18)]              
+        embeddings = np.array(embeddings)
+        labels = np.array(labels)
+        
+        if metric == "cosine":
+                          
+                embeddings = embeddings / np.linalg.norm(embeddings, axis = 1)[:, None]
+                
+        # calculate TSNE projection & plot
+
+        print ("calculating projection...")
+                
+        proj = TSNE(n_components=2, random_state = 0, metric = metric).fit_transform(embeddings)
+
+        fig, ax = plt.subplots()
+                
+        xs, ys = proj[:,0], proj[:,1]
+        xs, ys = list(xs), list(ys)
+        
+        if color_by == "dep":
+        
+                for label in label_set:
+        
+                        condition = labels == label
+                        vecs = proj[condition]
+                        xs, ys = vecs[:,0], vecs[:,1]
+                        ax.scatter(xs, ys, label = label, alpha = 0.6)
+                        title = 'T-SNE by Grammatical Function'
+        
+                plt.legend()
+        
+        elif color_by == "position":
+        
+                 N  = len(set(labels))
+                 # define the colormap
+                 cmap = plt.cm.jet
+                 # extract all colors from the .jet map
+                 cmaplist = [cmap(i) for i in range(cmap.N)]
+                 # create the new map
+                 cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
+                 # define the bins and normalize
+                 bounds = np.linspace(0,N,N+1)
+                 norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+
+                 scat = ax.scatter(xs, ys, c = labels, cmap=cmap, norm=norm, alpha = 0.6)
+                 cb = plt.colorbar(scat, spacing='proportional',ticks=bounds)
+                 cb.set_label('Position')
+
+                 title = "T-SNE by Position in the Sentence"
+        
+        title += "\n        (#words: {}; applied syntactic extractor: {}; metric: {})".format(num_vecs, extractor is not None, metric)
+        ax.set_title(title)                      
+        plt.show()
