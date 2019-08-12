@@ -30,5 +30,13 @@ class Dataset(data.Dataset):
         return len(self.view1)
 
     def __getitem__(self, index):
+
         with torch.no_grad():
-            return (torch.from_numpy(self.view1[index]).float().cuda(), torch.from_numpy(self.view2[index]).float().cuda())
+
+            x1, ind1 = self.view1[index]
+            x2, ind2 = self.view2[index]
+
+            x1 = np.random.rand(*x1.shape) - 0.5
+            x2 = np.random.rand(*x2.shape) - 0.5
+
+            return ((torch.from_numpy(x1).float().cuda(), ind1), (torch.from_numpy(x2).float().cuda(), ind2))
