@@ -11,16 +11,8 @@ class SimilarityLoss(torch.nn.Module):
 
     def forward(self, X, Y, total_corr):
 
-        trace = 1 - total_corr
-        loss = 1. - torch.abs(trace)
-        return loss
+        return 1 -total_corr
 
-        similarities = torch.abs(F.cosine_similarity(X,Y))
-        differences = 1. - similarities
-
-        loss = torch.mean(differences)
-
-        return loss  #torch.dist(X,Y)
 
 if __name__ == '__main__':
 
