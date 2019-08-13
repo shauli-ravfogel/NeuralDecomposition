@@ -59,5 +59,5 @@ if __name__ == '__main__':
 
     # Run tests.
 
-    evaluate.run_tests(data, extractor, num_queries = args.num_queries, method = args.method, num_words = args.num_words, ignore_function_words = True)
+    evaluate.run_tests(data[:100], extractor, num_queries = args.num_queries, method = args.method, num_words = args.num_words, ignore_function_words = True)
 

@@ -271,7 +271,29 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector], extra
                                                                                               avg_edit_sims))
 
 
-def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_queries=15, method="cosine"):
+def node_height(token):
+    i = 0
+    while token.head != token:
+        i += 1
+        token = token.head
+    return i
+
+
+def get_tests():
+    tests = []
+
+    tests.append([lambda x: x.dep_edge, 'dependency edge'])
+    tests.append([lambda x: x.pos, 'pos'])
+    tests.append([lambda x: x.tag, 'tag'])
+    tests.append([lambda x: x.head_dep, 'head\'s dependency edge'])
+    tests.append([lambda x: x.index, 'index'])
+
+    return tests
+
+
+def closest_word_test(words_reprs: List[Word_vector], extractor=None,
+                      num_queries=15, method="cosine",
+                      k=5):
     """
         Parameters
 
@@ -313,19 +335,23 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
     # perform closest_vector query.
 
     queries = vecs[:num_queries]
-    closest_indices = get_closest_vectors(vecs, queries, method=method, k=5)
+    closest_indices = get_closest_vectors(vecs, queries, method=method, k=k)
 
     query_words = [data[i] for i in range(num_queries)]
 
     k_value_words = []
-    for i in range(5):
+    for i in range(k):
         value_words = [data[closest_ind[i]] for closest_ind in closest_indices]
         k_value_words.append(value_words)
 
+    tests = get_tests()
+    for i in range(len(tests)):
+        tests += [0., 0.]
     good_dep, bad_dep = 0., 0.
     good_pos, bad_pos = 0., 0.
     good_tag, bad_tag = 0., 0.
     good_head_dep, bad_head_dep = 0., 0.
+    good_ind, bad_ind = 0., 0.
 
     fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
     with open(fname, "w", encoding="utf8") as f:
@@ -336,6 +362,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
             pos1, pos2 = query.pos, value.pos
             tag1, tag2 = query.tag, value.tag
             head_dep1, head_dep2 = query.head_dep, value.head_dep
+            ind1, ind2 = query.index, value.index
             correct_dep = dep1 == dep2
             word1, word2 = query.word, value.word
             sent1, sent2 = query.sentence, value.sentence
@@ -345,31 +372,46 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
 
             f.write(sent1_str + "\t" + sent2_str + "\t" + str(dep1) + "\t" + str(dep2) + "\t" + str(correct_dep) + "\n")
 
-            if correct_dep:
-                good_dep += 1
-            else:
-                bad_dep += 1
-
-            if pos1 == pos2:
-                good_pos += 1
-            else:
-                bad_pos += 1
-
-            if tag1 == tag2:
-                good_tag += 1
-            else:
-                bad_tag += 1
-
-            if head_dep1 == head_dep2:
-                good_head_dep += 1
-            else:
-                bad_head_dep += 1
+            for t in tests:
+                obj1, obj2 = t[0](query), t[0](value)
+                if obj1 == obj1:
+                    t[2] += 1
+                else:
+                    t[3] += 1
+            # if correct_dep:
+            #     good_dep += 1
+            # else:
+            #     bad_dep += 1
+            #
+            # if pos1 == pos2:
+            #     good_pos += 1
+            # else:
+            #     bad_pos += 1
+            #
+            # if tag1 == tag2:
+            #     good_tag += 1
+            # else:
+            #     bad_tag += 1
+            #
+            # if head_dep1 == head_dep2:
+            #     good_head_dep += 1
+            # else:
+            #     bad_head_dep += 1
+            #
+            # if ind1 == ind2:
+            #     good_ind += 1
+            # else:
+            #     bad_ind += 1
 
     acc = good_dep / (good_dep + bad_dep)
-    print("Percentage of closest-words pairs with the same dependency-edge: {}".format(acc))
-    print("Percentage of closest-words pairs with the same pos: {}".format(good_pos / (good_pos + bad_pos)))
-    print("Percentage of closest-words pairs with the same tag: {}".format(good_tag / (good_tag + bad_tag)))
-    print("Percentage of closest-words pairs with the same head-dep: {}".format(good_head_dep / (good_head_dep + bad_head_dep)))
+    for t in test:
+        acc = t[2] / (t[2] + t[3])
+        print("Percentage of closest-words pairs with the same {0}: {1}".format(t[1], acc))
+    # print("Percentage of closest-words pairs with the same dependency-edge: {}".format(acc))
+    # print("Percentage of closest-words pairs with the same pos: {}".format(good_pos / (good_pos + bad_pos)))
+    # print("Percentage of closest-words pairs with the same tag: {}".format(good_tag / (good_tag + bad_tag)))
+    # print("Percentage of closest-words pairs with the same head-dep: {}".format(good_head_dep / (good_head_dep + bad_head_dep)))
+    # print("Percentage of closest-words pairs with the same index: {}".format(good_ind / (good_ind + bad_ind)))
 
     good_dep, bad_dep = 0., 0.
     good_pos, bad_pos = 0., 0.
@@ -391,6 +433,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
             good_tag += 1
         else:
             bad_tag += 1
+
     print("Percentage of closest-words pairs with the same dependency-edge top-k: {}".format(good_dep / (good_dep + bad_dep)))
     print("Percentage of closest-words pairs with the same pos top-k: {}".format(good_pos / (good_pos + bad_pos)))
     print("Percentage of closest-words pairs with the same tag top-k: {}".format(good_tag / (good_tag + bad_tag)))
