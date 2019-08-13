@@ -12,11 +12,11 @@ if __name__ == '__main__':
                         default='../data/external/wiki.clean.250k',
                         help='name of the source wikipedia text file')
     parser.add_argument('--encode_sentences', dest='encode_sentences', type=bool,
-                        default = True,
+                        default = False,
                         help='whether to encode the sentences with ELMO from scratch or use already calcuated representation')
     parser.add_argument('--encoded_data', dest='encoded_data', type=str,
                         default='../data/interim/encoded_sents.pickle',
-                        help='path to the embedded sentences data')                        
+                        help='path to the embedded sentences data')
     parser.add_argument('--elmo_folder', dest='elmo_folder', type=str,
                         default='../data/external')
     parser.add_argument('--method', dest='method', type=str,
@@ -32,31 +32,32 @@ if __name__ == '__main__':
     parser.add_argument('--extractor', dest='extractor', type=str, default="cca",
                         help='type of syntactic extracor (cca / neural_cca)')
     args = parser.parse_args()
-    
-    # use already-collected representations 
-    
+
+    # use already-collected representations
+
     if (not args.encode_sentences) and args.encoded_data != '':
-    
+
         with open(args.encoded_data, "rb") as f:
-        
+
                 data = pickle.load(f)
-                
+
     # recalculate representations
-    
+
     else:
-    
+
         elmo_embedder = embedder.Embedder(args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
-                       args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5', args.input_wiki, args.num_sents)
+                       args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5', args.input_wiki, args.num_sents,
+                       device=args.cuda_device)
 
         data = elmo_embedder.get_data()
-        
+
         with open(args.encoded_data, "wb") as f:
-        
+
                 pickle.dump(data, f)
-        
+
     extractor = syntactic_extractor.CCASyntacticExtractor()
-    
+
     # Run tests.
-    
+
     evaluate.run_tests(data, extractor, num_queries = args.num_queries, method = args.method, num_words = args.num_words, ignore_function_words = True)
-   
+

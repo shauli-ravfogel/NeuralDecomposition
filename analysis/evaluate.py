@@ -27,28 +27,28 @@ Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('s
 def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
               ignore_function_words=True):
     """
-        
+
         the main function for running the experiments & printing their results.
-        
+
         ----------
         Parameters
-        
+
         embds_and_sents: A list of tuples (sentence_vectors ,sentence_str).
 
         extractor: SyntacticExtractor, required.
                    An instance of the interface SyntacticExtractor that extracts syntactic representations.
-                         
+
         ----------
         Returns
         -------
         Reports results in the terminal. Produces the following txt files:
-        
+
               closest_sentences.extractor:False.txt: contains the results of the closest-sentence test, berfore the application of the syntactic extractor. Format: query-sentence tab closest-sentence tab kernel-similarity tab edit-distance-similarity:
               closest_sentences.extractor:True.txt: as above, after the applciation of the syntactic extractor.
-              
+
               closest_words.extractor:False.txt: contains the results of the closest-word test, berfore the application of the syntactic extractor. Format: query-word tab closest-word tab query-word-dep tab closest-word-dep tab correct.
               The full context of the sentence is provided, and the words are marked by ***asterisks***.
-              
+
               losest_words.extractor:True.txt: as above, after the application of the syntactic extractor.
         """
 
@@ -72,7 +72,7 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
 def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List[List[str]]):
     """
         Parameters
-        
+
         sentences: A list of sentence, where each sentence is a list of word strings.
         ----------
         Returns
@@ -129,7 +129,7 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], m
     else:
         distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
 
-    top_k = distances.argsort(axis=1)[:, :k]
+    top_k = distances.argsort(axis=1)[:, :k + 1]
     closest_indices = top_k[:, 1: k + 1]  # ignore the word itself
 
     return closest_indices
@@ -138,13 +138,13 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], m
 def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], str]]) -> List[Sentence_vector]:
     """
         Parameters
-        
+
         embds_and_sents: A list of tuples (sents_vectors, sentence string)
         ----------
         Returns
 
         embds_sents_deps: A list of Sentence_vectors.
-        
+
       """
 
     embds, sentences = list(zip(*embds_and_sents))
@@ -161,18 +161,18 @@ def sentences2words(sentence_representations: List[Sentence_vector], num_words, 
     Word_vector]:
     """
         Parameters
-        
+
         sentence_representations: A list of Sentence_vector, required.
                         contains the representation of all sentences.
-        
+
         num_words: int, required.
                 How many words to collect.
-                               
+
         ignore_function_words: bool, optional.
                    whether or not to filter function words.
-                   
+
         ----------
-        
+
         Returns
         -------
         word_vectors: A list of Word_vector, containing selected words from all sentences.
@@ -205,19 +205,19 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector], extra
                           method="cosine"):
     """
         Parameters
-        
+
         embds_sents_deps: A list of tuples (sents_vectors, sentence string, deps), required.
                         contains embeddings, sents and deps of all sentences.
-                        
+
         extractor: SyntacticExtractor, optional.
                    An instance of the interface SyntacticExtractor that extracts syntactic representations.
                    if None, use unmodified ELMO vectors. else, project each ELMO vectors using the extractor.
-                   
+
         num_queries:
                    how many closest-sentence queries to perform.
-        
+
         method: str, optional (cosine / euc)
-                
+
                 what kind of similarity function to use.
         ----------
         """
@@ -268,18 +268,18 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector], extra
 def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_queries=15, method="cosine"):
     """
         Parameters
-        
+
         words_reprs: A list of Word_vector, required.
-                        
+
         extractor: SyntacticExtractor, optional.
                    An instance of the interface SyntacticExtractor that extracts syntactic representations.
                    if None, use unmodified ELMO vectors. else, project each ELMO vectors using the extractor.
-                   
+
         num_queries:
                    how many closest-sentence queries to perform.
-        
+
         method: str, optional (cosine / euc)
-                
+
                 what kind of similarity function to use.
         ----------
         """
@@ -313,7 +313,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
 
     k_value_words = []
     for i in range(5):
-        value_words = [data[closest_ind][i] for closest_ind in closest_indices]
+        value_words = [data[closest_ind[i]] for closest_ind in closest_indices]
         k_value_words.append(value_words)
 
     good_dep, bad_dep = 0., 0.
@@ -360,7 +360,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
     good_dep, bad_dep = 0., 0.
     good_pos, bad_pos = 0., 0.
     good_tag, bad_tag = 0., 0.
-    for (query, value) in zip(query_words, k_value_words):
+    for (query, value) in zip(query_words, list(map(list, zip(*k_value_words)))):
         dep1 = query.dep_edge
         if dep1 in [x.dep_edge for x in value]:
             good_dep += 1
@@ -377,9 +377,9 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
             good_tag += 1
         else:
             bad_tag += 1
-        print("Percentage of closest-words pairs with the same dependency-edge top-k: {}".format(acc))
-        print("Percentage of closest-words pairs with the same pos top-k: {}".format(good_pos / (good_pos + bad_pos)))
-        print("Percentage of closest-words pairs with the same tag top-k: {}".format(good_tag / (good_tag + bad_tag)))
+    print("Percentage of closest-words pairs with the same dependency-edge top-k: {}".format(good_dep / (good_dep + bad_dep)))
+    print("Percentage of closest-words pairs with the same pos top-k: {}".format(good_pos / (good_pos + bad_pos)))
+    print("Percentage of closest-words pairs with the same tag top-k: {}".format(good_tag / (good_tag + bad_tag)))
 
 
 def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean"):
