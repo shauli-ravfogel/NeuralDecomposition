@@ -18,9 +18,10 @@ import spacy
 import random
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
-                                    [('sent_vectors', np.ndarray), ('sent_str', List[str]), ("parse", List[str])])
+                                    [('sent_vectors', np.ndarray), ('sent_str', List[str]), ("parse", List[str]),
+                                     ("pos", List[str])])
 Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('sentence', List[str]), ("index", int),
-                                                ("dep_edge", str), ("word", str)])
+                                                ("dep_edge", str), ("word", str), ("pos", str)])
 
 
 def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
@@ -68,7 +69,7 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
     closest_sentence_test(sentence_reprs, num_queries=num_queries, method=method, extractor=extractor)
 
 
-def parse(sentences: List[List[str]]) -> List[List[str]]:
+def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]]):
     """
         Parameters
         
@@ -89,6 +90,7 @@ def parse(sentences: List[List[str]]) -> List[List[str]]:
     nlp = spacy.load('en_core_web_sm')
 
     all_deps = []
+    all_pos = []
     count = 0
 
     for sent in tqdm(sentences, ascii=True):
@@ -100,9 +102,12 @@ def parse(sentences: List[List[str]]) -> List[List[str]]:
         deps = [token.dep_ for token in doc]
         all_deps.append(deps)
 
-        assert len(deps) == len(sent)
+        pos = [token.pos_ for token in doc]
+        all_pos.append(pos)
 
-    return all_deps
+        assert len(deps) == len(sent) == len(pos)
+
+    return all_deps, all_pos
 
 
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5):
@@ -139,11 +144,11 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
       """
 
     embds, sentences = list(zip(*embds_and_sents))
-    deps = parse(sentences)
+    deps, pos = parse(sentences)
 
-    assert len(deps) == len(sentences) == len(embds)
+    assert len(deps) == len(sentences) == len(embds) == len(pos)
 
-    embds_sents_deps = [Sentence_vector(e, s, d) for e, s, d in zip(embds, sentences, deps)]
+    embds_sents_deps = [Sentence_vector(e, s, d, p) for e, s, d, p in zip(embds, sentences, deps, pos)]
 
     return embds_sents_deps
 
@@ -177,13 +182,13 @@ def sentences2words(sentence_representations: List[Sentence_vector], num_words, 
 
         if len(data) > num_words: break
 
-        vectors, words, deps = sent_rep
+        vectors, words, deps, pos = sent_rep
 
-        for j, (vec, w, dep) in enumerate(zip(vectors, words, deps)):
+        for j, (vec, w, dep, p) in enumerate(zip(vectors, words, deps, pos)):
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), words, j, dep, w))
+            data.append(Word_vector(vec.copy(), words, j, dep, w, p))
 
     random.seed(0)
     random.shuffle(data)
@@ -303,7 +308,8 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
     query_words = [data[i] for i in range(num_queries)]
     value_words = [data[closest_ind] for closest_ind in closest_indices]
 
-    good, bad = 0., 0.
+    good_dep, bad_dep = 0., 0.
+    good_pos, bad_pos = 0., 0.
 
     fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
     with open(fname, "w", encoding="utf8") as f:
@@ -311,23 +317,29 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
         for (query, value) in zip(query_words, value_words):
 
             dep1, dep2 = query.dep_edge, value.dep_edge
-            correct = dep1 == dep2
+            pos1, pos2 = query.pos, value.pos
+            correct_dep = dep1 == dep2
             word1, word2 = query.word, value.word
             sent1, sent2 = query.sentence, value.sentence
             ind1, ind2 = query.index, value.index
             sent1_str = " ".join(sent1[:ind1] + ["***" + word1 + "***"] + sent1[ind1 + 1:])
             sent2_str = " ".join(sent2[:ind2] + ["***" + word2 + "***"] + sent2[ind2 + 1:])
 
-            f.write(sent1_str + "\t" + sent2_str + "\t" + str(dep1) + "\t" + str(dep2) + "\t" + str(correct) + "\n")
+            f.write(sent1_str + "\t" + sent2_str + "\t" + str(dep1) + "\t" + str(dep2) + "\t" + str(correct_dep) + "\n")
 
-            if correct:
-
-                good += 1
+            if correct_dep:
+                good_dep += 1
             else:
-                bad += 1
+                bad_dep += 1
 
-    acc = good / (good + bad)
+            if pos1 == pos2:
+                good_pos += 1
+            else:
+                bad_pos += 1
+
+    acc = good_dep / (good_dep + bad_dep)
     print("Percentage of closest-words pairs with the same dependency-edge: {}".format(acc))
+    print("Percentage of closest-words pairs with the same pos: {}".format(good_pos / (good_pos + bad_pos)))
 
 
 def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean"):
