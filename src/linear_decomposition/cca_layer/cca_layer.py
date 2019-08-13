@@ -15,7 +15,7 @@ class CCAModel(object):
         self.mean_x, self.mean_y, self.A, self.B, self.sum_crr = None, None, None, None, None
         self.dim = dim
 
-    def __call__(self, H1, H2=None, training=True, alternative=True, r=1e-4):
+    def __call__(self, H1, H2=None, training=True, alternative=True, r=1e-4, noise = False):
 
         # H1 and H2 are featurs X num_points matrices containing samples columnwise.
         # dim is the desired dimensionality of CCA space.
@@ -26,6 +26,10 @@ class CCAModel(object):
         if training:
 
             N = H1.shape[0]
+            
+            if noise:
+                H1 = H1 + np.random.randn(*(H1.shape) * 0.1
+                H2 = H2 + np.random.randn(*H2.shape) * 0.1
 
             # Remove mean
 
@@ -87,7 +91,7 @@ class CCAModel(object):
             A = K11.dot(V.T)  # projection matrix for H1
             B = K22.dot(U.T)  # projection matrix for H2
 
-            s = np.sign(np.diag(U.T.dot(S12).dot(V)))
+            s = np.sign(np.diag(U.dot(S12).dot(V.T)))
             B *= s
 
             self.A, self.B = A, B
@@ -171,7 +175,7 @@ class CCALayer(nn.Module):
             D = torch.diag(D)
             A = K11 @ torch.t(V)
             B = K22 @ torch.t(U)
-            s = torch.sign(torch.diag(torch.t(U) @ S12 @ V))
+            s = torch.sign(torch.diag(U @ S12 @ torch.t(V)))
             B *= s
 
             self.A, self.B = A, B
