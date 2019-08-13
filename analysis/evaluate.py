@@ -20,12 +20,10 @@ from scipy.stats.stats import pearsonr
 
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
-                                    [('sent_vectors', np.ndarray), ('sent_str', List[str]), ("parse", List[str]),
-                                     ("pos", List[str]), ("tag", List[str]), ("head_dep", List[str]),
+                                    [('sent_vectors', np.ndarray), ('sent_str', List[str]),
                                      ("tokens", List[spacy.tokens.Token])])
-Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('sentence', List[str]), ("index", int),
-                                                ("dep_edge", str), ("word", str), ("pos", str), ("tag", str),
-                                                ("head_dep", str), ("token", spacy.tokens.Token)])
+Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('sentence', List[str]),
+                                                ("token", spacy.tokens.Token)])
 
 
 def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
@@ -105,24 +103,26 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
         for name, proc in nlp.pipeline:
             doc = proc(doc)
 
-        deps = [token.dep_ for token in doc]
-        all_deps.append(deps)
-
-        pos = [token.pos_ for token in doc]
-        all_pos.append(pos)
-
-        tags = [token.tag_ for token in doc]
-        all_tags.append(tags)
-
-        head_deps = [token.head.dep_ for token in doc]
-        all_head_deps.append(head_deps)
+        # deps = [token.dep_ for token in doc]
+        # all_deps.append(deps)
+        #
+        # pos = [token.pos_ for token in doc]
+        # all_pos.append(pos)
+        #
+        # tags = [token.tag_ for token in doc]
+        # all_tags.append(tags)
+        #
+        # head_deps = [token.head.dep_ for token in doc]
+        # all_head_deps.append(head_deps)
 
         tokens = [token for token in doc]
         all_tokens.append(tokens)
 
-        assert len(deps) == len(sent) == len(pos) == len(tags) == len(head_deps) == len(tokens)
+        # assert len(deps) == len(sent) == len(pos) == len(tags) == len(head_deps) == len(tokens)
+        assert len(sent) == len(tokens)
 
-    return all_deps, all_pos, all_tags, all_head_deps, all_tokens
+    # return all_deps, all_pos, all_tags, all_head_deps, all_tokens
+    return all_tokens
 
 
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5):
@@ -159,12 +159,13 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
       """
 
     embds, sentences = list(zip(*embds_and_sents))
-    deps, pos, tags, head_deps, tokens = parse(sentences)
+    tokens = parse(sentences)
 
-    assert len(deps) == len(sentences) == len(embds) == len(pos) == len(tags) == len(head_deps) == len(tokens)
+    # assert len(deps) == len(sentences) == len(embds) == len(pos) == len(tags) == len(head_deps) == len(tokens)
+    assert len(sentences) == len(embds) == len(tokens)
 
-    embds_sents_deps = [Sentence_vector(e, s, d, p, t, h, tok) for e, s, d, p, t, h, tok in
-                        zip(embds, sentences, deps, pos, tags, head_deps, tokens)]
+    embds_sents_deps = [Sentence_vector(e, s, tok) for e, s, tok in
+                        zip(embds, sentences, tokens)]
 
     return embds_sents_deps
 
@@ -198,13 +199,13 @@ def sentences2words(sentence_representations: List[Sentence_vector], num_words, 
 
         if len(data) > num_words: break
 
-        vectors, words, deps, pos, tags, head_deps, tokens = sent_rep
+        vectors, words, tokens = sent_rep
 
-        for j, (vec, w, dep, p, t, h, token) in enumerate(zip(vectors, words, deps, pos, tags, head_deps, tokens)):
+        for j, (vec, w, token) in enumerate(zip(vectors, words, tokens)):
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), words, j, dep, w, p, t, h, token))
+            data.append(Word_vector(vec.copy(), w, token))
 
     random.seed(0)
     random.shuffle(data)
@@ -286,22 +287,21 @@ def node_height(token):
 
 
 def get_tests():
-    tests = []
-
-    tests.append({'func': lambda x: x.dep_edge, 'name': 'dependency edge'})
-    tests.append({'func': lambda x: x.pos, 'name': 'pos'})
-    tests.append({'func': lambda x: x.tag, 'name': 'tag'})
-    tests.append({'func': lambda x: x.head_dep, 'name': 'head\'s dependency edge'})
-    tests.append({'func': lambda x: x.index, 'name': 'index'})
+    tests = [{'func': lambda x: x.dep_, 'name': 'dependency edge'},
+             {'func': lambda x: x.pos_, 'name': 'pos'},
+             {'func': lambda x: x.tag_, 'name': 'tag'},
+             {'func': lambda x: x.head.dep_, 'name': 'head\'s dependency edge'},
+             {'func': lambda x: x.i, 'name': 'index'}]
 
     return tests
 
 
-def tests(query_words, k_value_words, k=1):
+def perform_tests(query_words, k_value_words, k=1):
     tests = get_tests()
     for i in range(len(tests)):
         tests[i]['pos'] = 0.
         tests[i]['neg'] = 0.
+    depth1, depth2 = [], []
 
     for (query, value) in zip(query_words, list(map(list, zip(*k_value_words)))):
 
@@ -312,9 +312,32 @@ def tests(query_words, k_value_words, k=1):
             else:
                 t['neg'] += 1
 
+            if k == 1:
+                depth1.append(node_height(query.token))
+                depth2.append(node_height(value.token))
+
     for t in tests:
         acc = t['pos'] / (t['pos'] + t['neg'])
         print("Percentage of closest-words pairs with the same {0} (k={1}): {2}".format(t['name'], k, acc))
+    if k == 1:
+        corr, p = pearsonr(depth1, depth2)
+        print("pearson correlation and p-value between the trees depth: {0}, {1}".format(corr, p))
+
+
+def persist_examples(extractor, query_words, k_value_words):
+    fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
+    with open(fname, "w", encoding="utf8") as f:
+
+        for (query, value) in zip(query_words, k_value_words[0]):
+            dep1, dep2 = query.dep_edge, value.dep_edge
+            correct_dep = dep1 == dep2
+            word1, word2 = query.word, value.word
+            sent1, sent2 = query.sentence, value.sentence
+            ind1, ind2 = query.index, value.index
+            sent1_str = " ".join(sent1[:ind1] + ["***" + word1 + "***"] + sent1[ind1 + 1:])
+            sent2_str = " ".join(sent2[:ind2] + ["***" + word2 + "***"] + sent2[ind2 + 1:])
+
+            f.write(sent1_str + "\t" + sent2_str + "\t" + str(dep1) + "\t" + str(dep2) + "\t" + str(correct_dep) + "\n")
 
 
 def closest_word_test(words_reprs: List[Word_vector], extractor=None,
@@ -370,69 +393,15 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
         value_words = [data[closest_ind[i]] for closest_ind in closest_indices]
         k_value_words.append(value_words)
 
+    # exact match
+    perform_tests(query_words, k_value_words, k=1)
 
-    fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
+    # k nearest match
+    perform_tests(query_words, k_value_words, k=k)
 
-    depth1, depth2 = [], []
-    tests(query_words, k_value_words, k=1)
-    tests(query_words, k_value_words, k=5)
+    persist_examples(extractor, query_words, k_value_words)
 
-    # with open(fname, "w", encoding="utf8") as f:
 
-    # for (query, value) in zip(query_words, list(map(list, zip(*k_value_words)))):
-
-            # dep1, dep2 = query.dep_edge, value.dep_edge
-            # correct_dep = dep1 == dep2
-            # word1, word2 = query.word, value.word
-            # sent1, sent2 = query.sentence, value.sentence
-            # ind1, ind2 = query.index, value.index
-            # sent1_str = " ".join(sent1[:ind1] + ["***" + word1 + "***"] + sent1[ind1 + 1:])
-            # sent2_str = " ".join(sent2[:ind2] + ["***" + word2 + "***"] + sent2[ind2 + 1:])
-            #
-            # f.write(sent1_str + "\t" + sent2_str + "\t" + str(dep1) + "\t" + str(dep2) + "\t" + str(correct_dep) + "\n")
-
-    #     for t in tests:
-    #         obj1, k_obj2 = t['func'](query), [t['func'](x) for x in value]
-    #         if obj1 in k_obj2:
-    #             t['pos'] += 1
-    #         else:
-    #             t['neg'] += 1
-    #
-    #     object_depth1 = node_height(query.token)
-    #     object_depth2 = node_height(value.token)
-    #     depth1.append(object_depth1)
-    #     depth2.append(object_depth2)
-    #
-    # corr, p = pearsonr(depth1, depth2)
-    # print("pearson correlation and p-value between the trees depth: {0}, {1}".format(corr, p))
-
-    # good_dep, bad_dep = 0., 0.
-    # good_pos, bad_pos = 0., 0.
-    # good_tag, bad_tag = 0., 0.
-
-    # transpose of the nearest word list.
-    # making it a list of words which contains the top k nearest indices
-    # for (query, value) in zip(query_words, list(map(list, zip(*k_value_words)))):
-    #     dep1 = query.dep_edge
-    #     if dep1 in [x.dep_edge for x in value]:
-    #         good_dep += 1
-    #     else:
-    #         bad_dep += 1
-    #     pos1 = query.pos
-    #     if pos1 in [x.pos for x in value]:
-    #         good_pos += 1
-    #     else:
-    #         bad_pos += 1
-    #
-    #     tag1 = query.tag
-    #     if tag1 in [x.tag for x in value]:
-    #         good_tag += 1
-    #     else:
-    #         bad_tag += 1
-
-    # print("Percentage of closest-words pairs with the same dependency-edge top-k: {}".format(good_dep / (good_dep + bad_dep)))
-    # print("Percentage of closest-words pairs with the same pos top-k: {}".format(good_pos / (good_pos + bad_pos)))
-    # print("Percentage of closest-words pairs with the same tag top-k: {}".format(good_tag / (good_tag + bad_tag)))
 
 
 def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean"):
