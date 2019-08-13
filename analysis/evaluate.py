@@ -91,10 +91,6 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
 
     nlp = spacy.load('en_core_web_sm')
 
-    all_deps = []
-    all_pos = []
-    all_tags = []
-    all_head_deps = []
     all_tokens = []
 
     for sent in tqdm(sentences, ascii=True):
@@ -103,25 +99,11 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
         for name, proc in nlp.pipeline:
             doc = proc(doc)
 
-        # deps = [token.dep_ for token in doc]
-        # all_deps.append(deps)
-        #
-        # pos = [token.pos_ for token in doc]
-        # all_pos.append(pos)
-        #
-        # tags = [token.tag_ for token in doc]
-        # all_tags.append(tags)
-        #
-        # head_deps = [token.head.dep_ for token in doc]
-        # all_head_deps.append(head_deps)
-
         tokens = [token for token in doc]
         all_tokens.append(tokens)
 
-        # assert len(deps) == len(sent) == len(pos) == len(tags) == len(head_deps) == len(tokens)
         assert len(sent) == len(tokens)
 
-    # return all_deps, all_pos, all_tags, all_head_deps, all_tokens
     return all_tokens
 
 
@@ -161,7 +143,6 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
     embds, sentences = list(zip(*embds_and_sents))
     tokens = parse(sentences)
 
-    # assert len(deps) == len(sentences) == len(embds) == len(pos) == len(tags) == len(head_deps) == len(tokens)
     assert len(sentences) == len(embds) == len(tokens)
 
     embds_sents_deps = [Sentence_vector(e, s, tok) for e, s, tok in
@@ -287,11 +268,11 @@ def node_height(token):
 
 
 def get_tests():
-    tests = [{'func': lambda x: x.dep_, 'name': 'dependency edge'},
-             {'func': lambda x: x.pos_, 'name': 'pos'},
-             {'func': lambda x: x.tag_, 'name': 'tag'},
-             {'func': lambda x: x.head.dep_, 'name': 'head\'s dependency edge'},
-             {'func': lambda x: x.i, 'name': 'index'}]
+    tests = [{'func': lambda x: x.token.dep_, 'name': 'dependency edge'},
+             {'func': lambda x: x.token.pos_, 'name': 'pos'},
+             {'func': lambda x: x.token.tag_, 'name': 'tag'},
+             {'func': lambda x: x.token.head.dep_, 'name': 'head\'s dependency edge'},
+             {'func': lambda x: x.token.i, 'name': 'index'}]
 
     return tests
 
@@ -314,7 +295,7 @@ def perform_tests(query_words, k_value_words, k=1):
 
             if k == 1:
                 depth1.append(node_height(query.token))
-                depth2.append(node_height(value.token))
+                depth2.append(node_height(value[0].token))
 
     for t in tests:
         acc = t['pos'] / (t['pos'] + t['neg'])
@@ -329,15 +310,23 @@ def persist_examples(extractor, query_words, k_value_words):
     with open(fname, "w", encoding="utf8") as f:
 
         for (query, value) in zip(query_words, k_value_words[0]):
-            dep1, dep2 = query.dep_edge, value.dep_edge
+            dep1, dep2 = query.dep_edge, value.token.dep_
             correct_dep = dep1 == dep2
-            word1, word2 = query.word, value.word
+            word1, word2 = query.word, value.token.text
             sent1, sent2 = query.sentence, value.sentence
-            ind1, ind2 = query.index, value.index
+            ind1, ind2 = query.index, value.token.i
             sent1_str = " ".join(sent1[:ind1] + ["***" + word1 + "***"] + sent1[ind1 + 1:])
             sent2_str = " ".join(sent2[:ind2] + ["***" + word2 + "***"] + sent2[ind2 + 1:])
 
             f.write(sent1_str + "\t" + sent2_str + "\t" + str(dep1) + "\t" + str(dep2) + "\t" + str(correct_dep) + "\n")
+
+
+def syntactic_extractor(data, extractor):
+    print("Applying syntactic extractor...")
+    for i, word_representation in tqdm(enumerate(data), total=len(data)):
+        data[i] = word_representation._replace(
+            word_vector=extractor.extract(word_representation.word_vector).reshape(-1))
+    return data
 
 
 def closest_word_test(words_reprs: List[Word_vector], extractor=None,
@@ -371,10 +360,10 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     if extractor is not None:
 
         print("Applying syntactic extractor...")
-
-        for i, word_representation in tqdm(enumerate(data), total=len(data)):
-            data[i] = word_representation._replace(
-                word_vector=extractor.extract(word_representation.word_vector).reshape(-1))
+        data = syntactic_extractor(data, extractor)
+        # for i, word_representation in tqdm(enumerate(data), total=len(data)):
+        #     data[i] = word_representation._replace(
+        #         word_vector=extractor.extract(word_representation.word_vector).reshape(-1))
 
     # collect word vectors
 
