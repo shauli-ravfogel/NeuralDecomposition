@@ -282,11 +282,11 @@ def node_height(token):
 def get_tests():
     tests = []
 
-    tests.append([lambda x: x.dep_edge, 'dependency edge'])
-    tests.append([lambda x: x.pos, 'pos'])
-    tests.append([lambda x: x.tag, 'tag'])
-    tests.append([lambda x: x.head_dep, 'head\'s dependency edge'])
-    tests.append([lambda x: x.index, 'index'])
+    tests.append({'func': lambda x: x.dep_edge, 'name': 'dependency edge'})
+    tests.append({'func': lambda x: x.pos, 'name': 'pos'})
+    tests.append({'func': lambda x: x.tag, 'name': 'tag'})
+    tests.append({'func': lambda x: x.head_dep, 'name': 'head\'s dependency edge'})
+    tests.append({'func': lambda x: x.index, 'name': 'index'})
 
     return tests
 
@@ -346,12 +346,8 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
 
     tests = get_tests()
     for i in range(len(tests)):
-        tests += [0., 0.]
-    good_dep, bad_dep = 0., 0.
-    good_pos, bad_pos = 0., 0.
-    good_tag, bad_tag = 0., 0.
-    good_head_dep, bad_head_dep = 0., 0.
-    good_ind, bad_ind = 0., 0.
+        tests[i]['pos'] = 0.
+        tests[i]['neg'] = 0.
 
     fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
     with open(fname, "w", encoding="utf8") as f:
@@ -359,10 +355,6 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
         for (query, value) in zip(query_words, k_value_words[0]):
 
             dep1, dep2 = query.dep_edge, value.dep_edge
-            pos1, pos2 = query.pos, value.pos
-            tag1, tag2 = query.tag, value.tag
-            head_dep1, head_dep2 = query.head_dep, value.head_dep
-            ind1, ind2 = query.index, value.index
             correct_dep = dep1 == dep2
             word1, word2 = query.word, value.word
             sent1, sent2 = query.sentence, value.sentence
@@ -373,49 +365,21 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
             f.write(sent1_str + "\t" + sent2_str + "\t" + str(dep1) + "\t" + str(dep2) + "\t" + str(correct_dep) + "\n")
 
             for t in tests:
-                obj1, obj2 = t[0](query), t[0](value)
+                obj1, obj2 = t['func'](query), t['func'](value)
                 if obj1 == obj1:
-                    t[2] += 1
+                    t['pos'] += 1
                 else:
-                    t[3] += 1
-            # if correct_dep:
-            #     good_dep += 1
-            # else:
-            #     bad_dep += 1
-            #
-            # if pos1 == pos2:
-            #     good_pos += 1
-            # else:
-            #     bad_pos += 1
-            #
-            # if tag1 == tag2:
-            #     good_tag += 1
-            # else:
-            #     bad_tag += 1
-            #
-            # if head_dep1 == head_dep2:
-            #     good_head_dep += 1
-            # else:
-            #     bad_head_dep += 1
-            #
-            # if ind1 == ind2:
-            #     good_ind += 1
-            # else:
-            #     bad_ind += 1
-
-    acc = good_dep / (good_dep + bad_dep)
-    for t in test:
-        acc = t[2] / (t[2] + t[3])
-        print("Percentage of closest-words pairs with the same {0}: {1}".format(t[1], acc))
-    # print("Percentage of closest-words pairs with the same dependency-edge: {}".format(acc))
-    # print("Percentage of closest-words pairs with the same pos: {}".format(good_pos / (good_pos + bad_pos)))
-    # print("Percentage of closest-words pairs with the same tag: {}".format(good_tag / (good_tag + bad_tag)))
-    # print("Percentage of closest-words pairs with the same head-dep: {}".format(good_head_dep / (good_head_dep + bad_head_dep)))
-    # print("Percentage of closest-words pairs with the same index: {}".format(good_ind / (good_ind + bad_ind)))
+                    t['neg'] += 1
+    for t in tests:
+        acc = t['pos'] / (t['pos'] + t['neg'])
+        print("Percentage of closest-words pairs with the same {0}: {1}".format(t['name'], acc))
 
     good_dep, bad_dep = 0., 0.
     good_pos, bad_pos = 0., 0.
     good_tag, bad_tag = 0., 0.
+
+    # transpose of the nearest word list.
+    # making it a list of words which contains the top k nearest indices
     for (query, value) in zip(query_words, list(map(list, zip(*k_value_words)))):
         dep1 = query.dep_edge
         if dep1 in [x.dep_edge for x in value]:
