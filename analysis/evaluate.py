@@ -19,9 +19,10 @@ import random
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]), ("parse", List[str]),
-                                     ("pos", List[str]), ("tag", List[str])])
+                                     ("pos", List[str]), ("tag", List[str]), ("head_dep", List[str])])
 Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('sentence', List[str]), ("index", int),
-                                                ("dep_edge", str), ("word", str), ("pos", str), ("tag", str)])
+                                                ("dep_edge", str), ("word", str), ("pos", str), ("tag", str),
+                                                ("head_dep", str)])
 
 
 def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
@@ -92,6 +93,7 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
     all_deps = []
     all_pos = []
     all_tags = []
+    all_head_deps = []
     count = 0
 
     for sent in tqdm(sentences, ascii=True):
@@ -109,9 +111,12 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
         tags = [token.tag_ for token in doc]
         all_tags.append(tags)
 
-        assert len(deps) == len(sent) == len(pos) == len(tags)
+        head_deps = [token.head.dep_ for token in doc]
+        all_head_deps.append(head_deps)
 
-    return all_deps, all_pos, all_tags
+        assert len(deps) == len(sent) == len(pos) == len(tags) == len(head_deps)
+
+    return all_deps, all_pos, all_tags, all_head_deps
 
 
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5):
@@ -148,11 +153,12 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
       """
 
     embds, sentences = list(zip(*embds_and_sents))
-    deps, pos, tags = parse(sentences)
+    deps, pos, tags, head_deps = parse(sentences)
 
-    assert len(deps) == len(sentences) == len(embds) == len(pos) == len(tags)
+    assert len(deps) == len(sentences) == len(embds) == len(pos) == len(tags) == len(head_deps)
 
-    embds_sents_deps = [Sentence_vector(e, s, d, p, t) for e, s, d, p, t in zip(embds, sentences, deps, pos, tags)]
+    embds_sents_deps = [Sentence_vector(e, s, d, p, t, h) for e, s, d, p, t, h in
+                        zip(embds, sentences, deps, pos, tags, head_deps)]
 
     return embds_sents_deps
 
@@ -186,13 +192,13 @@ def sentences2words(sentence_representations: List[Sentence_vector], num_words, 
 
         if len(data) > num_words: break
 
-        vectors, words, deps, pos, tags = sent_rep
+        vectors, words, deps, pos, tags, head_deps = sent_rep
 
-        for j, (vec, w, dep, p, t) in enumerate(zip(vectors, words, deps, pos, tags)):
+        for j, (vec, w, dep, p, t, h) in enumerate(zip(vectors, words, deps, pos, tags, head_deps)):
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), words, j, dep, w, p, t))
+            data.append(Word_vector(vec.copy(), words, j, dep, w, p, t, h))
 
     random.seed(0)
     random.shuffle(data)
@@ -249,7 +255,7 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector], extra
     closest_indices = get_closest_vectors(vecs, queries, method=method, k=1)
 
     query_sents = [sents[i] for i in range(num_queries)]
-    value_sents = [sents[closest_ind] for closest_ind in closest_indices]
+    value_sents = [sents[closest_ind[0]] for closest_ind in closest_indices]
 
     kernel_sims, edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
     avg_kernel_sim = np.mean(kernel_sims)
@@ -319,6 +325,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
     good_dep, bad_dep = 0., 0.
     good_pos, bad_pos = 0., 0.
     good_tag, bad_tag = 0., 0.
+    good_head_dep, bad_head_dep = 0., 0.
 
     fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
     with open(fname, "w", encoding="utf8") as f:
@@ -328,6 +335,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
             dep1, dep2 = query.dep_edge, value.dep_edge
             pos1, pos2 = query.pos, value.pos
             tag1, tag2 = query.tag, value.tag
+            head_dep1, head_dep2 = query.head_dep, value.head_dep
             correct_dep = dep1 == dep2
             word1, word2 = query.word, value.word
             sent1, sent2 = query.sentence, value.sentence
@@ -352,10 +360,16 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
             else:
                 bad_tag += 1
 
+            if head_dep1 == head_dep2:
+                good_head_dep += 1
+            else:
+                bad_head_dep += 1
+
     acc = good_dep / (good_dep + bad_dep)
     print("Percentage of closest-words pairs with the same dependency-edge: {}".format(acc))
     print("Percentage of closest-words pairs with the same pos: {}".format(good_pos / (good_pos + bad_pos)))
     print("Percentage of closest-words pairs with the same tag: {}".format(good_tag / (good_tag + bad_tag)))
+    print("Percentage of closest-words pairs with the same head-dep: {}".format(good_head_dep / (good_head_dep + bad_head_dep)))
 
     good_dep, bad_dep = 0., 0.
     good_pos, bad_pos = 0., 0.
