@@ -1,212 +1,279 @@
-import torch
 import numpy as np
-from torch import nn
-import tqdm
-import copy
+from numpy import dot
+import scipy.linalg as la
+import sklearn
 from sklearn.cross_decomposition import CCA
-import numpy as np
-import scipy
-from sqrtm import sqrtm
-
-def numpy_cca(X, Y, r = 1e-5):
-
-    print("From numpy")
-
-    # X,Y (dim x examples)
-    m = X.shape[0]
-
-    mean_x = np.mean(X, axis = 1)
-    mean_y = np.mean(Y, axis = 1)
-
-    X = X - mean_x[:, None]
-    Y = Y - mean_y[:, None]
-
-    cov_xx = (1./(m-1)) * X.dot(X.T) + r*np.eye(m)
-
-    cov_yy = (1. / (m - 1)) * Y.dot(Y.T) + r*np.eye(m)
-    cov_xy = (1. / (m - 1)) * X.dot(Y.T)
-
-    cov_xx_sqrt = scipy.linalg.sqrtm(cov_xx)
-    cov_yy_sqrt = scipy.linalg.sqrtm(cov_yy)
-    cov_xx_inverse_sqrt = np.linalg.inv(cov_xx_sqrt)
-    cov_yy_inverse_sqrt = np.linalg.inv(cov_yy_sqrt)
-
-    #print(cov_xx_inverse_sqrt.dot(cov_xx_sqrt))
-    #exit()
-
-    T = cov_xx_inverse_sqrt.dot(cov_xy).dot(cov_yy_inverse_sqrt.T)
-
-    U,S,V =  np.linalg.svd(T)
+from sklearn import decomposition
+from sklearn.utils.extmath import randomized_svd
+import time
+import torch
+from torch import nn
 
 
-    print("U")
-    print(U)
-    print("-------------------")
-    print("S")
-    print(S)
-    print("-------------------")
-    print("V")
-    print(V)
-    print("*********************************")
+def cca(H1, H2, dim):
+    # H1 and H2 are NxD matrices containing samples rowwise.
+    # dim is the desired dimensionality of CCA space.
+
+    d1 = H1.shape[0]
+    d2 = H2.shape[0]
+    N = H1.shape[1]
+
+    # Remove mean
+    m1 = np.mean(H1, axis=1)
+    m2 = np.mean(H2, axis=1)
+
+    H1 = H1 - np.reshape(m1, (d1, 1))
+    H2 = H2 - np.reshape(m2, (d2, 1))
+
+    S11 = (dot(H1, np.transpose(H1))) / (N - 1)
+
+    S22 = (dot(H2, np.transpose(H2))) / (N - 1)
+    S12 = (dot(H2, np.transpose(H1))) / (N - 1)
+
+    D1, V1 = la.eig(S11)
+    D2, V2 = la.eig(S22)
+
+    K11 = dot(dot(V1, np.diag(1 / np.sqrt(D1))), np.transpose(V1))
+    K22 = dot(dot(V2, np.diag(1 / np.sqrt(D2))), np.transpose(V2))
+
+    T = dot(dot(K22, S12), K11)
+    U, D, V = np.linalg.svd(T)
+    # svd = sklearn.decomposition.TruncatedSVD(n_components=dim)
+    # U,D,V = randomized_svd(T, n_components = T.shape[0])
+
+    D = np.diag(D)
+    A = dot(K11, np.transpose(V[0:dim, :]))
+    B = dot(K22, np.transpose(U[0:dim, :]))
+    D = np.sqrt(D[0:dim])
+    return A, B, D, np.dot(H1.T, A), np.dot(H2.T, B)
 
 
-    A = cov_xx_inverse_sqrt.dot(U)
-    B = cov_yy_inverse_sqrt.dot(V)
-    X_proj = X.T.dot(A)
-    Y_proj = Y.T.dot(B)
+class CCAModel(object):
+    def __init__(self, dim):
 
-    return X_proj, Y_proj
+        self.mean_x, self.mean_y, self.A, self.B, self.sum_crr = None, None, None, None, None
+        self.dim = dim
+
+    def __call__(self, H1, H2=None, training=True, alternative=True, r=1e-4):
+
+        # H1 and H2 are featurs X num_points matrices containing samples columnwise.
+        # dim is the desired dimensionality of CCA space.
+
+        if training and (H2 is None):
+            raise Exception("Expected two views in training.")
+
+        if training:
+
+            N = H1.shape[0]
+
+            # Remove mean
+
+            m1 = np.mean(H1, axis=0)
+            m2 = np.mean(H2, axis=0)
+            self.mean_x, self.mean_y = m1, m2
+
+            H1 = H1 - m1[None, :]
+            H2 = H2 - m2[None, :]
+
+            H1, H2 = H1.T, H2.T
+
+            S11 = ((H1.dot(H1.T)) / (N - 1)) + r * np.eye(H1.shape[0])  # cov_xx
+
+
+            S22 = ((H2.dot(H2.T)) / (N - 1)) + r * np.eye(H1.shape[0])  # cov_yy
+            S12 = H1.dot(H2.T) / (N - 1)  # cov_yx
+
+            # calculate K11 = inverse(sqrt(S11)), K22 = inverse(sqrt(S22))
+
+            D1, V1 = la.eigh(S11)
+            D2, V2 = la.eigh(S22)
+
+            K11 = V1.dot(np.diag(1 / np.sqrt(D1))).dot(V1.T)
+
+            K22 = V2.dot(np.diag(1 / np.sqrt(D2))).dot(V2.T)
+
+
+            # Calculate correlation matrix
+
+            T = K22.dot(S12).dot(K11)
+
+            # Perform SVD on correlation matrix
+
+            if not alternative:
+                U, D, V = np.linalg.svd(T)
+                self.corr = np.mean(D)
+                U, V = U[:self.dim, :], V[:self.dim, :]
+                D = np.diag(D)  # correlation coefficiens of the canonical components
+
+
+            else:
+
+                # compute TT' and T'T (regularized)
+                Tnp = K11.dot(S12).dot(K22)
+                M1 = Tnp.dot(Tnp.T)
+                M2 = Tnp.T.dot(Tnp)
+
+                M1 += r * np.eye(M1.shape[0])
+                M2 += r * np.eye(M2.shape[0])
+
+                # compute eigen decomposition
+                E1, V = la.eigh(M1)
+                _, U = la.eigh(M2)
+                D = np.sqrt(np.clip(E1, 1e-7, 1.))
+                self.corr = np.mean(D[-self.dim:])
+                U, V = U.T[-self.dim:, :], V.T[-self.dim:, :]
+
+            A = K11.dot(V.T)  # projection matrix for H1
+            B = K22.dot(U.T)  # projection matrix for H2
+
+            s = np.sign(np.diag(U.dot(S12).dot(V.T)))
+            B *= s
+
+            self.A, self.B = A, B
+
+            # Project & return
+            H1_proj, H2_proj = H1.T.dot(self.A), H2.T.dot(self.B)
+            return H1_proj[:, ::-1], H2_proj[:, ::-1], self.corr
+
+        else:
+            # in test time, use saved mean and projection matrix.
+            H1 -= self.mean_x[None, :]
+            H2 -= self.mean_y[None, :]
+            x_proj = (H1.dot(self.A))[:, ::-1]
+            y_proj = (H2.dot(self.B))[:, ::-1]
+            return x_proj, y_proj
 
 class CCALayer(nn.Module):
+    def __init__(self, dim):
 
-    def __init__(self):
         super(CCALayer, self).__init__()
+        self.dim = dim
 
-        """
-        self.mean_x = nn.Parameter(torch.zeros(dim, requires_grad = False))
-        self.mean_y = nn.Parameter(torch.zeros(dim, requires_grad = False))
-        self.T = nn.Parameter(torch.zeros((final_dim, final_dim), requires_grad = False))
-        self.A = nn.Parameter(torch.zeros((final_dim, final_dim), requires_grad = False))
-        self.B = nn.Parameter(torch.zeros((final_dim, final_dim), requires_grad = False))
-        """
+    def forward(self, H1, H2=None, is_training=True, r=1e-4):
 
-    def forward(self, X, Y, r = 1e-5, is_training = True):
+        # H1 and H2 are DXN matrices containing samples columnwise.
+        # dim is the desired dimensionality of CCA space.
 
-        X = torch.t(X)
-        Y = torch.t(Y)
-
-        torch.cuda.manual_seed_all(0)
+        if is_training and (H2 is None):
+            raise Exception("Expected two views in training.")
 
         if is_training:
 
-            mean_x = torch.mean(X, dim = 1, keepdim = True)
-            mean_y = torch.mean(Y, dim = 1, keepdim = True)
-            #self.mean_x = nn.Parameter(mean_x, requires_grad = True)
-            #self.mean_y = nn.Parameter(mean_y, requires_grad = True)
-            self.mean_x = mean_x
-            self.mean_y = mean_y
+            N, d = H1.shape
+            # Remove mean
+            m1 = torch.mean(H1, dim=0, keepdim=True)
+            m2 = torch.mean(H2, dim=0, keepdim=True)
+            self.mean_x, self.mean_y = m1, m2
 
-            m = X.shape[0]
+            H1 = H1 - m1
+            H2 = H2 - m2
 
-            X = X - mean_x
-            Y = Y - mean_y
+            H1,H2 = torch.t(H1), torch.t(H2)
+
+            S11 = ((H1 @ torch.t(H1)) / (N - 1)) + r * torch.eye(d).float().cuda()
 
 
-            cov_xx = (1. / (m - 1)) * torch.mm(X, torch.t(X)) + r * torch.eye(m).cuda()
-            cov_yy = (1. / (m - 1)) * torch.mm(Y, torch.t(Y)) + r * torch.eye(m).cuda()
-            cov_xy = (1. / (m - 1)) * torch.mm(X, torch.t(Y))# + r * torch.eye(m).cuda()
+            S22 = ((H2 @ torch.t(H2)) / (N - 1)) + r * torch.eye(d).float().cuda()
+            S12 = (H1 @ torch.t(H2)) / (N - 1)
 
-            #cov_xx_inverse_sqrt = torch.inverse(torch.cholesky(cov_xx, upper  = False))
-            #cov_yy_inverse_sqrt = torch.inverse(torch.cholesky(cov_yy, upper = False))
+            D1, V1 = torch.symeig(S11, eigenvectors=True)
 
-            #print(cov_xx)
-            #print(torch.svd(sqrtm(cov_xx)))
 
-            cov_xx_inverse_sqrt = torch.inverse(sqrtm(cov_xx))
-            cov_yy_inverse_sqrt = torch.inverse(sqrtm(cov_yy))
+            diag_sqrt_inverse_D1 = torch.diag(1. / torch.sqrt(D1))
 
-            T = torch.mm(torch.mm(cov_xx_inverse_sqrt, cov_xy), torch.t(cov_yy_inverse_sqrt))
-            #self.T = nn.Parameter(T, requires_grad = True)
-            self.T = T
 
-            U, S, V = torch.svd(T)
-            S = torch.clamp(S, 1e-7, 1 - 1e-5)
-            self.S = S
+            D2, V2 = torch.symeig(S22, eigenvectors=True)
+            D1 = torch.clamp(D1, min= r, max = 1.)
+            D2 = torch.clamp(D2, min = r, max = 1.)
 
-            """
-            print("FROM CCA LAYER")
-            print("S:\n")
-            print(S)
-            print("U:\n")
-            print(U)
-            print("V:\n")
-            print(V)
-            print("T:\n")
-            print(T)
-            print("END")
-            """
+            diag_sqrt_inverse_D2 = torch.diag(1. / torch.sqrt(D2))
 
-            A = torch.mm(cov_xx_inverse_sqrt, U)
-            B = torch.mm(cov_yy_inverse_sqrt, V)
-            #self.A = nn.Parameter(A, requires_grad = True)
-            #self.B = nn.Parameter(B, requires_grad = True)
-            self.A = A
-            self.B = B
+            K11 = V1 @ diag_sqrt_inverse_D1 @ torch.t(V1)  # dot(dot(V1,np.diag(1/np.sqrt(D1))),np.transpose(V1))
+            K22 = V2 @ diag_sqrt_inverse_D2 @ torch.t(V2)
+
+
+            Tnp = K11 @ S12 @ K22
+            M1 = Tnp @ torch.t(Tnp)
+            M2 = torch.t(Tnp) @ Tnp
+
+            M1 += r * torch.eye(M1.shape[0]).float().cuda()
+            M2 += r * torch.eye(M2.shape[0]).float().cuda()
+
+            # compute eigen decomposition
+            E1, V = torch.symeig(M1, eigenvectors = True)
+            _, U = torch.symeig(M2, eigenvectors = True)
+
+            D = torch.sqrt(torch.clamp(E1, 1e-7, 1.))
+            self.corr = torch.mean(D[-self.dim:])
+            U, V = torch.t(U)[-self.dim:, :], torch.t(V)[-self.dim:, :]
+
+            D = torch.diag(D)
+            A = K11 @ torch.t(V)
+            B = K22 @ torch.t(U)
+            s = torch.sign(torch.diag(U @ S12 @ torch.t(V)))
+            B *= s
+
+            self.A, self.B = A, B
+
+            self.corr = torch.diag(D)
+            H1_proj, H2_proj = torch.t(H1) @ A, torch.t(H2) @ B
+
+            return torch.mean(self.corr), (H1_proj, H2_proj) # TODO: revers order!
 
         else:
 
-            X = X - self.mean_x
-            Y = Y - self.mean_y
+            H1 -= self.mean_x[:, None]
+            H2 -= self.mean_y[:, None]
+            return (H1 @ self.A), (H2 @ self.B)
 
-        X_proj = torch.mm(torch.t(X), self.A)
-        Y_proj = torch.mm(torch.t(Y), self.B)
-
-        #print(torch.mean(self.S), torch.mean(torch.diag(self.T)))
-        #return torch.trace(self.T), (X_proj, Y_proj)
-
-        #print(self.S[:100], torch.mean(self.S))
-        #exit()
-
-        return torch.mean(self.S), (X_proj, Y_proj)
 
 if __name__ == '__main__':
 
-    train_size = 5000
-    dim = 1000
+    np.random.seed(1)
+    original_dim = 4
+    dim = 4
+    X = np.random.rand(1000, original_dim) - 0.5
+    Y = np.random.rand(1000, original_dim) - 0.5
+    Y = 1.5 * X.copy() + 0.3 * (np.random.rand(*X.shape) - 0.5)
+    #X, Y = np.concatenate([X, Y]), np.concatenate([Y, X])
+    print(X.shape, Y.shape)
 
-    cca = CCALayer()
-    X = torch.rand(train_size, dim) - 0.5
-    Y = 1.5 * copy.deepcopy(X)
-
-    X *=1e-8
-    #X = torch.zeros(train_size, dim)
-
-    #X = torch.ones(train_size, dim)
-    Y = copy.deepcopy(X) + 0.0 * (torch.rand_like(X) -0.5)
-
-    X = torch.ones(train_size, dim)
-    r = torch.range(1,train_size)
-    r = r**1.4
-
-    X = X * r[:, None] * 0.15  #+ 0.1 * ( torch.rand_like(X) - .5)
-    X[:, 1] = X[:, 0]**1.5
-
-    Y = copy.deepcopy(X) * 1.21
-
-    X = torch.rand_like(X) - 0.5
-    Y = torch.rand_like(X) - 0.5
-
-    mean_x = torch.mean(X, dim = 0)
-    mean_y = torch.mean(Y, dim = 0)
-
-    X_original, Y_original = copy.deepcopy(X), copy.deepcopy(Y)
-
-    #numpy_cca(X_original.detach().cpu().numpy().T, Y_original.detach().cpu().numpy().T)
+    """ 
+    print("-----------------------------------------------------------------")
+    print("gold svd")
+    model = CCA(n_components=dim, tol=1e-8, max_iter=50000)
+    start = time.time()
+    model.fit(X.copy(), Y.copy())
+    print(time.time() - start)
+    x, y = model.transform(X, Y)
+    print(np.real(x[:10]))
+    """
 
 
-    print("Performing CCA via CCA layer")
-
-    total_corr, (X_cca, Y_cca) = cca(X.cuda(), Y.cuda())
-    print(total_corr)
-    print(X_cca.detach().cpu().numpy()[:20, :])
-    print("=========================")
-    print(Y_cca.detach().cpu().numpy()[:20, :])
-
-    print("============================================================")
-    print("Performing gold CCA projection")
-
-    gold_cca = CCA(n_components = dim, scale = True, tol = 10-9)
-    gold_cca.fit(X_original, Y_original)
-    X_cca_true, Y_cca_true = gold_cca.transform(X_original, Y_original)
-    print(X_cca_true[:20, :])
-    print("=========================")
-    print(Y_cca_true[:20, :])
-    print("***********************************************")
-
-    print("-----------------------------------------------------------------------------------")
-    X_proj, Y_proj = numpy_cca(X.detach().cpu().numpy().T, Y.detach().cpu().numpy().T)
-    print(X_proj[:20, :])
-    print("=========================")
-    print(Y_proj[:20, :])
-    print(Y_proj.shape)
-    print("***********************************************")
+    print("-------------------------------------------------------------------")
+    print("Full svd, training")
+    model = CCAModel(dim=dim)
+    start = time.time()
+    x, y, corr = model(H1=X.copy(), H2=Y.copy(), training=True, alternative=True)
+    print(time.time() - start)
+    print(np.real(x[:10]))
+    print()
+    print(np.real(y[:10]))
+    print(corr)
+    """
+    print("-------------------------------------------------------------------")
+    print("Full svd, inference")
+    start = time.time()
+    x,y = model(H1=X.copy(), H2=Y.copy(), training=False)
+    print(time.time() - start)
+    print(np.real(x[:10]))
+    print()
+    print(np.real(y[:10]))
+    """
+    print("-------------------------------------------------------------------")
+    print("CCA LAYER")
+    H1, H2 = torch.from_numpy(X).double().cuda(), torch.from_numpy(Y).double().cuda()
+    model = CCALayer(dim = dim)
+    corr, (x, y) = model(H1=H1, H2=H2)
+    print(x[:10, ], "\n\n", y[:10,])
+    print(corr)
