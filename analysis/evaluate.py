@@ -130,7 +130,7 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], m
         distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
 
     top_k = distances.argsort(axis=1)[:, :k]
-    closest_indices = top_k[:, 1]  # ignore the word itself
+    closest_indices = top_k[:, 1: k + 1]  # ignore the word itself
 
     return closest_indices
 
@@ -246,7 +246,7 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector], extra
     # perform closest_vector query.
 
     queries = vecs[:num_queries]
-    closest_indices = get_closest_vectors(vecs, queries, method=method)
+    closest_indices = get_closest_vectors(vecs, queries, method=method, k=1)
 
     query_sents = [sents[i] for i in range(num_queries)]
     value_sents = [sents[closest_ind] for closest_ind in closest_indices]
@@ -307,10 +307,14 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
     # perform closest_vector query.
 
     queries = vecs[:num_queries]
-    closest_indices = get_closest_vectors(vecs, queries, method=method)
+    closest_indices = get_closest_vectors(vecs, queries, method=method, k=5)
 
     query_words = [data[i] for i in range(num_queries)]
-    value_words = [data[closest_ind] for closest_ind in closest_indices]
+
+    k_value_words = []
+    for i in range(5):
+        value_words = [data[closest_ind][i] for closest_ind in closest_indices]
+        k_value_words.append(value_words)
 
     good_dep, bad_dep = 0., 0.
     good_pos, bad_pos = 0., 0.
@@ -319,7 +323,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
     fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
     with open(fname, "w", encoding="utf8") as f:
 
-        for (query, value) in zip(query_words, value_words):
+        for (query, value) in zip(query_words, k_value_words[0]):
 
             dep1, dep2 = query.dep_edge, value.dep_edge
             pos1, pos2 = query.pos, value.pos
@@ -352,6 +356,30 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None, num_querie
     print("Percentage of closest-words pairs with the same dependency-edge: {}".format(acc))
     print("Percentage of closest-words pairs with the same pos: {}".format(good_pos / (good_pos + bad_pos)))
     print("Percentage of closest-words pairs with the same tag: {}".format(good_tag / (good_tag + bad_tag)))
+
+    good_dep, bad_dep = 0., 0.
+    good_pos, bad_pos = 0., 0.
+    good_tag, bad_tag = 0., 0.
+    for (query, value) in zip(query_words, k_value_words):
+        dep1 = query.dep_edge
+        if dep1 in [x.dep_edge for x in value]:
+            good_dep += 1
+        else:
+            bad_dep += 1
+        pos1 = query.pos
+        if pos1 in [x.pos for x in value]:
+            good_pos += 1
+        else:
+            bad_pos += 1
+
+        tag1 = query.tag
+        if tag1 in [x.tag for x in value]:
+            good_tag += 1
+        else:
+            bad_tag += 1
+        print("Percentage of closest-words pairs with the same dependency-edge top-k: {}".format(acc))
+        print("Percentage of closest-words pairs with the same pos top-k: {}".format(good_pos / (good_pos + bad_pos)))
+        print("Percentage of closest-words pairs with the same tag top-k: {}".format(good_tag / (good_tag + bad_tag)))
 
 
 def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean"):
