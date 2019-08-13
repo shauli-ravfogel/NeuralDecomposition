@@ -16,13 +16,16 @@ import numpy as np
 from tqdm.auto import tqdm
 import spacy
 import random
+from scipy.stats.stats import pearsonr
+
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]), ("parse", List[str]),
-                                     ("pos", List[str]), ("tag", List[str]), ("head_dep", List[str])])
+                                     ("pos", List[str]), ("tag", List[str]), ("head_dep", List[str]),
+                                     ("tokens", List[spacy.tokens.Token])])
 Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('sentence', List[str]), ("index", int),
                                                 ("dep_edge", str), ("word", str), ("pos", str), ("tag", str),
-                                                ("head_dep", str)])
+                                                ("head_dep", str), ("token", spacy.tokens.Token)])
 
 
 def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
@@ -94,7 +97,7 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
     all_pos = []
     all_tags = []
     all_head_deps = []
-    count = 0
+    all_tokens = []
 
     for sent in tqdm(sentences, ascii=True):
 
@@ -114,9 +117,12 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
         head_deps = [token.head.dep_ for token in doc]
         all_head_deps.append(head_deps)
 
-        assert len(deps) == len(sent) == len(pos) == len(tags) == len(head_deps)
+        tokens = [token for token in doc]
+        all_tokens.append(tokens)
 
-    return all_deps, all_pos, all_tags, all_head_deps
+        assert len(deps) == len(sent) == len(pos) == len(tags) == len(head_deps) == len(tokens)
+
+    return all_deps, all_pos, all_tags, all_head_deps, tokens
 
 
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5):
@@ -153,12 +159,12 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
       """
 
     embds, sentences = list(zip(*embds_and_sents))
-    deps, pos, tags, head_deps = parse(sentences)
+    deps, pos, tags, head_deps, tokens = parse(sentences)
 
-    assert len(deps) == len(sentences) == len(embds) == len(pos) == len(tags) == len(head_deps)
+    assert len(deps) == len(sentences) == len(embds) == len(pos) == len(tags) == len(head_deps) == len(tokens)
 
-    embds_sents_deps = [Sentence_vector(e, s, d, p, t, h) for e, s, d, p, t, h in
-                        zip(embds, sentences, deps, pos, tags, head_deps)]
+    embds_sents_deps = [Sentence_vector(e, s, d, p, t, h, tok) for e, s, d, p, t, h, tok in
+                        zip(embds, sentences, deps, pos, tags, head_deps, tokens)]
 
     return embds_sents_deps
 
@@ -350,6 +356,9 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
         tests[i]['neg'] = 0.
 
     fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
+
+    depth1, depth2 = [], []
+
     with open(fname, "w", encoding="utf8") as f:
 
         for (query, value) in zip(query_words, k_value_words[0]):
@@ -366,13 +375,22 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
 
             for t in tests:
                 obj1, obj2 = t['func'](query), t['func'](value)
-                if obj1 == obj1:
+                if obj1 == obj2:
                     t['pos'] += 1
                 else:
                     t['neg'] += 1
+
+            object_depth1 = node_height(query.token)
+            object_depth2 = node_height(value.token)
+            depth1.append(object_depth1)
+            depth2.append(object_depth2)
+
     for t in tests:
         acc = t['pos'] / (t['pos'] + t['neg'])
         print("Percentage of closest-words pairs with the same {0}: {1}".format(t['name'], acc))
+
+    corr, p = pearsonr(depth1, depth2)
+    print("pearson correlation and p-value between the trees depth: {0}, {1}".format(corr, p))
 
     good_dep, bad_dep = 0., 0.
     good_pos, bad_pos = 0., 0.
