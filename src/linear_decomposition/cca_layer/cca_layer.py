@@ -9,52 +9,13 @@ import time
 import torch
 from torch import nn
 
-
-def cca(H1, H2, dim):
-    # H1 and H2 are NxD matrices containing samples rowwise.
-    # dim is the desired dimensionality of CCA space.
-
-    d1 = H1.shape[0]
-    d2 = H2.shape[0]
-    N = H1.shape[1]
-
-    # Remove mean
-    m1 = np.mean(H1, axis=1)
-    m2 = np.mean(H2, axis=1)
-
-    H1 = H1 - np.reshape(m1, (d1, 1))
-    H2 = H2 - np.reshape(m2, (d2, 1))
-
-    S11 = (dot(H1, np.transpose(H1))) / (N - 1)
-
-    S22 = (dot(H2, np.transpose(H2))) / (N - 1)
-    S12 = (dot(H2, np.transpose(H1))) / (N - 1)
-
-    D1, V1 = la.eig(S11)
-    D2, V2 = la.eig(S22)
-
-    K11 = dot(dot(V1, np.diag(1 / np.sqrt(D1))), np.transpose(V1))
-    K22 = dot(dot(V2, np.diag(1 / np.sqrt(D2))), np.transpose(V2))
-
-    T = dot(dot(K22, S12), K11)
-    U, D, V = np.linalg.svd(T)
-    # svd = sklearn.decomposition.TruncatedSVD(n_components=dim)
-    # U,D,V = randomized_svd(T, n_components = T.shape[0])
-
-    D = np.diag(D)
-    A = dot(K11, np.transpose(V[0:dim, :]))
-    B = dot(K22, np.transpose(U[0:dim, :]))
-    D = np.sqrt(D[0:dim])
-    return A, B, D, np.dot(H1.T, A), np.dot(H2.T, B)
-
-
 class CCAModel(object):
     def __init__(self, dim):
 
         self.mean_x, self.mean_y, self.A, self.B, self.sum_crr = None, None, None, None, None
         self.dim = dim
 
-    def __call__(self, H1, H2=None, training=True, alternative=True, r=1e-4):
+    def __call__(self, H1, H2=None, training=True, alternative=True, r=1e-4, noise = False):
 
         # H1 and H2 are featurs X num_points matrices containing samples columnwise.
         # dim is the desired dimensionality of CCA space.
@@ -65,6 +26,10 @@ class CCAModel(object):
         if training:
 
             N = H1.shape[0]
+            
+            if noise:
+                H1 = H1 + np.random.randn(*(H1.shape) * 0.1
+                H2 = H2 + np.random.randn(*H2.shape) * 0.1
 
             # Remove mean
 
