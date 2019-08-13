@@ -107,6 +107,7 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
         all_pos.append(pos)
 
         tags = [token.tag_ for token in doc]
+        all_tags.append(tags)
 
         assert len(deps) == len(sent) == len(pos) == len(tags)
 
