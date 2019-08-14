@@ -85,23 +85,23 @@ class SimpleCollector(CollectorBase):
                 
         def read_one_group(self, vecs: np.ndarray, sents: np.ndarray, content_idx: np.ndarray, sent_len: int, group_size: int) -> List[Tuple[np.ndarray, np.ndarray, int]]:
                                 
-                view1 = vecs[::1,:, :]  #(num sents/2+-1, num_indices, 2048)
-                view2 = vecs[1::1,:, :] # (num_sents/2+-1, num_indices, 2048)
-                view1_words = sents[::1,:] #(num_sents/2+-1, sent_length)
-                view2_words = sents[1::1,:] # (num_sents/2+-1, sent_length
+                view1 = vecs[:,:, :]  #(num sents, num_indices, 2048)
+                view2 = vecs[1:,:, :] # (num_sents-1, num_indices, 2048)
+                view1_words = sents[:,:] #(num_sents, sent_length)
+                view2_words = sents[1:,:] # (num_sents-1, sent_length
                 
                 data = []
                 
                 for word_index in range(sent_len):
                 
-                        if word_index not in content_idx: continue
+                        if self.exclude_function_words and (word_index not in content_idx): continue
                         
                         view1_vecs = view1[:, word_index, :]
                         view2_vecs = view2[:, word_index, :]
                         view1_words_at_index = view1_words[:, word_index]
                         view2_words_at_index = view2_words[:, word_index]
                         idx = [word_index] * min(view1_vecs.shape[0], view2_vecs.shape[0])
-                        examples = list(zip(view1_vecs, view2_vecs, view1_words_at_index, view2_words_at_index, idx))
+                        examples = list(zip(view1_vecs, view2_vecs, idx))
                         data.extend(examples)
                 
                 return data
@@ -119,16 +119,16 @@ class AveragedCollector(CollectorBase):
                 
         def read_one_group(self, vecs: np.ndarray, sents: np.ndarray, content_idx: np.ndarray, sent_len: int, group_size: int) -> List[Tuple[np.ndarray, np.ndarray, int]]:
                                 
-                view1 = vecs[::1,:, :]  #(num sents/2+-1, num_indices, 2048)
-                view2 = vecs[1::1,:, :] # (num_sents/2+-1, num_indices, 2048)
-                view1_words = sents[::1,:] #(num_sents/2+-1, sent_length)
-                view2_words = sents[1::1,:] # (num_sents/2+-1, sent_length
+                view1 = vecs[::2,:, :]  #(num sents/2 +-1, num_indices, 2048)
+                view2 = vecs[1::2,:, :] # (num_sents/2 +-1, num_indices, 2048)
+                view1_words = sents[::2,:] #(num_sents/2 +-1, sent_length)
+                view2_words = sents[1::2,:] # (num_sents/2 +- 1, sent_length
                 
                 data = []
                 
                 for word_index in range(sent_len):
                 
-                        if word_index not in content_idx: continue
+                        if self.exclude_function_words and (word_index not in content_idx): continue
                         
                         view1_vecs = view1[:, word_index, :]
                         view2_vecs = view2[:, word_index, :]
@@ -137,7 +137,7 @@ class AveragedCollector(CollectorBase):
                         m2 = np.mean(view2_vecs, axis = 0)[None, :]
 
                         data.append((m1, m2, word_index))
-                
+                                
                 return data
                                
         
@@ -150,10 +150,10 @@ class SentenceCollector(CollectorBase):
                 
         def read_one_group(self, vecs: np.ndarray, sents: np.ndarray, content_idx: np.ndarray, sent_len: int, group_size: int) -> List[Tuple[np.ndarray, np.ndarray, int]]:
                                 
-                view1 = vecs[::1,:, :]  #(num sents+-1, num_indices, 2048)
-                view2 = vecs[1::1,:, :] # (num_sents+-1, num_indices, 2048)
-                view1_words = sents[::1,:] #(num_sents+-1, sent_length)
-                view2_words = sents[1::1,:] # (num_sents+-1, sent_length
+                view1 = vecs[:,:, :]  #(num sents, num_indices, 2048)
+                view2 = vecs[1:,:, :] # (num_sents-1, num_indices, 2048)
+                view1_words = sents[:,:] #(num_sents, sent_length)
+                view2_words = sents[1:,:] # (num_sents-1, sent_length
                 
                 data = []
                 
