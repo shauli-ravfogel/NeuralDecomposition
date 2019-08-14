@@ -69,6 +69,8 @@ class CollectorBase(object):
                 
                         pickle.dump(views, f)
                 
+                self.close_file()
+                
         def close_file(self):
         
                 self.f.close()
