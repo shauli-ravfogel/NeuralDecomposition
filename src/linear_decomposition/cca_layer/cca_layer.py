@@ -9,13 +9,14 @@ import time
 import torch
 from torch import nn
 
+
 class CCAModel(object):
     def __init__(self, dim):
 
         self.mean_x, self.mean_y, self.A, self.B, self.sum_crr = None, None, None, None, None
         self.dim = dim
 
-    def __call__(self, H1, H2=None, training=True, alternative=True, r=1e-4, noise = False):
+    def __call__(self, H1, H2=None, training=True, alternative=True, r=1e-5, noise = True):
 
         # H1 and H2 are featurs X num_points matrices containing samples columnwise.
         # dim is the desired dimensionality of CCA space.
@@ -26,10 +27,9 @@ class CCAModel(object):
         if training:
 
             N = H1.shape[0]
-            
             if noise:
-                H1 = H1 + np.random.randn(*(H1.shape) * 0.1
-                H2 = H2 + np.random.randn(*H2.shape) * 0.1
+                H1 = H1 + np.random.randn(*H1.shape) * 0.001
+                H2 = H2 + np.random.randn(*H2.shape) * 0.001
 
             # Remove mean
 
@@ -39,6 +39,9 @@ class CCAModel(object):
 
             H1 = H1 - m1[None, :]
             H2 = H2 - m2[None, :]
+
+
+
 
             H1, H2 = H1.T, H2.T
 
@@ -85,15 +88,15 @@ class CCAModel(object):
                 E1, V = la.eigh(M1)
                 _, U = la.eigh(M2)
                 D = np.sqrt(np.clip(E1, 1e-7, 1.))
+                self.D = D
                 self.corr = np.mean(D[-self.dim:])
                 U, V = U.T[-self.dim:, :], V.T[-self.dim:, :]
 
             A = K11.dot(V.T)  # projection matrix for H1
             B = K22.dot(U.T)  # projection matrix for H2
 
-            s = np.sign(np.diag(U.dot(S12).dot(V.T)))
+            s = np.sign(np.diag(V.dot(S12).dot(U.T)))
             B *= s
-
             self.A, self.B = A, B
 
             # Project & return
@@ -170,6 +173,7 @@ class CCALayer(nn.Module):
 
             D = torch.sqrt(torch.clamp(E1, 1e-7, 1.))
             self.corr = torch.mean(D[-self.dim:])
+            self.corr_vals = D
             U, V = torch.t(U)[-self.dim:, :], torch.t(V)[-self.dim:, :]
 
             D = torch.diag(D)
@@ -195,15 +199,18 @@ class CCALayer(nn.Module):
 if __name__ == '__main__':
 
     np.random.seed(1)
-    original_dim = 4
-    dim = 4
+    original_dim = 1000
+    dim = 2
     X = np.random.rand(1000, original_dim) - 0.5
     Y = np.random.rand(1000, original_dim) - 0.5
-    Y = 1.5 * X.copy() + 0.3 * (np.random.rand(*X.shape) - 0.5)
+
+    mixing_matrix = np.random.rand(original_dim, original_dim) - 0.5
+    #Y = 1 * X.copy() + 1 * (X.copy()[:, ::-1])
+    Y = X.copy().dot(mixing_matrix)
     #X, Y = np.concatenate([X, Y]), np.concatenate([Y, X])
     print(X.shape, Y.shape)
 
-    """ 
+
     print("-----------------------------------------------------------------")
     print("gold svd")
     model = CCA(n_components=dim, tol=1e-8, max_iter=50000)
@@ -212,7 +219,9 @@ if __name__ == '__main__':
     print(time.time() - start)
     x, y = model.transform(X, Y)
     print(np.real(x[:10]))
-    """
+    print()
+    print(np.real(y[:10]))
+
 
 
     print("-------------------------------------------------------------------")
@@ -225,20 +234,22 @@ if __name__ == '__main__':
     print()
     print(np.real(y[:10]))
     print(corr)
-    """
+    main_x, main_y = x[:100, -1], y[:100,-1]
+    print((np.sign(main_x) == np.sign(main_y)))
+    print(list(zip(main_x, main_y))[:10])
+
+
     print("-------------------------------------------------------------------")
     print("Full svd, inference")
     start = time.time()
     x,y = model(H1=X.copy(), H2=Y.copy(), training=False)
-    print(time.time() - start)
-    print(np.real(x[:10]))
-    print()
-    print(np.real(y[:10]))
-    """
+    main_x, main_y = x[:100, -1], y[:100,-1]
+    print((np.sign(main_x) == np.sign(main_y)))
+    print(list(zip(main_x, main_y))[:10])
+
     print("-------------------------------------------------------------------")
     print("CCA LAYER")
-    H1, H2 = torch.from_numpy(X).double().cuda(), torch.from_numpy(Y).double().cuda()
+    H1, H2 = torch.from_numpy(X).float().cuda(), torch.from_numpy(Y).float().cuda()
     model = CCALayer(dim = dim)
     corr, (x, y) = model(H1=H1, H2=H2)
-    print(x[:10, ], "\n\n", y[:10,])
-    print(corr)
+
