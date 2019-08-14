@@ -306,3 +306,6 @@ generate_dataset/w2v/
 sents.pickle
 data.txt
 same_pos/
+
+# models
+analysis/models/

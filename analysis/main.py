@@ -12,15 +12,16 @@ if __name__ == '__main__':
                         default='../data/external/wiki.clean.250k',
                         help='name of the source wikipedia text file')
     parser.add_argument('--encode_sentences', dest='encode_sentences', type=bool,
-                        default = False,
-                        help='whether to encode the sentences with ELMO from scratch or use already calcuated representation')
+                        default=False,
+                        help='whether to encode the sentences with ELMO from scratch or use already calcuated '
+                             'representation')
     parser.add_argument('--encoded_data', dest='encoded_data', type=str,
                         default='../data/interim/encoded_sents.pickle',
                         help='path to the embedded sentences data')
     parser.add_argument('--elmo_folder', dest='elmo_folder', type=str,
                         default='../data/external')
     parser.add_argument('--method', dest='method', type=str,
-                        default='cosine', help = "similarity method (cosine / euc)")
+                        default='cosine', help="similarity method (cosine / euc)")
     parser.add_argument('--cuda-device', dest='cuda_device', type=int, default=0,
                         help='cuda device to run the LM on')
     parser.add_argument('--num_sents', dest='num_sents', type=int, default=25000,
@@ -34,30 +35,23 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # use already-collected representations
-
     if (not args.encode_sentences) and args.encoded_data != '':
-
         with open(args.encoded_data, "rb") as f:
-
-                data = pickle.load(f)
+            data = pickle.load(f)
 
     # recalculate representations
-
     else:
-
         elmo_embedder = embedder.Embedder(args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
-                       args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5', args.input_wiki, args.num_sents,
-                       device=args.cuda_device)
-
+                                          args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
+                                          args.input_wiki, args.num_sents,
+                                          device=args.cuda_device)
         data = elmo_embedder.get_data()
 
         with open(args.encoded_data, "wb") as f:
-
-                pickle.dump(data, f)
+            pickle.dump(data, f)
 
     extractor = syntactic_extractor.CCASyntacticExtractor()
 
     # Run tests.
-
-    evaluate.run_tests(data[:100], extractor, num_queries = args.num_queries, method = args.method, num_words = args.num_words, ignore_function_words = True)
-
+    evaluate.run_tests(data, extractor, num_queries=args.num_queries, method=args.method,
+                       num_words=args.num_words, ignore_function_words=True)

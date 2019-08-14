@@ -6,7 +6,7 @@ from utils import DEFAULT_PARAMS
 FUNCTION_WORDS = DEFAULT_PARAMS["function_words"]
 sys.path.insert(0, './tree_distance')
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import typing
 from syntactic_extractor import SyntacticExtractor
 import tree_similarity
@@ -17,7 +17,6 @@ from tqdm.auto import tqdm
 import spacy
 import random
 from scipy.stats.stats import pearsonr
-
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
@@ -110,13 +109,11 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5):
     if method == "cosine":
 
-        # normalzie the vectors
-
+        # normalize the vectors
         all_vecs = all_vecs / np.linalg.norm(all_vecs, axis=1)[:, None]
         queries = queries / np.linalg.norm(queries, axis=1)[:, None]
 
         # perform dot product
-
         distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="cosine")
 
     else:
@@ -151,8 +148,8 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
     return embds_sents_deps
 
 
-def sentences2words(sentence_representations: List[Sentence_vector], num_words, ignore_function_words=True) -> List[
-    Word_vector]:
+def sentences2words(sentence_representations: List[Sentence_vector],
+                    num_words, ignore_function_words=True) -> List[Word_vector]:
     """
         Parameters
 
@@ -195,7 +192,8 @@ def sentences2words(sentence_representations: List[Sentence_vector], num_words, 
     return data
 
 
-def closest_sentence_test(sentence_representations: List[Sentence_vector], extractor=None, num_queries=15,
+def closest_sentence_test(sentence_representations: List[Sentence_vector],
+                          extractor=None, num_queries=15,
                           method="cosine"):
     """
         Parameters
@@ -267,7 +265,7 @@ def node_height(token):
     return i
 
 
-def get_tests():
+def get_tests() -> List[Dict]:
     tests = [{'func': lambda x: x.token.dep_, 'name': 'dependency edge'},
              {'func': lambda x: x.token.pos_, 'name': 'pos'},
              {'func': lambda x: x.token.tag_, 'name': 'tag'},
@@ -308,13 +306,12 @@ def perform_tests(query_words, k_value_words, k=1):
 def persist_examples(extractor, query_words, k_value_words):
     fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
     with open(fname, "w", encoding="utf8") as f:
-
         for (query, value) in zip(query_words, k_value_words[0]):
-            dep1, dep2 = query.dep_edge, value.token.dep_
+            dep1, dep2 = query.token.dep_, value.token.dep_
             correct_dep = dep1 == dep2
-            word1, word2 = query.word, value.token.text
+            word1, word2 = query.token.text, value.token.text
             sent1, sent2 = query.sentence, value.sentence
-            ind1, ind2 = query.index, value.token.i
+            ind1, ind2 = query.token.i, value.token.i
             sent1_str = " ".join(sent1[:ind1] + ["***" + word1 + "***"] + sent1[ind1 + 1:])
             sent2_str = " ".join(sent2[:ind2] + ["***" + word2 + "***"] + sent2[ind2 + 1:])
 
@@ -355,23 +352,15 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     data = words_reprs
 
     # if supplied with extractor, use it to project the vectors to the syntactic space.
-    # (TODO: should probably be moved to a separate function. [sentences2words?])
-
     if extractor is not None:
-
         print("Applying syntactic extractor...")
         data = syntactic_extractor(data, extractor)
-        # for i, word_representation in tqdm(enumerate(data), total=len(data)):
-        #     data[i] = word_representation._replace(
-        #         word_vector=extractor.extract(word_representation.word_vector).reshape(-1))
 
     # collect word vectors
-
     vecs = [word_representation.word_vector for word_representation in data]
     vecs = np.array(vecs)
 
     # perform closest_vector query.
-
     queries = vecs[:num_queries]
     closest_indices = get_closest_vectors(vecs, queries, method=method, k=k)
 
@@ -389,8 +378,6 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     perform_tests(query_words, k_value_words, k=k)
 
     persist_examples(extractor, query_words, k_value_words)
-
-
 
 
 def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean"):
