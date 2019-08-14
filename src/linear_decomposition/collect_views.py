@@ -94,16 +94,22 @@ class SimpleCollector(CollectorBase):
                 
                 for word_index in range(sent_len):
                 
-                        if self.exclude_function_words and (word_index not in content_idx): continue
+                        is_function_word = word_index not in content_idx
+                        if self.exclude_function_words and is_function_word: continue
                         
-                        view1_vecs = view1[:, word_index, :]
-                        view2_vecs = view2[:, word_index, :]
-                        view1_words_at_index = view1_words[:, word_index]
-                        view2_words_at_index = view2_words[:, word_index]
+                        view1_vecs = view1[:, word_index, :] # (group_size, 2048)
+                        view2_vecs = view2[:, word_index, :] # (group_size - 1, 2048)
+                        view1_words_at_index = view1_words[:, word_index] # (group_size,)
+                        view2_words_at_index = view2_words[:, word_index] # (group_size - 1,)
                         idx = [word_index] * min(view1_vecs.shape[0], view2_vecs.shape[0])
-                        examples = list(zip(view1_vecs, view2_vecs, idx))
-                        data.extend(examples)
-                
+                        examples = list(zip(view1_vecs, view2_vecs, view1_words_at_index, view2_words_at_index, idx))
+                        
+                        if self.exclude_function_words or (not is_function_word):                 
+                                data.extend(examples)
+                        else: # function word & we include function words
+                                data.append(examples[0]) # don't append multiple occurrences of the same function word.
+                        
+                                
                 return data
                       
                                 
