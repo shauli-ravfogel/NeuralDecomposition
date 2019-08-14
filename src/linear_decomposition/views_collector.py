@@ -143,7 +143,39 @@ class AveragedCollector(CollectorBase):
                                
         
         
+class SentenceCollector(CollectorBase):
+
+        def __init__(self, path, view_size, output_filename, exclude_function_words=True):
         
+        
+                super(SentenceCollector, self).__init__(path, view_size, output_filename, exclude_function_words)
+                
+        def read_one_group(self, vecs: np.ndarray, sents: np.ndarray, content_idx: np.ndarray, sent_len: int, group_size: int) -> List[Tuple[np.ndarray, np.ndarray, int]]:
+                                
+                view1 = vecs[::1,:, :]  #(num sents+-1, num_indices, 2048)
+                view2 = vecs[1::1,:, :] # (num_sents+-1, num_indices, 2048)
+                view1_words = sents[::1,:] #(num_sents+-1, sent_length)
+                view2_words = sents[1::1,:] # (num_sents+-1, sent_length
+                
+                data = []
+                
+                if self.exclude_function_words: 
+                       
+                       view1, view2 = view1[:, content_idx, :], view2[:, content_idx, :]
+                       view1_words, view2_words = view1_words[:, content_idx], view2_words[:, content_idx] 
+                
+                n = min(len(view1), len(view2))
+                
+                for i in range(n):
+
+                        # average over all positions in the ith pairs of sentences.
+                        m1 = np.mean(view1[i, :, :], axis = 0) #(2048,) 
+                        m2 = np.mean(view2[i, :, :], axis = 0) #(2048,)              
+                        data.append((m1, m2, -1)) # -1 since this is in the sentence level
+                
+                return data
+                               
+                
         
         
         
