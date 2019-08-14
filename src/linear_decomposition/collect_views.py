@@ -10,7 +10,7 @@ if __name__ == '__main__':
                         help='name of the hdf5 input file (containing encoded equivalent sentences)')
     
     parser.add_argument('--output-path', dest='output_path', type=str,
-                        default='out.pickle',
+                        default='views_data.pickle',
                         help='name of the output file (containing the collected views)')
 
     parser.add_argument('--num_examples', dest='num_examples', type=int,
@@ -24,20 +24,23 @@ if __name__ == '__main__':
     parser.add_argument('--exclude_function_words', dest='exclude_function_words', type=bool,
                         default =True,
                         help='whether or not to exclude function words from the pairs')
-
-
+                        
+                        
     args = parser.parse_args()
+   
+    collector_args = (args.input_path, args.num_examples, args.output_path, args.mode, args.exclude_function_words)
+    
     
     if args.mode == "simple":
     
-        collector = views_collector.SimpleCollector(args.input_path, args.num_examples, args.output_path, exclude_function_words = args.exclude_function_words)
+        collector = views_collector.SimpleCollector(*collector_args)
     
     elif args.mode == "averaged":
     
-        collector = views_collector.AveragedCollector(args.input_path, args.num_examples, args.output_path, exclude_function_words = args.exclude_function_words)  
+        collector = views_collector.AveragedCollector(*collector_args)  
          
     elif args.mode == "sentence-level":
     
-        collector = views_collector.SentenceCollector(args.input_path, args.num_examples, args.output_path, exclude_function_words = args.exclude_function_words) 
+        collector = views_collector.SentenceCollector(*collector_args) 
          
     collector.collect_views()
