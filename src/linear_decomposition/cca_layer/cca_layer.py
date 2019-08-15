@@ -40,9 +40,6 @@ class CCAModel(object):
             H1 = H1 - m1[None, :]
             H2 = H2 - m2[None, :]
 
-
-
-
             H1, H2 = H1.T, H2.T
 
             S11 = ((H1.dot(H1.T)) / (N - 1)) + r * np.eye(H1.shape[0])  # cov_xx
@@ -57,9 +54,7 @@ class CCAModel(object):
             D2, V2 = la.eigh(S22)
 
             K11 = V1.dot(np.diag(1 / np.sqrt(D1))).dot(V1.T)
-
             K22 = V2.dot(np.diag(1 / np.sqrt(D2))).dot(V2.T)
-
 
             # Calculate correlation matrix
 
@@ -72,7 +67,6 @@ class CCAModel(object):
                 self.corr = np.mean(D)
                 U, V = U[:self.dim, :], V[:self.dim, :]
                 D = np.diag(D)  # correlation coefficiens of the canonical components
-
 
             else:
 
@@ -117,7 +111,7 @@ class CCALayer(nn.Module):
         super(CCALayer, self).__init__()
         self.dim = dim
 
-    def forward(self, H1, H2=None, is_training=True, r=1e-4):
+    def forward(self, H1, H2=None, is_training=True, r=1e-4, np_sqrt = False):
 
         # H1 and H2 are DXN matrices containing samples columnwise.
         # dim is the desired dimensionality of CCA space.
@@ -147,14 +141,21 @@ class CCALayer(nn.Module):
             D1, V1 = torch.symeig(S11, eigenvectors=True)
 
 
-            diag_sqrt_inverse_D1 = torch.diag(1. / torch.sqrt(D1))
 
 
             D2, V2 = torch.symeig(S22, eigenvectors=True)
-            D1 = torch.clamp(D1, min= r, max = 1.)
-            D2 = torch.clamp(D2, min = r, max = 1.)
+            #D1 = torch.clamp(D1, min= r, max = 1.)
+            #D2 = D2.clamp(D2, min = r, max = 1.)
 
-            diag_sqrt_inverse_D2 = torch.diag(1. / torch.sqrt(D2))
+            if np_sqrt:
+                diag_sqrt_inverse_D2 = torch.diag(torch.from_numpy(
+                    np.reciprocal(np.sqrt(D2.detach().cpu().numpy())))).cuda()
+                diag_sqrt_inverse_D1 = torch.diag(torch.from_numpy(
+                    np.reciprocal(np.sqrt(D1.detach().cpu().numpy())))).cuda()
+            else:
+
+                diag_sqrt_inverse_D2 = torch.diag(1. / torch.sqrt(D2))
+                diag_sqrt_inverse_D1 = torch.diag(1. / torch.sqrt(D1))
 
             K11 = V1 @ diag_sqrt_inverse_D1 @ torch.t(V1)  # dot(dot(V1,np.diag(1/np.sqrt(D1))),np.transpose(V1))
             K22 = V2 @ diag_sqrt_inverse_D2 @ torch.t(V2)
@@ -179,7 +180,7 @@ class CCALayer(nn.Module):
             D = torch.diag(D)
             A = K11 @ torch.t(V)
             B = K22 @ torch.t(U)
-            s = torch.sign(torch.diag(U @ S12 @ torch.t(V)))
+            s = torch.sign(torch.diag(V @ S12 @ torch.t(U)))
             B *= s
 
             self.A, self.B = A, B
@@ -191,8 +192,8 @@ class CCALayer(nn.Module):
 
         else:
 
-            H1 -= self.mean_x[:, None]
-            H2 -= self.mean_y[:, None]
+            H1 -= self.mean_x[None, :]
+            H2 -= self.mean_y[None, :]
             return (H1 @ self.A), (H2 @ self.B)
 
 
