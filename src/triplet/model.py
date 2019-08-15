@@ -4,26 +4,24 @@ from pytorch_revgrad import RevGrad
 
 class Siamese(nn.Module):
 
-    def __init__(self, dim = 2048, final = 256):
+    def __init__(self, dim = 2048, final = 250):
 
         super(Siamese, self).__init__()
 
         layers = []
         layers.append(nn.Linear(dim, 1500))
-        layers.append(nn.LeakyReLU())
-        layers.append(nn.Linear(1500, 1500))
-        layers.append(nn.LeakyReLU())
-        layers.append(nn.Dropout(0.4))
+        #layers.append(nn.ReLU())
         layers.append(nn.Linear(1500, 1000))
-        layers.append(nn.LeakyReLU())
+        #layers.append(nn.ReLU())
         layers.append(nn.Linear(1000, 500))
-        layers.append(nn.LeakyReLU())
+        #layers.append(nn.LeakyReLU())
         layers.append(nn.Linear(500, final))
 
+        layers = [nn.Linear(dim, dim, bias = False)]
         self.layers = nn.Sequential(*layers)
 
         final_net = []
-        final_net.append(nn.Linear(final, final))
+        final_net.append(nn.Linear(final, final, bias = False))
         self.final_net = nn.Sequential(*final_net)
 
         pos_network = []
@@ -41,6 +39,7 @@ class Siamese(nn.Module):
     def forward(self, x1, x2):
 
         h1, h2 = self.layers(x1), self.layers(x2)
+        #h1, h2 = self.layers(x1), self.layers(x2)
         diff = torch.abs(h1 - h2)
         #return self.final_net(diff)
         return diff
