@@ -7,7 +7,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Views collection',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--views-file-path', dest='views_path', type=str,
-                        default='../../data/interim/encoded_sents.150k.hdf5',
+                        default='views/...',
                         help='name of the views file')
     parser.add_argument('--perform-pca', dest='perform_pca', type=bool,
                         default = False,
