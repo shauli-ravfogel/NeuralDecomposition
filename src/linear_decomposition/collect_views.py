@@ -10,7 +10,7 @@ if __name__ == '__main__':
                         help='name of the hdf5 input file (containing encoded equivalent sentences)')
     
     parser.add_argument('--num_examples', dest='num_examples', type=int,
-                        default = 300,
+                        default = 2000000,
                         help='how many pairs to collect')
                             
     parser.add_argument('--mode', dest='mode', type=str,
