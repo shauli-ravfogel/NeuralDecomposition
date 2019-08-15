@@ -9,7 +9,7 @@ from pytorch_revgrad import RevGrad
 
 class ProjectionNetwork(nn.Module):
 
-    def __init__(self, dim = 2048, final = 50):
+    def __init__(self, dim = 2048, final = 500):
 
         super(ProjectionNetwork, self).__init__()
 
@@ -21,6 +21,7 @@ class ProjectionNetwork(nn.Module):
         layers.append(nn.Linear(512, 512))
         #layers.append(nn.Dropout(0.5))
         layers.append(nn.Linear(512, final))
+        #layers.append(nn.Tanh())
         #layers.append(nn.Dropout(0.5))
         #layers.append(nn.LayerNorm(512))
         #layers.append(nn.Softsign())
@@ -30,7 +31,7 @@ class ProjectionNetwork(nn.Module):
         self.W = torch.nn.Parameter(0.0001 * (torch.randn(dim, 100) - 0.5))
 
         self.layers = nn.Sequential(*layers)
-        self.cca = cca_layer.CCALayer()
+        self.cca = cca_layer.CCALayer(dim = final)
 
         pos_network = []
         pos_network.append(RevGrad())
@@ -55,7 +56,7 @@ class ProjectionNetwork(nn.Module):
         #print(X_h, X_h.shape)
         #print("Y before CCA layer:\n")
         #print(Y_h)
-        total_corr, (X_projected, Y_projected) = self.cca(X,Y, is_training = self.training)
+        total_corr, (X_projected, Y_projected) = self.cca(X_h,X_h, is_training = self.training)
 
         #print("X after CCA :\n")
         #print(X_projected)

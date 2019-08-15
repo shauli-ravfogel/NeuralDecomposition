@@ -42,9 +42,9 @@ def train(model, training_generator, dev_generator, loss_fn, pos_loss_fn, optimi
             with autograd.detect_anomaly():
                 try:
                     total_corr, (X_proj, Y_proj), pos_pred = model(view1_vecs, view2_vecs)
-                except RuntimeError:
-                    print("Error.")
-                    continue
+                except RuntimeError as e:
+                    print(e, type(e))
+                #    exit()
                 #print(torch.diag(T)[:25])
                 #print("---------------------------------")
                 loss = loss_fn(X_proj, Y_proj, total_corr)
@@ -56,6 +56,7 @@ def train(model, training_generator, dev_generator, loss_fn, pos_loss_fn, optimi
                 pos_good += np.count_nonzero(pos_correct)
                 pos_bad += len(pos_correct) - np.count_nonzero(pos_correct)
                 loss += pos_loss
+
 
                 loss.backward()
 

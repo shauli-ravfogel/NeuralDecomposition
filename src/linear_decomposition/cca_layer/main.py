@@ -14,12 +14,13 @@ import training
 if __name__ == '__main__':
 
     loss_fn = loss.SimilarityLoss()
+    pos_loss = torch.nn.CrossEntropyLoss()
     network = model.ProjectionNetwork().cuda()
     network.cca.cuda()
 
-    optimizer = optim.Adam(network.parameters())
-    train = dataset.Dataset("../view1.160.txt", "../view2.160.txt")
-    training_generator = data.DataLoader(train, batch_size=1250, shuffle=True)
+    optimizer = optim.Adam(network.parameters(), weight_decay = 0.5 * 1e-4) # 0 = no weight decay, 1 = full weight decay
+    train = dataset.Dataset("../view1.content.160.txt", "../view2.content.160.txt")
+    training_generator = data.DataLoader(train, batch_size=2000, shuffle=True)
     dev_generator = data.DataLoader(train, batch_size=1, shuffle=False)
 
-    training.train(network, training_generator, dev_generator, loss_fn, optimizer)
+    training.train(network, training_generator, dev_generator, loss_fn, pos_loss, optimizer)
