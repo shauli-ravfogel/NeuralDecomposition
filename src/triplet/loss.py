@@ -3,19 +3,26 @@ import numpy as np
 import copy
 import torch.nn.functional as F
 from torch import nn
+import random
 
 class TripletLoss(torch.nn.Module):
 
-    def __init__(self, metric = 2, alpha = 0.5):
+    def __init__(self, p = 2, alpha = 0.1, cosine = True):
 
         super(TripletLoss, self).__init__()
-        self.metric = metric
+        self.p = p
         self.alpha = alpha
+        self.cosine = cosine
 
     def forward(self, h1, h2, h3):
 
-        dis_positive = torch.norm(h1 - h2, dim = 1, p = self.metric)
-        dis_negative = torch.norm(h1 - h3, dim = 1, p = self.metric)
+        if not self.cosine:
+            dis_positive = torch.norm(h1 - h2, dim = 1, p = self.p)**2
+            dis_negative = torch.norm(h1 - h3, dim = 1, p = self.p)**2
+
+        else:
+            dis_positive = 1. - torch.nn.functional.cosine_similarity(h1, h2)
+            dis_negative = 1. - torch.nn.functional.cosine_similarity(h1, h3)
         #print(dis_positive, dis_negative, dis_positive.shape, dis_negative.shape)
 
         loss_vals = torch.max(torch.zeros_like(dis_positive), dis_positive - dis_negative + self.alpha)
