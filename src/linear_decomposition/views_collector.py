@@ -11,7 +11,7 @@ Equivalent_sentences_group = typing.NamedTuple("equivalent_sentences",
                                      
 class CollectorBase(object):
 
-        def __init__(self, path, view_size, output_filename, method, exclude_function_words = True):
+        def __init__(self, path, view_size, method, exclude_function_words = True):
         
                 """
                 Parameters
@@ -25,7 +25,6 @@ class CollectorBase(object):
                 self.path = path
                 self.f = h5py.File(path, 'r')
                 self.view_size = view_size
-                self.output_filename = output_filename
                 self.exclude_function_words = exclude_function_words
                 self.method = method
         
