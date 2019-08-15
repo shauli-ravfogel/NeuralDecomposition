@@ -2,8 +2,9 @@ from sklearn import cross_decomposition, decomposition
 import numpy_cca
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 
-def run_cca(views_path, perform_pca, pca_dim, cca_dim, enforce_symmetry, model):
+def run_cca(views_path, perform_pca, pca_dim, cca_dim, enforce_symmetry, model, plot = False):
 
         # load views
         
@@ -12,24 +13,23 @@ def run_cca(views_path, perform_pca, pca_dim, cca_dim, enforce_symmetry, model):
                 views = pickle.load(f)
         
         view1, view2, positions = map(np.squeeze, map(np.asarray, zip(*views))) # each view is a numpy arrays
-        view1, view2 = np.array(view1), np.array(view2)
 
         # enforce symmetry
-        
+
         if enforce_symmetry:
         
-                view1 += view2
-                view2 += view1
-        
+                view1, view2 = np.concatenate([view1, view2]), np.concatenate([view2, view1])
+
         # perform pca
               
         if perform_pca:
                 
                 print("Performing PCA on {} vectors to dimensionality {}".format(len(view1) + len(view2), pca_dim))
-                pca = decomposition.PCA(n_components = pca_dim)
+                pca = decomposition.PCA(n_components = 0.999, svd_solver = "full")
                 pca.fit(np.concatenate((view1, view2)))
-                view1 = pca.inverse_transform(pca.transform(view1))
-                view2 = pca.inverse_transform(pca.transform(view2))
+                view1 = pca.transform(view1)
+                view2 = pca.transform(view2)
+                print("PCA dimensionality: {}".format(pca.n_components_))
        
        # perform cca
 
@@ -48,7 +48,17 @@ def run_cca(views_path, perform_pca, pca_dim, cca_dim, enforce_symmetry, model):
                 x_proj, y_proj = cca.transform(view1, view2)
                 corrs = get_sklearn_cca_corr(x_proj, y_proj)   
        
-        print("Correlations: {}; Avergage correlation: {}".format(corrs, np.mean(corrs)))  
+        print("Correlations: {}; Avergage correlation: {}".format(corrs, np.mean(corrs)))
+        print("----------------------")  
+        print(cca.A[:7,:7])
+        print("---------------------")
+        print(cca.B[:7,:7])
+        
+        if plot:
+                        corrs = cca.D[::-1]
+                        cum_corrs = [sum(corrs[:i]) for i in range(len(corrs))]
+                        plt.plot(range(len(corrs)), corrs)
+                        plt.show()    
         return cca
 
 
