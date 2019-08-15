@@ -1,38 +1,35 @@
 import argparse
-import pca_decomp
-import cca_decomp
+import cca
+import pickle
 
 if __name__ == '__main__':
 
-
-    parser = argparse.ArgumentParser(description='Linear Syntactic Decomposition',
+    parser = argparse.ArgumentParser(description='Views collection',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--dataset-type', dest='dataset_type', type=str,
-                        default='pos1gram',
-                        help='Type of dataset: Bert / pos0gram / pos1gram')
-    parser.add_argument('--method', dest='method', type=str,
-                        default='cca',
-                        help='Method: cca / pca')
-    parser.add_argument('--syn-dim', dest='syntactic_dim', type=int,
-                        default=100,
-                        help='Number of syntactic dimensions')  
-    parser.add_argument('--semantic_dim', dest='sem_dim', type=int,
-                        default=200,
-                        help='Number of semantic dimensions (only relevant for PCA)')                       
-    parser.add_argument('--reduce-first', dest='reduce', type=bool,
-                        default='True',
-                        help='Whether or not to perform PCA first on the entire data, to filter out noise.')  
-    parser.add_argument('--reduce-dim', dest='reduce_dim', type=int,
-                        default=900,
-                        help='How many dimensions in the initial PCA?.') 
-    parser.add_argument('--num_sentences', dest='num_sentences', type=int,
-                        default=15,
-                        help='How many sentences?.')     
+    parser.add_argument('--views-file-path', dest='views_path', type=str,
+                        default='views.sentences:782.pairs:110236.mode:simple.no-func-words:True',
+                        help='name of the views file')
+    parser.add_argument('--perform-pca', dest='perform_pca', type=bool,
+                        default = False,
+                        help='whether or not to perform PCA')
+    parser.add_argument('--pca-dim', dest='pca_dim', type=int,
+                        default = 1950,
+                        help='if perform_pca, PCA dimensionality')
+    parser.add_argument('--cca-dim', dest='cca_dim', type=int,
+                        default = 50,
+                        help='CCA dimensionality')                       
+    parser.add_argument('--enforce-symmetry', dest='enforce_symmetry', type=bool,
+                        default = True,
+                        help='whether to enforce symmetry on the CCA matrices (by adding an example (y,x) for each example (x,y))')
+    parser.add_argument('--cca-model', dest='model', type=str,
+                        default = "numpy",
+                        help='numpy / sklearn. whether to use sklearn CCA or vanilla numpy implemenetation)')
+                                                                        
     args = parser.parse_args()
+                                                                        
+    cca_model = cca.run_cca(args.views_path, args.perform_pca, args.pca_dim, args.cca_dim, args.enforce_symmetry, args.model)
     
-    data = "../data/interim/bert_online_data.txt"                                              
-    output_filename = "decomoModel." + "" if not args.reduce else "PCA:"+str(args.reduce_dim) +".Method:" + args.method + ".Dim:" + str(args.syntactic_dim) + ".Data:" +args.dataset_type + ".Sentences:" + str(args.num_sentences) +  ".pickle"
+    filename = "models/cca.perform-pca:{}.cca-dim:{}.symmetry:{}.pickle".format(args.perform_pca, args.cca_dim, args.enforce_symmetry)
     
-    if args.method == "cca":
-    
-        decomp = cca_decomp.CCADecomposition(args.syntactic_dim, args.reduce, args.reduce_dim, args.num_sentences, data)
+    with open(filename, "wb") as f:
+        pickle.dump(cca_model, f)
