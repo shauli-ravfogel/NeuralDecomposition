@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--elmo_folder', dest='elmo_folder', type=str,
                         default='../data/external')
     parser.add_argument('--method', dest='method', type=str,
-                        default='cosine', help="similarity method (cosine / euc)")
+                        default='euc', help="similarity method (cosine / euc)")
     parser.add_argument('--cuda-device', dest='cuda_device', type=int, default=0,
                         help='cuda device to run the LM on')
     parser.add_argument('--num_sents', dest='num_sents', type=int, default=25000,
