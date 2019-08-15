@@ -17,7 +17,8 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
 
             if acc > best_acc:
                 best_acc = acc
-                pass
+                torch.save(model.state_dict(), "TripletModelStateDict.pickle")
+                torch.save(model, "TripletModel.pickle")
 
         print("\nEpoch {}. Best accuracy so far is {}".format(epoch, best_acc))
 
@@ -70,11 +71,13 @@ def evaluate(model, loss_fn, dev_generator):
 
     for (w1, w2, w3, w4, w5, w6) in t:
 
-        p1 = model(w1, w2)
-        p2 = model(w3, w4)
-        p3 = model(w5, w6)
+        with torch.no_grad():
 
-        loss, batch_good, batch_bad = loss_fn(p1, p2, p3)
+            p1 = model(w1, w2)
+            p2 = model(w3, w4)
+            p3 = model(w5, w6)
+            loss, batch_good, batch_bad = loss_fn(p1, p2, p3)
+
         good += batch_good
         bad += batch_bad
 
