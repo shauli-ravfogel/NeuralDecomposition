@@ -6,13 +6,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Views collection',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--input-path', dest='input_path', type=str,
-                        default='sample.hdf5',
+                        default='../../data/interim/encoded_sents.150k.hdf5',
                         help='name of the hdf5 input file (containing encoded equivalent sentences)')
     
-    parser.add_argument('--output-path', dest='output_path', type=str,
-                        default='views_data.pickle',
-                        help='name of the output file (containing the collected views)')
-
     parser.add_argument('--num_examples', dest='num_examples', type=int,
                         default = 300,
                         help='how many pairs to collect')
@@ -28,7 +24,7 @@ if __name__ == '__main__':
                         
     args = parser.parse_args()
    
-    collector_args = (args.input_path, args.num_examples, args.output_path, args.mode, args.exclude_function_words)
+    collector_args = (args.input_path, args.num_examples, args.mode, args.exclude_function_words)
     
     
     if args.mode == "simple":
