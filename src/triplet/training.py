@@ -2,6 +2,7 @@ import torch
 import tqdm
 from torch import autograd
 import numpy as np
+import pickle
 
 def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epochs):
 
@@ -18,7 +19,8 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
             if acc > best_acc:
                 best_acc = acc
                 torch.save(model.state_dict(), "TripletModelStateDict.pickle")
-                torch.save(model, "TripletModel.pickle")
+                with open("TripletModel.pickle", "wb") as f:
+                    pickle.dump(model,f)
 
         print("\nEpoch {}. Best accuracy so far is {}".format(epoch, best_acc))
 
@@ -37,12 +39,17 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
                 try:
                     p1 = model(w1,w2)
                     p2 = model(w3,w4)
-                    p3 = model(w5, w6)
+                    p3 = model(w5, w2)
                 except RuntimeError as e:
                     print(e, type(e))
                     exit()
 
                 loss, good, bad = loss_fn(p1, p2, p3)
+                dis_ll = (1 - torch.nn.functional.cosine_similarity(model.layers(w1), model.layers(w3))).sum() #torch.norm(model(w1,w3), dim = 1, p = 2).sum()
+                dis_mm  = (1 - torch.nn.functional.cosine_similarity(model.layers(w2), model.layers(w4))).sum() #torch.norm(model(w2,w4), dim = 1, p = 2).sum()
+                loss = loss + dis_ll + dis_mm
+                #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
+
                 #loss_vals.append(loss.detach().cpu().numpy())
                 """ 
                 pos_loss = pos_loss_fn(pos_pred, view1_indices.cuda())
@@ -72,11 +79,11 @@ def evaluate(model, loss_fn, dev_generator):
     for (w1, w2, w3, w4, w5, w6) in t:
 
         with torch.no_grad():
-
             p1 = model(w1, w2)
             p2 = model(w3, w4)
-            p3 = model(w5, w6)
+            p3 = model(w5, w2)
             loss, batch_good, batch_bad = loss_fn(p1, p2, p3)
+            #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
 
         good += batch_good
         bad += batch_bad
