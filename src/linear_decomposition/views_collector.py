@@ -58,12 +58,12 @@ class CollectorBase(object):
                         group_size, sent_len = group.attrs["group_size"], group.attrs["sent_length"]
                         group_data = self.read_one_group(vecs, sents, content_idx, sent_len, group_size)
                         views.extend(group_data)
-                        pbar.update(1)
+                        pbar.update(len(group_data))
                         i += 1
                
                 print("Collected {} pairs from {} sentences".format(len(views), i))
                 
-                output_filename = "views.sentences:{}.pairs:{}.mode:{}.no-func-words:{}".format(i, len(views), self.method, self.exclude_function_words)
+                output_filename = "views/views.sentences:{}.pairs:{}.mode:{}.no-func-words:{}".format(i, len(views), self.method, self.exclude_function_words)
                 
                 with open(output_filename, "wb") as f:
                 
