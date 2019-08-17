@@ -9,17 +9,16 @@ from pytorch_revgrad import RevGrad
 
 class ProjectionNetwork(nn.Module):
 
-    def __init__(self, dim = 2048, final = 500):
+    def __init__(self, dim = 2048, final = 150):
 
         super(ProjectionNetwork, self).__init__()
 
         layers = []
         layers.append(nn.Linear(dim, 1024))
-        #layers.append(nn.LeakyReLU())
+        layers.append(nn.LeakyReLU())
         layers.append(nn.Linear(1024, 512))
-        #layers.append(nn.LeakyReLU())
+        layers.append(nn.LeakyReLU())
         layers.append(nn.Linear(512, 512))
-        #layers.append(nn.Dropout(0.5))
         layers.append(nn.Linear(512, final))
         #layers.append(nn.Tanh())
         #layers.append(nn.Dropout(0.5))
@@ -63,7 +62,27 @@ class ProjectionNetwork(nn.Module):
         #print("Y after CCA :\n")
         #print(Y_projected)
 
-        #if np.random.random() < 1e-1: print(X_h[0][:20])
+        if np.random.random() < 0:
+            print(X_projected[0][:20])
+            print("========================")
+            print(Y_projected[0][:20])
+            print("************************")
+            print(X_projected[1][:20])
+            print("========================")
+            print(Y_projected[1][:20])
+            print("************************")
+            print(X_projected[2][:20])
+            print("========================")
+            print(Y_projected[2][:20])
+            print("************************")
+            print(X_projected[3][:20])
+            print("========================")
+            print(Y_projected[3][:20])
+            print("************************")
+            print(X_projected[4][:20])
+            print("========================")
+            print(Y_projected[4][:20])
+            print("-----------------------------------------")
         return total_corr, (X_projected, Y_projected), self.pos_net(X_h)
 
 if __name__ == '__main__':

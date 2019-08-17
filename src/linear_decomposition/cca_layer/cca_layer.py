@@ -105,13 +105,22 @@ class CCAModel(object):
             y_proj = (H2.dot(self.B))[:, ::-1]
             return x_proj, y_proj
 
+
+
+
+
+
+
+
+
+
 class CCALayer(nn.Module):
     def __init__(self, dim):
 
         super(CCALayer, self).__init__()
         self.dim = dim
 
-    def forward(self, H1, H2=None, is_training=True, r=1e-4, np_sqrt = False):
+    def forward(self, H1, H2=None, is_training=True, r=1e-4, np_sqrt = False, noise = True):
 
         # H1 and H2 are DXN matrices containing samples columnwise.
         # dim is the desired dimensionality of CCA space.
@@ -122,6 +131,14 @@ class CCALayer(nn.Module):
         if is_training:
 
             N, d = H1.shape
+
+
+            if noise:
+
+                H1 = H1 + (torch.randn(*H1.shape) * 5 * 1e-3).cuda()
+                H2 = H2 + (torch.randn(*H2.shape) * 5 * 1e-3).cuda()
+
+
             # Remove mean
             m1 = torch.mean(H1, dim=0, keepdim=True)
             m2 = torch.mean(H2, dim=0, keepdim=True)
@@ -139,9 +156,6 @@ class CCALayer(nn.Module):
             S12 = (H1 @ torch.t(H2)) / (N - 1)
 
             D1, V1 = torch.symeig(S11, eigenvectors=True)
-
-
-
 
             D2, V2 = torch.symeig(S22, eigenvectors=True)
             #D1 = torch.clamp(D1, min= r, max = 1.)
@@ -192,9 +206,9 @@ class CCALayer(nn.Module):
 
         else:
 
-            H1 -= self.mean_x[None, :]
-            H2 -= self.mean_y[None, :]
-            return (H1 @ self.A), (H2 @ self.B)
+            H1 -= self.mean_x
+            H2 -= self.mean_y
+            return H1 @ self.A, H2 @ self.B
 
 
 if __name__ == '__main__':

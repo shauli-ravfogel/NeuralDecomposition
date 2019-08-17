@@ -4,26 +4,23 @@ import torch
 import pickle
 
 class Dataset(data.Dataset):
-    def __init__(self, view1_location, view2_location):
+    def __init__(self, views_path):
 
-        self.view1, self.view2 = self._load_data(view1_location, view2_location)
+        self.view1, self.view2, self.positions = self._load_data(views_path)
         print("Training set size is {}".format(len(self.view1)))
 
     def _from_string(self, vec_str):
 
         return np.array([float(x) for x in vec_str.split(" ")])
 
-    def _load_data(self, view1_location, view2_location):
+    def _load_data(self, views_path):
 
-        with open(view1_location, "rb") as f:
+        with open(views_path, "rb") as f:
 
-            view1 = pickle.load(f)
+            views = pickle.load(f)
 
-        with open(view2_location, "rb") as f:
-
-            view2 = pickle.load(f)
-
-        return view1, view2
+        view1, view2, positions = map(np.squeeze, map(np.asarray, zip(*views)))        
+        return view1, view2, positions
 
     def __len__(self):
 
@@ -33,10 +30,10 @@ class Dataset(data.Dataset):
 
         with torch.no_grad():
 
-            x1, ind1 = self.view1[index]
-            x2, ind2 = self.view2[index]
+            x1 = self.view1[index]
+            x2 = self.view2[index]
+            ind = self.positions[index]
+            #x1 = np.random.rand(*x1.shape) - 0.5
+            #x2 = np.random.rand(*x2.shape) - 0.5
 
-            x1 = np.random.rand(*x1.shape) - 0.5
-            x2 = np.random.rand(*x2.shape) - 0.5
-
-            return ((torch.from_numpy(x1).float().cuda(), ind1), (torch.from_numpy(x2).float().cuda(), ind2))
+            return ((torch.from_numpy(x1).float().cuda(), ind), (torch.from_numpy(x2).float().cuda(), ind))

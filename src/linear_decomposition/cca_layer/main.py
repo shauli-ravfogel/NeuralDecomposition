@@ -19,8 +19,9 @@ if __name__ == '__main__':
     network.cca.cuda()
 
     optimizer = optim.Adam(network.parameters(), weight_decay = 0.5 * 1e-4) # 0 = no weight decay, 1 = full weight decay
-    train = dataset.Dataset("../view1.content.160.txt", "../view2.content.160.txt")
-    training_generator = data.DataLoader(train, batch_size=2000, shuffle=True)
-    dev_generator = data.DataLoader(train, batch_size=1, shuffle=False)
+    train = dataset.Dataset("../sample.45k.pickle")
+    dev = dataset.Dataset("../sample.5k.pickle")
+    training_generator = data.DataLoader(train, batch_size=5000, shuffle=True)
+    dev_generator = data.DataLoader(dev, batch_size=1, shuffle=False)
 
     training.train(network, training_generator, dev_generator, loss_fn, pos_loss, optimizer)
