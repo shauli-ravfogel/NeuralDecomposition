@@ -14,7 +14,7 @@ class SimilarityLoss(torch.nn.Module):
         #dists = torch.max(torch.zeros(X.shape[0]).cuda(), 1 - torch.nn.functional.cosine_similarity(X,Y))
         #dists = torch.norm(X - Y, p = 2)
         dists = 1 - torch.nn.functional.cosine_similarity(X,Y)
-        return (1 - total_corr) + torch.mean(dists)
+        return (1 - total_corr) #+ torch.mean(dists)
         return torch.max(0, 1 -total_corr)
 
 

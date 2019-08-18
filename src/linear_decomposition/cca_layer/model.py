@@ -9,7 +9,7 @@ from pytorch_revgrad import RevGrad
 
 class ProjectionNetwork(nn.Module):
 
-    def __init__(self, dim = 2048, final = 150):
+    def __init__(self, dim = 2048, final = 50):
 
         super(ProjectionNetwork, self).__init__()
 
@@ -20,7 +20,7 @@ class ProjectionNetwork(nn.Module):
         layers.append(nn.LeakyReLU())
         layers.append(nn.Linear(512, 512))
         layers.append(nn.Linear(512, final))
-        #layers.append(nn.Tanh())
+        layers.append(nn.Tanh())
         #layers.append(nn.Dropout(0.5))
         #layers.append(nn.LayerNorm(512))
         #layers.append(nn.Softsign())

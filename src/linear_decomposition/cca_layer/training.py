@@ -77,8 +77,8 @@ def evaluate(model, eval_generator, loss_fn):
 
         model.eval()
         good, bad = 0., 0.
-        #t = tqdm.tqdm(iter(eval_generator), leave=False, total=len(eval_generator))
-        t = iter(eval_generator)
+        t = tqdm.tqdm(iter(eval_generator), leave=False, total=len(eval_generator), ascii = True)
+        #t = iter(eval_generator)
         average_loss = 0.
         similarity = 0.
         similarities = []
@@ -98,4 +98,4 @@ def evaluate(model, eval_generator, loss_fn):
             print()
             print("Similarity: ", cosine_sim)
             print("Distance: ", l2_dist)
-            return cosine_sim
+            return 1/l2_dist
