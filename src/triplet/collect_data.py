@@ -60,9 +60,11 @@ def generate_training_instances(group1: Equivalent_sentences_group, group2: Equi
         l, m = np.random.choice(range(min(sent1_len, sent2_len)), size = 2, replace = True)
         if (sents1[i,l] == sents1[j, l]) or (sents1[i,m] == sents1[j,m]): continue
 
+
         w1, w2 = vecs1[i,l], vecs1[j, m]
         w3, w4 = vecs1[j, l], vecs1[i, m]
         w5, w6 = vecs2[k,l], vecs2[k, m]
+
 
         if ind == 0:
             print("\n", " ".join(sents1[i]), "\n\n", " ".join(sents1[j]), "\n\n", " ".join(sents2[k]))

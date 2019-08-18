@@ -23,6 +23,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
                     pickle.dump(model,f)
 
         print("\nEpoch {}. Best accuracy so far is {}".format(epoch, best_acc))
+        #if acc > 0.95: exit()
 
         model.train()
 
@@ -31,7 +32,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
         pos_good, pos_bad = 1e-3, 1e-3
         loss_vals = []
 
-        for (w1,w2,w3,w4,w5,w6) in t:
+        for (w1,w2,w3,w4,w5,w6, w7, w8, w9, w10) in t:
 
             i += 1
 
@@ -39,15 +40,28 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
                 try:
                     p1 = model(w1,w2)
                     p2 = model(w3,w4)
-                    p3 = model(w5, w2)
+                    #p3 = model(w5, w2)
+                    p3 = model(w9, w10)
+
+                    # (w1, w4) like (w3, w2) and unlike (w5,w6)
+                    #p1 = model(w1, w4)
+                    #p2 = model(w3, w2)
+                    #p3 = model(w5, w6)
+
                 except RuntimeError as e:
                     print(e, type(e))
                     exit()
 
+                #loss, good, bad = loss_fn(model.layers(w1), model.layers(w3), model.layers(w5))
                 loss, good, bad = loss_fn(p1, p2, p3)
-                dis_ll = (1 - torch.nn.functional.cosine_similarity(model.layers(w1), model.layers(w3))).sum() #torch.norm(model(w1,w3), dim = 1, p = 2).sum()
-                dis_mm  = (1 - torch.nn.functional.cosine_similarity(model.layers(w2), model.layers(w4))).sum() #torch.norm(model(w2,w4), dim = 1, p = 2).sum()
-                loss = loss + dis_ll + dis_mm
+
+
+                #loss, good, bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
+                #dis_ll = (1 - torch.nn.functional.cosine_similarity(model.layers(w1), model.layers(w3))).sum() #torch.norm(model(w1,w3), dim = 1, p = 2).sum()
+                #dis_mm  = (1 - torch.nn.functional.cosine_similarity(model.layers(w2), model.layers(w4))).sum() #torch.norm(model(w2,w4), dim = 1, p = 2).sum()
+                #dis_ll = (torch.norm(model.final_net(w1) - model.final_net(w3), dim = 1, p = 2)**2).sum()
+                #dis_mm = (torch.norm(model.final_net(w2) - model.final_net(w4), dim = 1, p = 2)**2).sum()
+                #loss = loss + dis_ll + dis_mm
                 #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
 
                 #loss_vals.append(loss.detach().cpu().numpy())
@@ -76,13 +90,23 @@ def evaluate(model, loss_fn, dev_generator):
     t = tqdm.tqdm(iter(dev_generator), leave=False, total=len(dev_generator), ascii=True)
     good, bad = 0., 0.
 
-    for (w1, w2, w3, w4, w5, w6) in t:
+    for (w1,w2,w3,w4,w5,w6, w7, w8, w9, w10) in t:
 
         with torch.no_grad():
             p1 = model(w1, w2)
             p2 = model(w3, w4)
-            p3 = model(w5, w2)
+            #p3 = model(w5, w2)
+            p3 = model(w9, w10)
+
+            # (w1, w4) like (w3, w2) and unlike (w5,w6)
+            #p1 = model(w1, w4)
+            #p2 = model(w3, w2)
+            #p3 = model(w5, w6)
+
+            #loss, batch_good, batch_bad = loss_fn(model.layers(w1), model.layers(w3), model.layers(w5))
             loss, batch_good, batch_bad = loss_fn(p1, p2, p3)
+
+            #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
             #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
 
         good += batch_good
