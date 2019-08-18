@@ -55,7 +55,7 @@ class ProjectionNetwork(nn.Module):
         #print(X_h, X_h.shape)
         #print("Y before CCA layer:\n")
         #print(Y_h)
-        total_corr, (X_projected, Y_projected) = self.cca(X_h,X_h, is_training = self.training)
+        total_corr, (X_projected, Y_projected) = self.cca(X_h,Y_h, is_training = self.training)
 
         #print("X after CCA :\n")
         #print(X_projected)
