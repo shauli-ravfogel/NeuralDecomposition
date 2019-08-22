@@ -101,7 +101,11 @@ class CCAModel(object):
         else:
             # in test time, use saved mean and projection matrix.
             H1 -= self.mean_x[None, :]
-            H2 -= self.mean_y[None, :]
             x_proj = (H1.dot(self.A))[:, ::-1]
-            y_proj = (H2.dot(self.B))[:, ::-1]
-            return x_proj, y_proj
+            
+            if H2 is not None:
+                H2 -= self.mean_y[None, :]
+                y_proj = (H2.dot(self.B))[:, ::-1]
+                return x_proj, y_proj
+            
+            return x_proj
