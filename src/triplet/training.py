@@ -4,24 +4,26 @@ from torch import autograd
 import numpy as np
 import pickle
 
+DIM = 2048
+
 def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epochs):
 
     best_acc = 0
-
     for epoch in range(num_epochs):
 
         model.zero_grad()
 
         if epoch >= 0:
 
-            acc = evaluate(model, loss_fn, dev_generator)
+            acc, loss = evaluate(model, loss_fn, dev_generator)
 
-            if acc > best_acc:
+            if (acc > best_acc) :
                 best_acc = acc
                 torch.save(model.state_dict(), "TripletModelStateDict.pickle")
                 with open("TripletModel.pickle", "wb") as f:
                     pickle.dump(model,f)
-
+        print()
+        print("Acc: {}".format(acc))
         print("\nEpoch {}. Best accuracy so far is {}".format(epoch, best_acc))
         #if acc > 0.95: exit()
 
@@ -33,15 +35,31 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
         loss_vals = []
 
         for (w1,w2,w3,w4,w5,w6, w7, w8, w9, w10) in t:
+            w1, w3, w5 = w1[:, :DIM], w3[:, :DIM], w5[:, :DIM]
 
             i += 1
 
             with autograd.detect_anomaly():
                 try:
-                    p1 = model(w1,w2)
-                    p2 = model(w3,w4)
-                    #p3 = model(w5, w2)
-                    p3 = model(w9, w10)
+
+                    #p1 = model(w1,w4)
+                    #p2 = model(w3,w2)
+                    #p3 = model(w5, w8)
+
+
+                    if np.random.random() < 0.0:
+                        p1 = model(w1,w2)
+                        p2 = model(w3,w4)
+                    else:
+                        p1 = model(w1, w4)
+                        p2 = model(w3, w2)
+
+                    if np.random.random() < 0.333:
+                        p3 = model(w5, w2)
+                    elif np.random.random() < 0.333:
+                        p3 = model(w9, w10)
+                    else:
+                        p3 = model(w5, w8)
 
                     # (w1, w4) like (w3, w2) and unlike (w5,w6)
                     #p1 = model(w1, w4)
@@ -53,7 +71,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
                     exit()
 
                 #loss, good, bad = loss_fn(model.layers(w1), model.layers(w3), model.layers(w5))
-                loss, good, bad = loss_fn(p1, p2, p3)
+                loss, diff, good, bad, norm = loss_fn(p1, p2, p3)
 
 
                 #loss, good, bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
@@ -89,14 +107,34 @@ def evaluate(model, loss_fn, dev_generator):
     model.eval()
     t = tqdm.tqdm(iter(dev_generator), leave=False, total=len(dev_generator), ascii=True)
     good, bad = 0., 0.
+    loss_vals = []
+    norms = []
 
     for (w1,w2,w3,w4,w5,w6, w7, w8, w9, w10) in t:
 
+        w1, w3, w5 = w1[:, :DIM], w3[:, :DIM], w5[:, :DIM]
+
         with torch.no_grad():
-            p1 = model(w1, w2)
-            p2 = model(w3, w4)
-            #p3 = model(w5, w2)
-            p3 = model(w9, w10)
+            #p1 = model(w1, w4)
+            #p2 = model(w3, w2)
+            #p3 = model(w5, w8)
+
+
+            if np.random.random() < 0.0:
+                p1 = model(w1, w2)
+                p2 = model(w3, w4)
+            else:
+                p1 = model(w1, w4)
+                p2 = model(w3, w2)
+
+            if np.random.random() < 0.333:
+                p3 = model(w5, w2)
+            elif np.random.random() < 0.333:
+                p3 = model(w9, w10)
+            else:
+                p3 = model(w5, w8)
+
+            #p3 = model(w9, w10)
 
             # (w1, w4) like (w3, w2) and unlike (w5,w6)
             #p1 = model(w1, w4)
@@ -104,8 +142,9 @@ def evaluate(model, loss_fn, dev_generator):
             #p3 = model(w5, w6)
 
             #loss, batch_good, batch_bad = loss_fn(model.layers(w1), model.layers(w3), model.layers(w5))
-            loss, batch_good, batch_bad = loss_fn(p1, p2, p3)
-
+            loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, p3)
+            loss_vals.append(diff.detach().cpu().numpy().item())
+            norms.append(norm.detach().cpu().numpy().item())
             #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
             #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
 
@@ -114,5 +153,6 @@ def evaluate(model, loss_fn, dev_generator):
 
     good, bad = good.detach().cpu().numpy().item(), bad.detach().cpu().numpy().item()
     acc = good / (good + bad)
-
-    return acc
+    print("\nMean difference: {}".format(np.mean(loss_vals)))
+    print("Mean norm: {}".format(np.mean(norms)))
+    return acc, loss

@@ -9,7 +9,6 @@ class Dataset(data.Dataset):
         with open(data_path, "rb") as f:
 
             self.data = pickle.load(f)
-
         print("Training set size is {}".format(len(self.data)))
 
 

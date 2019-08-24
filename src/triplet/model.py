@@ -4,26 +4,24 @@ from pytorch_revgrad import RevGrad
 
 class Siamese(nn.Module):
 
-    def __init__(self, dim = 2048, final = 150):
+    def __init__(self, dim = 2048, final = 512):
 
         super(Siamese, self).__init__()
 
         layers = []
-        layers.append(nn.Linear(dim, 1500))
-        layers.append(nn.ReLU())
-        #layers.append(nn.Dropout(0.1))
-        layers.append(nn.Linear(1500, 1000))
-        layers.append(nn.ReLU())
-        layers.append(nn.Linear(1000, 500))
+        layers.append(nn.Linear(dim, 4096))
         layers.append(nn.LeakyReLU())
-        layers.append(nn.Linear(500, 250))
-        layers.append(nn.Linear(250, final))
+        layers.append(nn.Linear(4096, 2048))
+        layers.append(nn.LeakyReLU())
+        layers.append(nn.Linear(2048, final))
 
-        layers = [nn.Linear(dim, final, bias = False)]
+        #layers = [nn.Linear(dim, final, bias = True)]
         self.layers = nn.Sequential(*layers)
 
         final_net = []
-        final_net.append(nn.Linear(2 * final, final, bias = True))
+        final_net.append(nn.Linear(final, final, bias = True))
+        #final_net.append(nn.ReLU())
+        #final_net.append(nn.Linear(final, final, bias=True))
         self.final_net = nn.Sequential(*final_net)
 
         pos_network = []
@@ -41,11 +39,13 @@ class Siamese(nn.Module):
     def forward(self, x1, x2):
 
         h1, h2 = self.layers(x1), self.layers(x2)
+        return self.final_net(h1 * h2)
+
         outer = h1[:, :, None] @ h2[:, None, :]
         #h1, h2 = self.layers(x1), self.layers(x2)
         outer = outer.view(x1.shape[0], h1.shape[1]**2)
         return outer
-        return h1 - h2
+        return torch.abs(h1 - h2)
         return self.final_net(torch.cat((h1, h2), dim = 1))
         diff = torch.abs(h1 - h2)
         return self.final_net(diff)
