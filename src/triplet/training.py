@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 
 DIM = 2048
+MODE = "complex"
 
 def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epochs):
 
@@ -17,7 +18,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
 
             acc, loss = evaluate(model, loss_fn, dev_generator)
 
-            if (acc > best_acc) :
+            if (acc > best_acc):
                 best_acc = acc
                 torch.save(model.state_dict(), "TripletModelStateDict.pickle")
                 with open("TripletModel.pickle", "wb") as f:
@@ -47,31 +48,25 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
                     #p3 = model(w5, w8)
 
 
-                    if np.random.random() < 0.0:
+                    if np.random.random() < 0.5:
                         p1 = model(w1,w2)
                         p2 = model(w3,w4)
                     else:
                         p1 = model(w1, w4)
                         p2 = model(w3, w2)
 
-                    if np.random.random() < 0.333:
-                        p3 = model(w5, w2)
-                    elif np.random.random() < 0.333:
-                        p3 = model(w9, w10)
-                    else:
-                        p3 = model(w5, w8)
+                    p3 = model(w5, w2)
 
-                    # (w1, w4) like (w3, w2) and unlike (w5,w6)
-                    #p1 = model(w1, w4)
-                    #p2 = model(w3, w2)
-                    #p3 = model(w5, w6)
 
                 except RuntimeError as e:
                     print(e, type(e))
                     exit()
 
-                #loss, good, bad = loss_fn(model.layers(w1), model.layers(w3), model.layers(w5))
-                loss, diff, good, bad, norm = loss_fn(p1, p2, p3)
+                if MODE == "simple":
+                    loss, diff, batch_good, batch_bad, norm = loss_fn(model.layers(w1), model.layers(w3),
+                                                                      model.layers(w5))
+                else:
+                    loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, p3)
 
 
                 #loss, good, bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
@@ -120,33 +115,23 @@ def evaluate(model, loss_fn, dev_generator):
             #p3 = model(w5, w8)
 
 
-            if np.random.random() < 0.0:
+            if np.random.random() < 0.5:
                 p1 = model(w1, w2)
                 p2 = model(w3, w4)
             else:
                 p1 = model(w1, w4)
                 p2 = model(w3, w2)
 
-            if np.random.random() < 0.333:
-                p3 = model(w5, w2)
-            elif np.random.random() < 0.333:
-                p3 = model(w9, w10)
+            p3 = model(w5, w2)
+
+
+            if MODE == "simple":
+                loss, diff, batch_good, batch_bad, norm = loss_fn(model.layers(w1), model.layers(w3), model.layers(w5))
             else:
-                p3 = model(w5, w8)
+                loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, p3)
 
-            #p3 = model(w9, w10)
-
-            # (w1, w4) like (w3, w2) and unlike (w5,w6)
-            #p1 = model(w1, w4)
-            #p2 = model(w3, w2)
-            #p3 = model(w5, w6)
-
-            #loss, batch_good, batch_bad = loss_fn(model.layers(w1), model.layers(w3), model.layers(w5))
-            loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, p3)
             loss_vals.append(diff.detach().cpu().numpy().item())
             norms.append(norm.detach().cpu().numpy().item())
-            #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
-            #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
 
         good += batch_good
         bad += batch_bad

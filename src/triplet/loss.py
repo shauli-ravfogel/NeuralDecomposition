@@ -68,6 +68,8 @@ class BatchHardTripletLoss(torch.nn.Module):
             mask[range(len(mask)), range(len(mask))] = 0
         return mask
 
+
+
     def forward(self, h1, h2, h3):
 
         if self.normalize or self.cosine:
@@ -108,7 +110,7 @@ class BatchHardTripletLoss(torch.nn.Module):
         bad = batch.shape[0] - good
         mean_norm_squared = torch.mean(torch.norm(batch, dim = 1)**2)
 
-        return torch.mean(relevant) + 1e-4 * mean_norm_squared, torch.mean(differences), good, bad, torch.sqrt(mean_norm_squared)
+        return torch.mean(relevant) + 0 * mean_norm_squared, torch.mean(differences), good, bad, torch.sqrt(mean_norm_squared)
 
 if __name__ == '__main__':
 
