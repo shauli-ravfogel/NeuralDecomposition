@@ -1,10 +1,10 @@
 import sys
 
-sys.path.append('../src/generate_dataset')
+sys.path.append('src/generate_dataset')
 from utils import DEFAULT_PARAMS
 
 FUNCTION_WORDS = DEFAULT_PARAMS["function_words"]
-sys.path.insert(0, './tree_distance')
+sys.path.insert(0, 'src/analysis/tree_distance')
 
 from typing import List, Tuple, Dict
 import typing
