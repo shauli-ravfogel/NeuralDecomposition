@@ -61,10 +61,10 @@ class CollectorBase(object):
 
         print("Collected {} pairs from {} sentences".format(len(views), i))
 
-        output_filename = self.output_dir \
-                          + "/views.sentences:{}.pairs:{}.mode:{}.no-func-words:{}".format(i, len(views),
-                                                                                           self.method,
-                                                                                           self.exclude_function_words)
+        output_filename = self.output_dir + "/views.sentences:{}.pairs:{}.mode:{}.no-func-words:{}".format(i,
+                                                                                                           len(views),
+                                                                                                           self.method,
+                                                                                                           self.exclude_function_words)
 
         with open(output_filename, "wb") as f:
             pickle.dump(views, f)

@@ -22,7 +22,7 @@ python src/generate_dataset/main.py --input-wiki data/interim/wikipedia.sample.t
 # with bert
 python src/generate_dataset/collect_bert_states.py \
         --output-file data/interim/encoder_bert/sents_bert_base.hdf5 \
-        --num-sentence 1000
+        --num_sentence 1000
 
 ## collect views for CCA
 
@@ -32,7 +32,10 @@ python src/linear_decomposition/collect_views.py --input-path data/interim/encod
 
 ### run CCA
 
-python3 main.py --views-file-path ./views/views_file_name --perform-pca 0 --cca-dim 100 --enforce-symmetry 1 --cca-model numpy
+python src/linear_decomposition/main.py \
+        --views-file-path data/interim/views/views.sentences:7.pairs:1008.mode:simple.no-func-words:True \
+        --perform-pca 0 --cca-dim 100 \
+        --enforce-symmetry 1 --cca-model numpy
 # the above script creates a CCA model in the ./models directory. The file is named according to the arguments (cca-dim etc.)
 
 ### evaluation
