@@ -308,9 +308,9 @@ data.txt
 same_pos/
 
 # models
-analysis/models/
+src/analysis/models/
 src/linear_decomposition/views/
 src/linear_decomposition/models/
 
 # artifacts
-analysis/results
+src/analysis/results
