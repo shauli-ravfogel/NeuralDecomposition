@@ -92,7 +92,7 @@ if __name__ == "__main__":
                         help='output file where the encoded vectors are stored')
     parser.add_argument('--vocab-size', dest='vocab_size', type=int, default=30522,
                         help='The size of bert\'s vocabulary')
-    parser.add_argument('--num-sentence', dest='num_sentences', type=int, default=999999999,
+    parser.add_argument('--num-sentences', dest='num_sentences', type=int, default=999999999,
                         help='The amount of group sentences to use')
 
     args = parser.parse_args()

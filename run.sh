@@ -4,19 +4,30 @@
 
 ### generate equivalent sentences
 
-cd data
+#cd data
 #mkdir external
 #mkdir interim
-cd external
+#cd external
 
-python3 src/generate_dataset/main.py --input-wiki data/interim/wikipedia.sample.tokenized --output-data encoded_sents_file.hdf5 --output-sentences data/interim/equivalent_sentences_file.pickle --substitutions-type bert --elmo_folder data/external --cuda-device 0 --dataset-type all --layers 1,2
-# the above scripts generates both the equivalent sentences file "equivalent_sentences_file.pickle", and ELMO states collected over those sentences, "encoded_sents_file.hdf5".
-# Yanai, please add the BERT version.
+# the following scripts generates both the equivalent sentences file "equivalent_sentences_file.pickle",
+# and ELMO/Bert states collected over those sentences, "encoded_sents_file.hdf5".
+
+# with elmo
+python src/generate_dataset/main.py --input-wiki data/interim/wikipedia.sample.tokenized \
+        --output-data encoded_sents_file.hdf5 \
+        --output-sentences data/interim/equivalent_sentences_file.pickle \
+        --substitutions-type bert --elmo_folder data/external \
+        --cuda-device 0 --dataset-type all --layers 1,2
+
+# with bert
+python src/generate_dataset/collect_bert_states.py \
+        --output-file data/interim/encoder_bert/sents_bert_base.hdf5 \
+        --num-sentence 1000
 
 ## collect views for CCA
 
-cd src/linear_decomposition
-python3 collect_views.py --input-path ../../data/interim/encoded_sents_file.hdf5 --num_examples 2000000 --mode simple --exclude_function_words 1
+python src/linear_decomposition/collect_views.py --input-path data/interim/encoded_sents_file.hdf5 \
+          --num_examples 2000000 --mode simple --exclude_function_words 1
 # the above script creates a views file in the ./views directory. The file is named according to the arguments (num_examples, etc.)
 
 ### run CCA
