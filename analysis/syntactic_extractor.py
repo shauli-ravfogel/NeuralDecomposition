@@ -31,17 +31,20 @@ class SiameseSyntacticExtractor(SyntacticExtractor):
 
 class CCASyntacticExtractor(SyntacticExtractor):
 
-    def __init__(self):
-        with open("models/PCAModel.PCA:1900.Method:cca.Dim:80.Data:bert_same_pos.Sentences:16000.pickle", "rb") as f:
-            self.pca = pickle.load(f)
+    def __init__(self, path_to_model, numpy = True):
 
-        with open("models/CCAModel.PCA:1900.Method:cca.Dim:80.Data:bert_same_pos.Sentences:16000.pickle", "rb") as f:
+        with open(path_to_model, "rb") as f:
             self.cca = pickle.load(f)
+            
+        self.numpy = numpy
 
-    def extract(self, contextualized_vector: np.ndarray) -> np.ndarray:
-        x = self.pca.inverse_transform(self.pca.transform(
-            [contextualized_vector] if len(contextualized_vector.shape) == 1 else contextualized_vector))
-        return self.cca.transform(x)[:]
+    def extract(self, x: np.ndarray) -> np.ndarray:
+        
+        inp = np.expand_dims(x,0) if len(x.shape) == 1 else x        
+        if self.numpy:
+               return self.cca(inp, training = False)
+        else:
+               return self.cca.transform(inp)
 
 
 class NeuralCCASyntacticExtractor(SyntacticExtractor):
