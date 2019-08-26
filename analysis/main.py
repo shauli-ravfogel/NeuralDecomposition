@@ -1,4 +1,4 @@
-import embedder
+from embedder import ElmoEmbedder, BertEmbedder
 import pickle
 import evaluate
 import argparse
@@ -32,8 +32,10 @@ if __name__ == '__main__':
                         help='number of closest-vector queries to perform within the tests.')
     parser.add_argument('--extractor', dest='extractor', type=str, default="numpy_cca",
                         help='type of syntactic extracor (cca / neural_cca / numpy_cca)')
-    parser.add_argument('--extractor_path', dest='extractor_path', type=str, default="../src/linear_decomposition/models/...",
-                        help='path to the fitted extractor model')
+    parser.add_argument('--extractor_path', dest='extractor_path', type=str,
+                        default="../src/linear_decomposition/models/...", help='path to the fitted extractor model')
+    parser.add_argument('--embedder_type', dest='embedder_type', type=str,
+                        default="elmo", help='elmo / bert')
     args = parser.parse_args()
 
     # use already-collected representations
@@ -43,19 +45,23 @@ if __name__ == '__main__':
 
     # recalculate representations
     else:
-        elmo_embedder = embedder.Embedder(args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
-                                          args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
-                                          args.input_wiki, args.num_sents,
-                                          device=args.cuda_device)
-        data = elmo_embedder.get_data()
+        if args.embedder_type == 'elmo':
+            options = {'elmo_options_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
+                       'elmo_weights_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5'}
+            embedder = ElmoEmbedder(args.input_wiki, args.num_sents, options, device=args.cuda_device)
+        else:
+            embedder = BertEmbedder(args.input_wiki, args.num_sents, {}, device=args.cuda_device)
+        data = embedder.get_data()
 
         with open(args.encoded_data, "wb") as f:
             pickle.dump(data, f)
 
-    if args.extractor = "cca":
-        extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy = False)
+    if args.extractor == "cca":
+        extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy=False)
     elif args.extractor == "numpy_cca":
-        extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy = True)
+        extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy=True)
+    else:
+        raise NotImplementedError()
     # Run tests.
     evaluate.run_tests(data, extractor, num_queries=args.num_queries, method=args.method,
                        num_words=args.num_words, ignore_function_words=True)
