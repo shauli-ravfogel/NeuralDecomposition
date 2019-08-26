@@ -5,8 +5,8 @@
 ### generate equivalent sentences
 
 cd data
-mkdir external
-mkdir interim
+#mkdir external
+#mkdir interim
 cd external
 
 python3 src/generate_dataset/main.py --input-wiki data/interim/wikipedia.sample.tokenized --output-data encoded_sents_file.hdf5 --output-sentences data/interim/equivalent_sentences_file.pickle --substitutions-type bert --elmo_folder data/external --cuda-device 0 --dataset-type all --layers 1,2

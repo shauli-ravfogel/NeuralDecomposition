@@ -24,32 +24,27 @@ class ModelRunner(object):
 
         N = len(self.equivalent_sentences_dict)
 
-        with open(self.output_file, "w", encoding = "utf8") as f:
+        with open(self.output_file, "w", encoding="utf8") as f:
 
             for i in tqdm.tqdm(range(N)):
-            
 
                 equivalent_sentences = self.equivalent_sentences_dict[i]
-                vecs = self.model.run(equivalent_sentences)
-                sent_length = len(equivalent_sentences[0])
                 all_vecs = self.model.run(equivalent_sentences)
-                
+
                 to_write = []
-                
+
                 assert len(equivalent_sentences) == len(all_vecs)
-                
-                for sent, vecs in zip(equivalent_sentences, all_vecs):  
-               
 
-                        vecs_str = "*".join([utils.to_string(v) for v in vecs])
+                for sent, vecs in zip(equivalent_sentences, all_vecs):
+                    vecs_str = "*".join([utils.to_string(v) for v in vecs])
 
-                        sent_str = " ".join(sent)
-                        to_write.append(vecs_str)
-                        to_write.append(sent_str)
-                
+                    sent_str = " ".join(sent)
+                    to_write.append(vecs_str)
+                    to_write.append(sent_str)
+
                 f.write("\t".join(to_write) + "\n")
-                
-                
+
+
 class TuplesModelRunner(object):
 
     def __init__(self, model: model.ModelInterface,
@@ -68,7 +63,7 @@ class TuplesModelRunner(object):
 
         N = len(self.equivalent_sentences_dict)
 
-        with open(self.output_file, "w", encoding = "utf8") as f:
+        with open(self.output_file, "w", encoding="utf8") as f:
 
             for i in tqdm.tqdm(range(N)):
 
@@ -81,7 +76,7 @@ class TuplesModelRunner(object):
 
                 for j in range(num_examples_per_sentence):
                     indices = np.random.choice(range(sent_length), size=num_indices)
-                    sent1_ind, sent2_ind = np.random.choice(range(num_equivalents), size=2, replace = False)
+                    sent1_ind, sent2_ind = np.random.choice(range(num_equivalents), size=2, replace=False)
                     sent1_vecs, sent2_vecs = vecs[sent1_ind][indices], vecs[sent2_ind][indices]
 
                     sent1_str, sent2_str = " ".join(equivalent_sentences[sent1_ind]), " ".join(

@@ -1,45 +1,33 @@
+import argparse
 import numpy as np
-import sys
+# import sys
 import pickle
 from typing import List
 import utils
 import h5py
 
-import torch
-
 from pytorch_pretrained_bert.modeling import BertConfig, BertModel
 
-from allennlp.common.testing import ModelTestCase
 from allennlp.data.dataset import Batch
-from allennlp.data.fields import TextField, ListField
+from allennlp.data.fields import TextField
 from allennlp.data.instance import Instance
 from allennlp.data.token_indexers.wordpiece_indexer import PretrainedBertIndexer
-from allennlp.data.tokenizers import WordTokenizer, Token
-from allennlp.data.tokenizers.word_splitter import BertBasicWordSplitter
+from allennlp.data.tokenizers import Token
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.token_embedders.bert_token_embedder import BertEmbedder
 
 from tqdm import tqdm
 
 
-sys.path.append("../../../src/generate_dataset")
+# sys.path.append("../../../src/generate_dataset")
 FUNCTION_WORDS = utils.DEFAULT_PARAMS["function_words"]
 
 
-config = BertConfig(vocab_size_or_config_json_file=30522)
-bert_model = BertModel(config)
-token_embedder = BertEmbedder(bert_model)
-
-bert_name = 'bert-base-uncased'
-token_indexer = PretrainedBertIndexer(pretrained_model=bert_name, use_starting_offsets=True)
-vocab = Vocabulary()
-tlo_embedder = BertEmbedder(bert_model, top_layer_only=True)
-
-
-def get_equivalent_sentences(equivalent_sentences_path="data/interim/bert_online_sents_same_pos4.pickle")\
-        -> List[List[List[str]]]:
+def get_equivalent_sentences(equivalent_sentences_path) -> List[List[List[str]]]:
     # equivalent_sentences_path is the path to a file containing 150k groups of equivalent sentences.
-    # each group contains k=15 sentences, represented as a list of lists of string. e.g., if the length of the sentences in the first group is L=20, then sentences[0] is a KxL=15x20 list, where position i,j contains the jth word in the ith sentence.
+    # each group contains k=15 sentences, represented as a list of lists of string.
+    # e.g., if the length of the sentences in the first group is L=20,
+    # then sentences[0] is a KxL=15x20 list, where position i,j contains the jth word in the ith sentence.
 
     with open(equivalent_sentences_path, "rb") as f:
         sentences = pickle.load(f)  # a list of groups. each group is a list of lists of strings
@@ -48,7 +36,7 @@ def get_equivalent_sentences(equivalent_sentences_path="data/interim/bert_online
     return sentences
 
 
-def get_bert_states(sentence_group: List[List[str]]):
+def get_bert_states(sentence_group: List[List[str]], embedder):
     instances = []
     for sen in sentence_group:
         toks = [Token(w) for w in sen]
@@ -63,18 +51,18 @@ def get_bert_states(sentence_group: List[List[str]]):
     tensor_dict = batch.as_tensor_dict(padding_lengths)
     tokens = tensor_dict["tokens"]
 
-    bert_vectors = tlo_embedder(tokens["bert"], offsets=tokens["bert-offsets"])
+    bert_vectors = embedder(tokens["bert"], offsets=tokens["bert-offsets"])
 
     return bert_vectors.data.numpy()
 
 
-def save_bert_states(equivalent_sentences: List[List[List[str]]]):
-    data = []
+def save_bert_states(embedder, equivalent_sentences: List[List[List[str]]], output_file: str):
 
-    with h5py.File('data/interim/encoded_sents_bert2.150k.hdf5', 'w') as h5:
+    with h5py.File(output_file, 'w') as h5:
         for i, group_of_equivalent_sentences in tqdm(enumerate(equivalent_sentences)):
-            bert_states = get_bert_states(group_of_equivalent_sentences)
-            # if the length (num of words) of the group i is L, and there are K=15 sentences in the group, then bert_states is a numpy array of dims KxLxD where D is the size of the bert vectors.
+            bert_states = get_bert_states(group_of_equivalent_sentences, embedder)
+            # if the length (num of words) of the group i is L, and there are K=15 sentences in the group,
+            # then bert_states is a numpy array of dims KxLxD where D is the size of the bert vectors.
 
             L = len(group_of_equivalent_sentences[0])  # group's sentence length
             content_indices = np.array([i for i in range(L) if group_of_equivalent_sentences[0][i] not in FUNCTION_WORDS])
@@ -91,5 +79,29 @@ def save_bert_states(equivalent_sentences: List[List[List[str]]]):
 
 
 if __name__ == "__main__":
-    all_groups = get_equivalent_sentences()
-    save_bert_states(all_groups)
+    parser = argparse.ArgumentParser(description='Equivalent sentences generator',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--input-sentences', dest='input_sentences', type=str,
+                        default='data/interim/bert_online_sents_same_pos4.pickle',
+                        help='equivalent sentences to parse with bert')
+    parser.add_argument('--bert-model', dest='bert_model', type=str,
+                        default='bert-base-uncased',
+                        help='bert model type to use. bert-base-uncased / bert-large-uncased / ...')
+    parser.add_argument('--output-file', dest='output_file', type=str,
+                        default='data/interim/encoder_bert/sents_bert.hdf5',
+                        help='output file where the encoded vectors are stored')
+    parser.add_argument('--vocab-size', dest='vocab_size', type=int, default=30522,
+                        help='The size of bert\'s vocabulary')
+
+    args = parser.parse_args()
+    all_groups = get_equivalent_sentences(args.input_sentences)
+
+    config = BertConfig(vocab_size_or_config_json_file=args.vocab_size)
+    bert_model = BertModel(config)
+    token_embedder = BertEmbedder(bert_model)
+
+    token_indexer = PretrainedBertIndexer(pretrained_model=args.bert_model, use_starting_offsets=True)
+    vocab = Vocabulary()
+    tlo_embedder = BertEmbedder(bert_model, top_layer_only=False)
+
+    save_bert_states(tlo_embedder, all_groups, args.output_file)

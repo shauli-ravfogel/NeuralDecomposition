@@ -4,9 +4,6 @@ import model
 from model_runner import ModelRunner, TuplesModelRunner
 import pickle
 
-#import torch.backends
-#torch.backends.cudnn.benchmark=True
-#torch.backends.cudnn.fastest=True
 
 pos_tags_to_replace = ["NN", "NNS", "NNP", "NNPS", "PRP$", "JJ", "CD", "VB", "VBD", "VBG", "VBN",
                        "VBP", "VBZ"]
@@ -43,14 +40,13 @@ if __name__ == '__main__':
                         help='cuda device to run the LM on')
     parser.add_argument('--dataset-type', dest='dataset_type', type=str, default="all",
                         help='all / pairs')
-    parser.add_argument('--layers', '--list', dest="list", help='list of ELMO layers to include', type=str, default ="1,2")
+    parser.add_argument('--layers', '--list', dest="list", help='list of ELMO layers to include', type=str,
+                        default="1,2")
 
-   
     args = parser.parse_args()
-    
+
     layers = [int(item) for item in args.list.split(',')]
-                        
-                        
+
     # If no substitution file is provided, need to build these
     if args.substitution_file == '':
 
@@ -61,27 +57,27 @@ if __name__ == '__main__':
                                                            args.w2v_file, 7)
         elif args.substitution_type == 'pos':
             generator = generators.POSBasedEGenerator2(args.input_wiki, args.output_sentences,
-                                                      args.pos_tags_to_replace, args.num_sentences,
-                                                      args.pos2words_file)
+                                                       args.pos_tags_to_replace, args.num_sentences,
+                                                       args.pos2words_file)
         else:
-            #generator = generators.OnlineBertGenerator(args.input_wiki, args.output_sentences,
+            # generator = generators.OnlineBertGenerator(args.input_wiki, args.output_sentences,
             #                                          args.num_sentences)
             generator = generators.BatchedOnlineBertGenerator(args.input_wiki, args.output_sentences,
-                                                      args.num_sentences, topn = 13, ignore_first_k = 0, maintain_pos = True)
+                                                              args.num_sentences, topn=13, ignore_first_k=0,
+                                                              maintain_pos=True)
 
         equivalent_sentences = generator.generate()
     # otherwise, reading that file
     else:
         with open(args.substitution_file, "rb") as f:
             equivalent_sentences = pickle.load(f)
-    
-    
+
     elmo_folder = args.elmo_folder
 
     model = model.Elmo(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
                        elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
                        args.cuda_device, layers)
-                       
+
     if args.dataset_type == "pairs":
         model_runner = TuplesModelRunner(model, equivalent_sentences, args.output_data, persist=True)
     else:
