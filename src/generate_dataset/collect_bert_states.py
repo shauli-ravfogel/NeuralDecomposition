@@ -23,7 +23,7 @@ from tqdm import tqdm
 FUNCTION_WORDS = utils.DEFAULT_PARAMS["function_words"]
 
 
-def get_equivalent_sentences(equivalent_sentences_path) -> List[List[List[str]]]:
+def get_equivalent_sentences(equivalent_sentences_path: str, num_sentences: int) -> List[List[List[str]]]:
     # equivalent_sentences_path is the path to a file containing 150k groups of equivalent sentences.
     # each group contains k=15 sentences, represented as a list of lists of string.
     # e.g., if the length of the sentences in the first group is L=20,
@@ -33,7 +33,7 @@ def get_equivalent_sentences(equivalent_sentences_path) -> List[List[List[str]]]
         sentences = pickle.load(f)  # a list of groups. each group is a list of lists of strings
         sentences = list(sentences.values())
 
-    return sentences
+    return sentences[:num_sentences]
 
 
 def get_bert_states(sentence_group: List[List[str]], embedder):
@@ -92,13 +92,14 @@ if __name__ == "__main__":
                         help='output file where the encoded vectors are stored')
     parser.add_argument('--vocab-size', dest='vocab_size', type=int, default=30522,
                         help='The size of bert\'s vocabulary')
+    parser.add_argument('--num-sentence', dest='num_sentences', type=int, default=999999999,
+                        help='The amount of group sentences to use')
 
     args = parser.parse_args()
-    all_groups = get_equivalent_sentences(args.input_sentences)
+    all_groups = get_equivalent_sentences(args.input_sentences, args.num_sentences)
 
     config = BertConfig(vocab_size_or_config_json_file=args.vocab_size)
     bert_model = BertModel(config)
-    token_embedder = BertEmbedder(bert_model)
 
     token_indexer = PretrainedBertIndexer(pretrained_model=args.bert_model, use_starting_offsets=True)
     vocab = Vocabulary()
