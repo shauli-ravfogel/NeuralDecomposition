@@ -218,7 +218,7 @@ def get_equivalent_sentences(equivalent_sentences_path: str, num_sentences: int)
     return sentences[:num_sentences]
 
 
-def get_bert_states(sentence_group: List[List[str]], embedder):
+def get_bert_states(sentence_group: List[List[str]], embedder, layer: int):
     instances = []
     for sen in sentence_group:
         toks = [Token(w) for w in sen]
@@ -233,16 +233,17 @@ def get_bert_states(sentence_group: List[List[str]], embedder):
     tensor_dict = batch.as_tensor_dict(padding_lengths)
     tokens = tensor_dict["tokens"]
 
-    bert_vectors = embedder(tokens["bert"], offsets=tokens["bert-offsets"])
+    bert_vectors = embedder(tokens["bert"], offsets=tokens["bert-offsets"], layer_id=layer)
 
     return bert_vectors.data.numpy()
 
 
-def save_bert_states(embedder, equivalent_sentences: List[List[List[str]]], output_file: str):
+def save_bert_states(embedder, equivalent_sentences: List[List[List[str]]], output_file: str,
+                     layer: int):
 
     with h5py.File(output_file, 'w') as h5:
         for i, group_of_equivalent_sentences in tqdm(enumerate(equivalent_sentences)):
-            bert_states = get_bert_states(group_of_equivalent_sentences, embedder)
+            bert_states = get_bert_states(group_of_equivalent_sentences, embedder, layer)
             # if the length (num of words) of the group i is L, and there are K=15 sentences in the group,
             # then bert_states is a numpy array of dims KxLxD where D is the size of the bert vectors.
 
@@ -276,6 +277,8 @@ if __name__ == "__main__":
                         help='The size of bert\'s vocabulary')
     parser.add_argument('--num-sentences', dest='num_sentences', type=int, default=999999999,
                         help='The amount of group sentences to use')
+    parser.add_argument('--layer', dest='layer', type=int, default=-1,
+                        help='The layer of bert to persist')
 
     args = parser.parse_args()
     all_groups = get_equivalent_sentences(args.input_sentences, args.num_sentences)
@@ -287,4 +290,4 @@ if __name__ == "__main__":
     vocab = Vocabulary()
     tlo_embedder = BertLayerEmbedder(bert_model)
 
-    save_bert_states(tlo_embedder, all_groups, args.output_file)
+    save_bert_states(tlo_embedder, all_groups, args.output_file, args.layer)
