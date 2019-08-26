@@ -30,8 +30,8 @@ if __name__ == '__main__':
                         help='number of total words to collect')
     parser.add_argument('--num_queries', dest='num_queries', type=int, default=5000,
                         help='number of closest-vector queries to perform within the tests.')
-    parser.add_argument('--extractor', dest='extractor', type=str, default="cca",
-                        help='type of syntactic extracor (cca / neural_cca)')
+    parser.add_argument('--extractor', dest='extractor', type=str, default="numpy_cca",
+                        help='type of syntactic extracor (cca / neural_cca / numpy_cca)')
     parser.add_argument('--extractor_path', dest='extractor_path', type=str, default="../src/linear_decomposition/models/...",
                         help='path to the fitted extractor model')
     args = parser.parse_args()
@@ -52,8 +52,10 @@ if __name__ == '__main__':
         with open(args.encoded_data, "wb") as f:
             pickle.dump(data, f)
 
-    extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path)
-
+    if args.extractor = "cca":
+        extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy = False)
+    elif args.extractor == "numpy_cca":
+        extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy = True)
     # Run tests.
     evaluate.run_tests(data, extractor, num_queries=args.num_queries, method=args.method,
                        num_words=args.num_words, ignore_function_words=True)
