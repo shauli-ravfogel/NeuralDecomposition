@@ -33,7 +33,7 @@ class SiameseSyntacticExtractor(SyntacticExtractor):
 
 class CCASyntacticExtractor(SyntacticExtractor):
 
-    def __init__(self, path_to_model, numpy = True):
+    def __init__(self, path_to_model, numpy=True):
 
         with open(path_to_model, "rb") as f:
             print(path_to_model)
@@ -43,11 +43,11 @@ class CCASyntacticExtractor(SyntacticExtractor):
 
     def extract(self, x: np.ndarray) -> np.ndarray:
 
-        inp = np.expand_dims(x,0) if len(x.shape) == 1 else x
+        inp = np.expand_dims(x, 0) if len(x.shape) == 1 else x
         if self.numpy:
-               return self.cca(inp, training = False)
+            return self.cca(inp, training=False)
         else:
-               return self.cca.transform(inp)
+            return self.cca.transform(inp)
 
 
 class NeuralCCASyntacticExtractor(SyntacticExtractor):
