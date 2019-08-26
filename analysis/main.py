@@ -28,10 +28,12 @@ if __name__ == '__main__':
                         help='number of wiki sentences to use')
     parser.add_argument('--num_words', dest='num_words', type=int, default=100000,
                         help='number of total words to collect')
-    parser.add_argument('--num_queries', dest='num_queries', type=int, default=500,
+    parser.add_argument('--num_queries', dest='num_queries', type=int, default=5000,
                         help='number of closest-vector queries to perform within the tests.')
     parser.add_argument('--extractor', dest='extractor', type=str, default="cca",
                         help='type of syntactic extracor (cca / neural_cca)')
+    parser.add_argument('--extractor_path', dest='extractor_path', type=str, default="../src/linear_decomposition/models/...",
+                        help='path to the fitted extractor model')
     args = parser.parse_args()
 
     # use already-collected representations
@@ -50,7 +52,7 @@ if __name__ == '__main__':
         with open(args.encoded_data, "wb") as f:
             pickle.dump(data, f)
 
-    extractor = syntactic_extractor.CCASyntacticExtractor()
+    extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path)
 
     # Run tests.
     evaluate.run_tests(data, extractor, num_queries=args.num_queries, method=args.method,
