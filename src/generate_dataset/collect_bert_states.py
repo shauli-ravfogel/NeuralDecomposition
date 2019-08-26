@@ -81,7 +81,7 @@ def save_bert_states(equivalent_sentences: List[List[List[str]]]):
 
             sents = np.array(group_of_equivalent_sentences, dtype=object)
 
-            data.append(bert_states)
+            # data.append(bert_states)
             g = h5.create_group(str(i))
             g.attrs['group_size'], g.attrs['sent_length'] = sents.shape
             g.create_dataset('vecs', data=bert_states, compression=True, chunks=True)

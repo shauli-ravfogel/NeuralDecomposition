@@ -55,7 +55,7 @@ class Embedder(object):
         raise NotImplementedError()
 
 
-class ElmoEmbedder(Embedder):
+class EmbedElmo(Embedder):
 
     def __init__(self, wiki_path: str, num_sents: int, params: Dict, device=0):
 
@@ -92,7 +92,7 @@ class ElmoEmbedder(Embedder):
         return self._embedder(sentence)
 
 
-class BertEmbedder(Embedder):
+class EmbedBert(Embedder):
     def __init__(self, wiki_path: str, num_sents: int, params: Dict, device=0):
 
         Embedder.__init__(self, wiki_path, num_sents, params, device)
@@ -102,14 +102,25 @@ class BertEmbedder(Embedder):
         bert_name = 'bert-base-uncased'
         self.token_indexer = PretrainedBertIndexer(pretrained_model=bert_name, use_starting_offsets=True)
         self.vocab = Vocabulary()
-        self.embedder = BertEmbedder(bert_model, top_layer_only=True, device=device)
+        self.embedder = BertEmbedder(bert_model, top_layer_only=True)
+
+    def _run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
+        print("Running Bert...")
+
+        bert_embeddings = []
+
+        for sent in tqdm(sentences, ascii=True):
+            bert_embeddings.append((self._embedder(sent), sent))
+
+        return bert_embeddings
+
 
     def _embedder(self, sentence: List[str]) -> np.ndarray:
         toks = [Token(w) for w in sentence]
 
         instance = Instance({"tokens": TextField(toks, {"bert": self.token_indexer})})
 
-        batch = Batch(instance)
+        batch = Batch([instance])
         batch.index_instances(self.vocab)
 
         padding_lengths = batch.get_padding_lengths()
@@ -117,5 +128,4 @@ class BertEmbedder(Embedder):
         tokens = tensor_dict["tokens"]
 
         bert_vectors = self.embedder(tokens["bert"], offsets=tokens["bert-offsets"])
-
-        return bert_vectors.data.numpy()
+        return bert_vectors.data.numpy()[0]

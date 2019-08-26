@@ -309,3 +309,8 @@ same_pos/
 
 # models
 analysis/models/
+src/linear_decomposition/views/
+src/linear_decomposition/models/
+
+# artifacts
+analysis/results

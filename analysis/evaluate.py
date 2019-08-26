@@ -377,7 +377,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     # k nearest match
     perform_tests(query_words, k_value_words, k=k)
 
-    persist_examples(extractor, query_words, k_value_words)
+    # persist_examples(extractor, query_words, k_value_words)
 
 
 def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean"):

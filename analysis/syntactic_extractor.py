@@ -3,6 +3,8 @@ import sys
 import pickle
 import torch
 
+sys.path.append("../src/linear_decomposition/")
+
 
 class SyntacticExtractor(object):
 
@@ -34,13 +36,14 @@ class CCASyntacticExtractor(SyntacticExtractor):
     def __init__(self, path_to_model, numpy = True):
 
         with open(path_to_model, "rb") as f:
+            print(path_to_model)
             self.cca = pickle.load(f)
-            
+
         self.numpy = numpy
 
     def extract(self, x: np.ndarray) -> np.ndarray:
-        
-        inp = np.expand_dims(x,0) if len(x.shape) == 1 else x        
+
+        inp = np.expand_dims(x,0) if len(x.shape) == 1 else x
         if self.numpy:
                return self.cca(inp, training = False)
         else:

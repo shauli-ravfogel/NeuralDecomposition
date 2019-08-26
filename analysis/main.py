@@ -1,4 +1,4 @@
-from embedder import ElmoEmbedder, BertEmbedder
+from embedder import EmbedElmo, EmbedBert
 import pickle
 import evaluate
 import argparse
@@ -48,9 +48,9 @@ if __name__ == '__main__':
         if args.embedder_type == 'elmo':
             options = {'elmo_options_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
                        'elmo_weights_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5'}
-            embedder = ElmoEmbedder(args.input_wiki, args.num_sents, options, device=args.cuda_device)
+            embedder = EmbedElmo(args.input_wiki, args.num_sents, options, device=args.cuda_device)
         else:
-            embedder = BertEmbedder(args.input_wiki, args.num_sents, {}, device=args.cuda_device)
+            embedder = EmbedBert(args.input_wiki, args.num_sents, {}, device=args.cuda_device)
         data = embedder.get_data()
 
         with open(args.encoded_data, "wb") as f:
@@ -59,6 +59,7 @@ if __name__ == '__main__':
     if args.extractor == "cca":
         extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy=False)
     elif args.extractor == "numpy_cca":
+        print(args.extractor_path)
         extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy=True)
     else:
         raise NotImplementedError()

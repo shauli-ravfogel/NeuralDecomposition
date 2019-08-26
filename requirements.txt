@@ -1,0 +1,8 @@
+numpy
+tensorflow
+benepar[cpu]
+allennlp
+pandas==0.22
+typing_extensions
+zss
+
