@@ -12,6 +12,8 @@ class Dataset(data.Dataset):
         print("Training set size is {}".format(len(self.data)))
 
 
+
+
     def __len__(self):
 
         return len(self.data)
@@ -21,4 +23,4 @@ class Dataset(data.Dataset):
         with torch.no_grad():
 
             word_repres = self.data[index]
-            return [torch.from_numpy(w).float().cuda() for w in word_repres]
+            return [torch.from_numpy(w).float() for w in word_repres]
