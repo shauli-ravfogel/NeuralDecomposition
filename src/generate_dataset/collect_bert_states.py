@@ -284,10 +284,10 @@ if __name__ == "__main__":
     all_groups = get_equivalent_sentences(args.input_sentences, args.num_sentences)
 
     config = BertConfig(vocab_size_or_config_json_file=args.vocab_size)
-    bert_model = BertModel(config)
+    bert_model = BertModel.from_pretrained(args.bert_model)
 
     token_indexer = PretrainedBertIndexer(pretrained_model=args.bert_model, use_starting_offsets=True)
     vocab = Vocabulary()
-    tlo_embedder = BertLayerEmbedder(bert_model)
+    tlo_embedder = BertLayerEmbedder(bert_model).eval()
 
     save_bert_states(tlo_embedder, all_groups, args.output_file, args.layer)
