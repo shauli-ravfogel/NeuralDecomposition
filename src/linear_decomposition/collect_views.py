@@ -20,6 +20,8 @@ if __name__ == '__main__':
     parser.add_argument('--exclude_function_words', dest='exclude_function_words', type=bool,
                         default=True,
                         help='whether or not to exclude function words from the pairs')
+    parser.add_argument('--output-file', dest='output_file', type=str,
+                        help='extra string to add to the output file')
 
     args = parser.parse_args()
 
@@ -33,4 +35,4 @@ if __name__ == '__main__':
     elif args.mode == "sentence-level":
         collector = views_collector.SentenceCollector(*collector_args)
 
-    collector.collect_views()
+    collector.collect_views(args.output_file)
