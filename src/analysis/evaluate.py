@@ -71,6 +71,89 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
     closest_sentence_test(sentence_reprs, num_queries=num_queries, method=method, extractor=extractor)
 
 
+    def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tokens.Doc, index: int, embedder, extractor, k: int, method: str) -> List[Word_vector]:
+
+   """
+    Parameters
+    ----------
+    all_word_reprs: A list of Word_vector objects, on which the closest-vector query is performed.
+    sentence: a spacy Doc representing the input sentence.
+    index: the index in the sentence to query.
+    embedder: embedder object
+    extractor: syntactic_extractor object. If None, don't apply syntactic extractor
+    k: int, how many closest-neighbors to collect.
+    method: "cosine" / "l2"
+    ----------
+    Returns
+    -------
+    closest: A list of Word_vector objects, representing the k closest-vectors to the query vector.
+   """
+    
+   sent_words = [token.text for token in sentence]
+   sent_vecs, _ = embedder._run_embedder([sent_words])[0]
+
+   query_vec =  sent_vecs[index]
+   all_sents = [word_repr.sent_str for word_repr in all_word_reprs]
+   all_vecs = [word_repr.word_vector for word_repr in all_word_reprs]
+   
+   if extractor is not None:
+        print("applying syntactic extractor")
+        query_vec = extractor.extract(query_vec)
+        all_vecs = [extractor.extract(v).reshape(-1) for v in all_vecs]
+        
+   closest = get_closest_vectors(all_vecs, query_vec, all_sents, method = method, k = k)[0]
+   return [all_word_reprs[ind] for ind in closest]
+
+
+def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector], sentence: spacy.tokens.Doc, embedder, extractor, k: int, method: str) -> List[Word_vector]:
+
+   """
+    Parameters
+    ----------
+    all_word_reprs: A list of Word_vector objects, on which the closest-vector query is performed.
+    sentence: a spacy Doc representing the input sentence.
+    index: the index in the sentence to query.
+    embedder: embedder object
+    extractor: syntactic_extractor object. If None, don't apply syntactic extractor
+    k: int, how many closest-neighbors to collect.
+    method: "cosine" / "l2"
+    ----------
+    Returns
+    -------
+    closest: A list of Sentence_vector objects, representing the k closest-vectors to the query vector.
+   """
+    
+   sent_words = [token.text for token in sentence]
+
+   sent_vecs, _ = embedder._run_embedder([sent_words])[0]
+
+   all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
+   
+   if extractor is not None:
+   
+        print("Applying syntactic extractor...")
+        
+        for i, sent in tqdm(enumerate(all_sentence_reprs), total = len(all_sentence_reprs), ascii=True):
+                
+                all_sentence_reprs[i] = sent._replace(sent_vectors = extractor.extract(sent.sent_vectors))
+
+        sent_vecs = extractor.extract(sent_vecs)
+        
+        # represent each sentence as its mean vector
+   
+   all_vecs = []
+   
+   for i, sent in enumerate(all_sentence_reprs):
+                
+        all_vecs.append(np.mean(sent.sent_vectors, axis = 0))
+   
+   query_mean = np.mean(sent_vecs, axis = 0, keepdims = True)
+   all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
+   
+   closest = get_closest_vectors(all_vecs, query_mean, all_sents, method = method, k = k)[0]
+   return [all_sentence_reprs[ind] for ind in closest]   
+  
+  
 def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List[List[str]]):
     """
         Parameters
