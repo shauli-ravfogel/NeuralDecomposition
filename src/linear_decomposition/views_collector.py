@@ -43,7 +43,7 @@ class CollectorBase(object):
         
                 raise NotImplementedError
         
-        def collect_views(self):
+        def collect_views(self, output_file):
         
                 pbar = tqdm.tqdm(total = self.view_size, ascii = True)
                 views = []
@@ -63,7 +63,7 @@ class CollectorBase(object):
                
                 print("Collected {} pairs from {} sentences".format(len(views), i))
                 
-                output_filename = "views/views.sentences:{}.pairs:{}.mode:{}.no-func-words:{}".format(i, len(views), self.method, self.exclude_function_words)
+                output_filename = "views/views_" + output_file + ".sentences:{}.pairs:{}.mode:{}.no-func-words:{}".format(i, len(views), self.method, self.exclude_function_words)
                 
                 with open(output_filename, "wb") as f:
                 
