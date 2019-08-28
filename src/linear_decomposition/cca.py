@@ -3,21 +3,27 @@ import numpy_cca
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
+import scipy
 
-
-def run_cca(views_path, perform_pca, pca_dim, cca_dim, enforce_symmetry, model, plot=False):
+def run_cca(views_path, perform_pca, pca_dim, cca_dim, enforce_symmetry, model, whiten, num_examples, plot=False):
     # load views
 
     with open(views_path, "rb") as f:
 
         views = pickle.load(f)
 
-    view1, view2, word1, word2, positions = list(map(np.asarray, zip(*views)))  # each view is a numpy arrays
+    np.random.shuffle(views)
+    view1, view2, positions = list(map(np.asarray, zip(*views)))  # each view is a numpy arrays
+    view1, view2 = view1[:num_examples], view2[:num_examples]
 
     # enforce symmetry
 
     if enforce_symmetry:
         view1, view2 = np.concatenate([view1, view2]), np.concatenate([view2, view1])
+
+    if whiten:
+
+        view1, view2 = scipy.cluster.vq.whiten(view1), scipy.cluster.vq.whiten(view2)
 
     # perform pca
 
