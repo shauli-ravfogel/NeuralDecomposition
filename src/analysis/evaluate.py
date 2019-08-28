@@ -362,6 +362,36 @@ def syntactic_extractor(data, extractor):
     return data
 
 
+def collect_deps_embeddings(words_reprs: List[Word_vector], extractor = None):
+
+        if extractor is not None:
+        
+                print("Applying syntactic extractor...")
+                
+                for i, word_representation in tqdm(enumerate(data), total = len(data), ascii=True):
+                
+                        words_reprs[i] = word_representation._replace(word_vector = extractor.extract(word_representation.word_vector).reshape(-1))
+        
+        deps = [w.token.dep for w in words_reprs]
+        counter = Counter(list)
+        
+        for vec, dep in tqdm.tqdm(zip(words_reprs, deps), ascii = True):
+        
+                counter[dep].append(vec)
+        
+        dep2vec = {}
+        
+        for dep in counter.keys():
+        
+                dep2vec[dep] = np.mean(counter[dep])
+        
+        with open("dep2vec.extractor:{}".format(extractor is not None), "wb") as f:
+        
+                pickle.dump(dep2vec, f)
+          
+          
+          
+          
 def closest_word_test(words_reprs: List[Word_vector], extractor=None,
                       num_queries=15, method="cosine",
                       k=5):
