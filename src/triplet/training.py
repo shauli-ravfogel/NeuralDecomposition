@@ -7,18 +7,24 @@ import pickle
 DIM = 2048
 MODE = "complex"
 
-def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epochs):
+def train(model, training_generator, dev_generator, loss_fn, optimizer, scheduler, num_epochs):
 
     best_acc = 0
     for epoch in range(num_epochs):
+
+        loss_fn.k = max(1, 1)
+
+        #if epoch % 15 == 0 and epoch > 0:
+
+        #    optimizer = torch.optim.Adam(model.parameters(), weight_decay=5 * 1e-4)
 
         model.zero_grad()
 
         if epoch >= 0:
 
             acc, loss = evaluate(model, loss_fn, dev_generator)
-
-            if (acc > best_acc):
+            #scheduler.step(acc)
+            if (acc > best_acc) or 0:
                 best_acc = acc
                 torch.save(model.state_dict(), "TripletModelStateDict.pickle")
                 with open("TripletModel.pickle", "wb") as f:
@@ -47,24 +53,23 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
                     #p2 = model(w3,w2)
                     #p3 = model(w5, w8)
 
-
-                    if np.random.random() < 0.5:
+                    if np.random.random() < 0.0:
                         p1 = model(w1,w2)
                         p2 = model(w3,w4)
                     else:
                         p1 = model(w1, w4)
                         p2 = model(w3, w2)
 
-                    p3 = model(w5, w2)
 
+                    p3 = model(w5, w2)
 
                 except RuntimeError as e:
                     print(e, type(e))
                     exit()
 
                 if MODE == "simple":
-                    loss, diff, batch_good, batch_bad, norm = loss_fn(model.layers(w1), model.layers(w3),
-                                                                      model.layers(w5))
+                    loss, diff, batch_good, batch_bad, norm = loss_fn(model.process(w1),model.process(w3),
+                                                                     model.process(w5))
                 else:
                     loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, p3)
 
@@ -74,7 +79,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
                 #dis_mm  = (1 - torch.nn.functional.cosine_similarity(model.layers(w2), model.layers(w4))).sum() #torch.norm(model(w2,w4), dim = 1, p = 2).sum()
                 #dis_ll = (torch.norm(model.final_net(w1) - model.final_net(w3), dim = 1, p = 2)**2).sum()
                 #dis_mm = (torch.norm(model.final_net(w2) - model.final_net(w4), dim = 1, p = 2)**2).sum()
-                #loss = loss + dis_ll + dis_mm
+                #loss = loss + 1e-1 * (dis_ll + dis_mm)
                 #loss, batch_good, batch_bad = loss_fn(model.final_net(w1), model.final_net(w3), model.final_net(w5))
 
                 #loss_vals.append(loss.detach().cpu().numpy())
@@ -90,7 +95,8 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
 
                 loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 100.)
+            #torch.nn.utils.clip_grad_norm_(model.parameters(), 100.)
+
             optimizer.step()
             model.zero_grad()
 
@@ -114,8 +120,7 @@ def evaluate(model, loss_fn, dev_generator):
             #p2 = model(w3, w2)
             #p3 = model(w5, w8)
 
-
-            if np.random.random() < 0.5:
+            if np.random.random() < 0.0:
                 p1 = model(w1, w2)
                 p2 = model(w3, w4)
             else:
@@ -124,9 +129,9 @@ def evaluate(model, loss_fn, dev_generator):
 
             p3 = model(w5, w2)
 
-
             if MODE == "simple":
-                loss, diff, batch_good, batch_bad, norm = loss_fn(model.layers(w1), model.layers(w3), model.layers(w5))
+                loss, diff, batch_good, batch_bad, norm = loss_fn(model.process(w1), model.process(w3),
+                                                                  model.process(w5))
             else:
                 loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, p3)
 
