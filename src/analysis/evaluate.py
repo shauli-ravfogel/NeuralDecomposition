@@ -93,7 +93,7 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
    sent_vecs, _ = embedder._run_embedder([sent_words])[0]
 
    query_vec =  sent_vecs[index]
-   all_sents = [word_repr.sent_str for word_repr in all_word_reprs]
+   all_sents = [word_repr.sentence for word_repr in all_word_reprs]
    all_vecs = [word_repr.word_vector for word_repr in all_word_reprs]
    
    if extractor is not None:
@@ -105,7 +105,7 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
    return [all_word_reprs[ind] for ind in closest]
 
 
-def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector], sentence: spacy.tokens.Doc, embedder, extractor, k: int, method: str) -> List[Word_vector]:
+def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector], sentence: spacy.tokens.Doc, embedder, extractor, k: int, method: str) -> List[Sentence_vector]:
 
    """
     Parameters
