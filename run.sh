@@ -27,7 +27,7 @@ python src/generate_dataset/collect_bert_states.py \
 ## collect views for CCA
 
 python src/linear_decomposition/collect_views.py --input-path data/interim/encoder_bert/sents_bert_base.hdf5 \
-          --num_examples 2000000 --mode simple --exclude_function_words 1
+          --num_examples 2000000 --mode simple --output-file bert_base_layer:-1
 # the above script creates a views file in the ./views directory. The file is named according to the arguments (num_examples, etc.)
 
 ### run CCA
