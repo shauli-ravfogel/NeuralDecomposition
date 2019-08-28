@@ -71,7 +71,7 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
     closest_sentence_test(sentence_reprs, num_queries=num_queries, method=method, extractor=extractor)
 
 
-    def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tokens.Doc, index: int, embedder, extractor, k: int, method: str) -> List[Word_vector]:
+def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tokens.Doc, index: int, embedder, extractor, k: int, method: str) -> List[Word_vector]:
 
    """
     Parameters
