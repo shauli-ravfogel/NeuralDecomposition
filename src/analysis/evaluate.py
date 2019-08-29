@@ -307,7 +307,7 @@ def perform_tests(query_words, k_value_words, k=1):
 def same_ancestor_deps(query, value):
     ancestors = set()
 
-    token = query
+    token = query.token
     while token.dep_ != 'ROOT':
         ancestors.add(token.dep_)
         token = token.head
@@ -315,12 +315,13 @@ def same_ancestor_deps(query, value):
     dep_dic_pos = defaultdict(int)
     dep_dic_neg = defaultdict(int)
 
-    token = value
+    token = value[0].token
     while token.dep_ != 'ROOT':
         if token.dep_ in ancestors:
             dep_dic_pos['pos_' + token.dep_] += 1
         else:
             dep_dic_neg['neg_' + token.dep_] += 1
+        token = token.head
     return dep_dic_pos, dep_dic_neg
 
 
