@@ -93,7 +93,7 @@ def test_demo_words(all_word_reprs, elmo_embedder, extractor):
 def test_demo_sentences(all_sents_repr, elmo_embedder, extractor):
 
         nlp = spacy.load('en_core_web_sm')
-        sentence = "while originally from spain, the rare blue koala, which was once cute, is now common throughout the middle east."
+        sentence = "had i not seen it myself, i could not have believed that."
         sentence = nlp(sentence)
         index = 3
         word = sentence[index].text
