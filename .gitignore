@@ -314,3 +314,5 @@ src/linear_decomposition/models/
 
 # artifacts
 src/analysis/results
+
+sent_rep.pickle
