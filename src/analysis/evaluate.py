@@ -219,7 +219,7 @@ def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:
     return all_docs
 
 
-def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5):
+def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5, ignore_same_vec = True):
     if method == "cosine":
 
         # normalize the vectors
@@ -233,8 +233,12 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], m
         distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
 
     top_k = distances.argsort(axis=1)[:, :k + 1]
-    closest_indices = top_k[:, 1: k + 1]  # ignore the word itself
-
+    
+    if ignore_same_vec:
+      closest_indices = top_k[:, 1: k + 1]  # ignore the word itself
+    else:
+      closest_indices = top_k[:, 0: k]  # ignore the word itself
+      
     return closest_indices
 
 
