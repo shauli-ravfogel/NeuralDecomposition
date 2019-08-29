@@ -19,8 +19,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
             if (loss < best_loss) or 0:
                 best_loss = loss
                 torch.save(model.state_dict(), "NeuralCCAStateDict.pickle")
-                with open("NeuralCCA.pickle", "wb") as f:
-                    pickle.dump(model,f)
+                torch.save(model, "NeuralCCA.pickle")
         print()
         print("Loss: {}".format(loss))
         print("\nEpoch {}. Best accuracy so far is {}".format(epoch, best_loss))
@@ -30,7 +29,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
         t = tqdm.tqdm(iter(training_generator), leave=False, total=len(training_generator), ascii = True)
         i = 0
 
-        for (w1,w2,w3,w4,w5,w6, w7, w8, w9, w10) in t:
+        for (w1,w2,w3,w4) in t:
 
             view1, view2 = w1, w3
             X,Y =  model(view1,view2)
@@ -52,7 +51,7 @@ def evaluate(model, loss_fn, dev_generator):
     loss_vals = []
     norms = []
 
-    for (w1,w2,w3,w4,w5,w6, w7, w8, w9, w10) in t:
+    for (w1,w2,w3,w4) in t:
 
         with torch.no_grad():
 
