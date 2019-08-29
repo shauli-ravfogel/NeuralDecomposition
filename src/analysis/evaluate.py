@@ -95,9 +95,6 @@ def test_demo_sentences(all_sents_repr, elmo_embedder, extractor):
         nlp = spacy.load('en_core_web_sm')
         sentence = "had i not seen it myself, i could not have believed that."
         sentence = nlp(sentence)
-        index = 3
-        word = sentence[index].text
-        print("word: {}".format(word))
         closest = get_closest_sentence_demo(all_sents_repr, sentence, elmo_embedder, extractor, k = 10, method = "cosine")
         
         for value_sent_repr in closest:
