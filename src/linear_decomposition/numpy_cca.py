@@ -56,8 +56,6 @@ class CCAModel(object):
 
             # Calculate correlation matrix
 
-            T = K22.dot(S12).dot(K11)
-
             # Perform SVD on correlation matrix
             # compute TT' and T'T (regularized)
             Tnp = K11.dot(S12).dot(K22)
