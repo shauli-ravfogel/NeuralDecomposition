@@ -71,6 +71,41 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
     closest_sentence_test(sentence_reprs, num_queries=num_queries, method=method, extractor=extractor)
 
 
+def test_demo_words(all_word_reprs, elmo_embedder, extractor):
+
+        nlp = spacy.load('en_core_web_sm')
+        sentence = "had i not seen it myself, i could not have believed that."
+        sentence = nlp(sentence)
+        index = 3
+        word = sentence[index].text
+        print("word: {}".format(word))
+        closest = get_closest_word_demo(all_word_reprs, sentence, index, elmo_embedder, extractor, k = 10, method = "cosine")
+        
+        for value_word_repr in closest:
+        
+            ind = value_word_repr.index
+            sent = value_word_repr.sent_str
+            w = value_word_repr.word
+            value_str = " ".join(sent[:ind] + ["***" + w + "***"] + sent[ind + 1:])
+            print(value_str)
+            print("---------------------------------------------")
+
+def test_demo_sentences(all_sents_repr, elmo_embedder, extractor):
+
+        nlp = spacy.load('en_core_web_sm')
+        sentence = "while originally from spain, the rare blue koala, which was once cute, is now common throughout the middle east."
+        sentence = nlp(sentence)
+        index = 3
+        word = sentence[index].text
+        print("word: {}".format(word))
+        closest = get_closest_sentence_demo(all_sents_repr, sentence, elmo_embedder, extractor, k = 10, method = "cosine")
+        
+        for value_sent_repr in closest:
+        
+            sent = value_sent_repr.sent_str
+            print(" ".join(sent))
+            print("---------------------------------------------")
+
 def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tokens.Doc,
                           index: int, embedder, extractor, k: int = 5, method: str = 'l2') -> List[Word_vector]:
     """
