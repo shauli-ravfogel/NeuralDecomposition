@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+ <html lang="en">
+<head>
+  <!-- JQuery -->
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css"/>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+  <!-- Chosen Dropdown Library -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.4.2/chosen.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.4.2/chosen.jquery.min.js"></script>
+  <!-- Brat -->
+  <link rel="stylesheet" type="text/css" href="https://nlp.stanford.edu/js/brat/style-vis.css"/>
+  <script type="text/javascript" src="https://nlp.stanford.edu/js/brat/client/lib/head.load.min.js"></script>
+  <!-- d3 -->
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+  <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/dagre-d3/0.4.17/dagre-d3.min.js"></script>
+
+    <!-- CoreNLP -->
+  <link rel="stylesheet" type="text/css" href="corenlp-brat.css"/>
+  <script type="text/javascript" src="corenlp-brat.js"></script>
+
+  <meta charset="UTF-8">
+</head>
+
+<body>
+<div id="wrap">
+<!-- A header bar -->
+<nav class="navbar navbar-default navbar-static-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand">Syntactic Extractor demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- The main content of the page -->
+<div class="container">
+  <div class="row">
+
+    <!-- Text area input -->
+    <form id="form_annotate" accept-charset="UTF-8" onsubmit="return false;">
+    <div class="col-sm-12" style="margin-bottom: 5px;">
+      <label for="text" class="label">&mdash; Text to annotate &mdash;</label>
+      <textarea class="form-control" rows="5" id="text" autofocus>Water enter the plant through the roots.
+The water is transported up the stem to the leafs.</textarea>
+    </div>
+
+    <!-- Submit button -->
+    <div class="col-sm-2" style="text-align: center; margin-top: 7px; ">
+        <button id="submit" class="btn btn-block" type="button" onclick="annotate(); return null;">Submit</button>
+    </div>
+    </form>
+
+  </div>
+
+
+  <div class="row">
+      <div class="col-md-12 mt-0">
+          <div class="form-group" id="out-text">
+          </div>
+      </div>
+  </div>
+</div>
+</div>
+
+
+</body>
+
+</html>
