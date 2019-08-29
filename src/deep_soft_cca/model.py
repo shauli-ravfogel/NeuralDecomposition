@@ -11,10 +11,10 @@ class Siamese(nn.Module):
         layers = []
         layers.append(nn.BatchNorm1d(dim))
         layers.append(nn.Linear(dim, 1024, bias = True))
-        layers.append(nn.ReLU())
+        #layers.append(nn.ReLU())
         layers.append(nn.BatchNorm1d(1024))
         layers.append(nn.Linear(1024, 1024, bias=True))
-        layers.append(nn.ReLU())
+        #layers.append(nn.ReLU())
         layers.append(nn.BatchNorm1d(1024))
         layers.append(nn.Linear(1024, final, bias=True))
         #layers.append(nn.BatchNorm1d(final))
@@ -30,7 +30,7 @@ class Siamese(nn.Module):
     def forward(self, x1, x2):
 
         h1, h2 = self.layers(x1), self.layers(x2)
-        h1, h2 = self.normalize(h1), self.normalize(h2)
+        #h1, h2 = self.normalize(h1), self.normalize(h2)
 
         return h1, h2
 
