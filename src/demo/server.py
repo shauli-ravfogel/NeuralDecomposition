@@ -97,8 +97,8 @@ def get_nearest(text):
 
     closest_sents_baseline = get_closest_sentence_demo(sentence_reprs, doc, embedder, extractor=None, k=5, method='l2')
     closest_str_baseline = [x.doc.text for x in closest_sents_baseline]
-    
-    return ['<br/>'.join(closest_str_syntax), '<br/>'.join(closest_str_baseline)]
+
+    return {'syntax': '<br/>'.join(closest_str_syntax), 'baseline': '<br/>'.join(closest_str_baseline)}
 
 
 @app.route('/syntax_extractor/', methods=['GET'])

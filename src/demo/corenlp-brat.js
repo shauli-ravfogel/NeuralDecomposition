@@ -7,10 +7,10 @@ function annotate() {
       // document.body.innerHTML = body
       // alert(body)
       out = document.getElementById("out-text");
-      out.innerHTML = body[0];
+      out.innerHTML = body['syntax'];
 
       out = document.getElementById("out-text-baseline");
-      out.innerHTML = body[1];
+      out.innerHTML = body['baseline'];
       // out.type = 'text';
     })
 };
