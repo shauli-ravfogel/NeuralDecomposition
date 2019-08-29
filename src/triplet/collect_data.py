@@ -20,24 +20,28 @@ def collect_data(path, num_examples, num_examples_per_group,  min_length = 12, m
     num_sents = 150000
     keys = list(f.keys())
     output_filename = "data_with_strs.pickle"
+    sents_collected = 0
 
     print("Collecting data...")
     while len(data) < num_examples:
 
         j = keys[i % num_sents]
         group = f[j]# group has the same interface as Equivalent_sentences_group
-        sent_length = len(group["sents"][0])
-        if sent_length < min_length or sent_length > max_length: continue
-        group_data = generate_training_instances(group, num_examples_per_group, i%num_sents)
-        data.extend(group_data)
-        pbar.update(len(group_data))
+        sent_length = group["sents"].shape[1]
+
+        if sent_length > min_length and sent_length < max_length:
+            group_data = generate_training_instances(group, num_examples_per_group, i%num_sents)
+            data.extend(group_data)
+            pbar.update(len(group_data))
+            sents_collected += 1
+
         i += 1
 
         if i % 1000 == 0 and i > 0:
             with open(output_filename, "wb") as f2:
                 pickle.dump(data, f2)
 
-    print("Collected {} instances from {} sentences".format(len(data), i))
+    print("Collected {} instances from {} sentences".format(len(data), sents_collected))
 
     with open(output_filename, "wb") as f:
         pickle.dump(data, f)
