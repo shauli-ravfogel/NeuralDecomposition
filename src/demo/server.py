@@ -12,9 +12,10 @@ import sys
 from tqdm import tqdm
 
 sys.path.append('src/analysis/')
-from evaluate import get_closest_sentence_demo, get_sentence_representations
+from evaluate import get_closest_sentence_demo, get_sentence_representations, Sentence_vector
 from embedder import EmbedElmo, EmbedBert
 import syntactic_extractor
+import copy
 
 app = Flask(__name__)
 CORS(app)
@@ -28,6 +29,7 @@ with open("/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/interim/en
 #    pickle.dump(sentence_reprs, f)
 with open("sent_rep.pickle", "rb") as f:
     sentence_reprs = pickle.load(f)
+cca_sentence_reprs = []
 
 elmo_folder = 'data/external/'
 options = {'elmo_options_path': elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
@@ -38,9 +40,9 @@ extractor_path = '/home/nlp/ravfogs/neural_decomposition/src/linear_decompositio
 
 extractor = syntactic_extractor.CCASyntacticExtractor(extractor_path, numpy=False)
 
-for i, sent in tqdm(enumerate(sentence_reprs)):
-    sentence_reprs[i] = sent._replace(sent_vectors=extractor.extract(sent.sent_vectors))
-
+for i, sent in enumerate(tqdm(sentence_reprs)):
+    x = Sentence_vector(extractor.extract(sent.sent_vectors), sent.sent_str, sent.doc)
+    cca_sentence_reprs.append(x)
 # sent_vecs = extractor.extract(sent_vecs)
 
 
@@ -89,10 +91,14 @@ def get_nearest(text):
     # token_ind = get_token_for_char(doc, ind)
     doc = nlp(text)
 
-    closest_sents = get_closest_sentence_demo(sentence_reprs, doc, embedder, extractor, k=5, method='l2')
-    closest_str = [x.doc.text for x in closest_sents]
+    closest_sents_syntax = get_closest_sentence_demo(cca_sentence_reprs, doc, embedder, extractor=extractor, k=5,
+                                                     method='l2')
+    closest_str_syntax = [x.doc.text for x in closest_sents_syntax]
 
-    return '<br/>'.join(closest_str)
+    closest_sents_baseline = get_closest_sentence_demo(sentence_reprs, doc, embedder, extractor=None, k=5, method='l2')
+    closest_str_baseline = [x.doc.text for x in closest_sents_baseline]
+    
+    return ['<br/>'.join(closest_str_syntax), '<br/>'.join(closest_str_baseline)]
 
 
 @app.route('/syntax_extractor/', methods=['GET'])
