@@ -21,8 +21,8 @@ if __name__ == '__main__':
     #optimizer = optim.RMSprop(network.parameters(), weight_decay = 1e-7)
     #optimizer = optim.SGD(network.parameters(), weight_decay=1e-6, lr = 1e-3, momentum = 0.9)
     #train = dataset.Dataset("sample.15k.pickle")
-    train = dataset.Dataset("sample3.60k")
-    dev = dataset.Dataset("sample3.25k")
+    train = dataset.Dataset("sample.5k")
+    dev = dataset.Dataset("sample.5k")
 
     training_generator = data.DataLoader(train, batch_size=1000, drop_last = True, shuffle=True)
     dev_generator = data.DataLoader(dev, batch_size=1000, shuffle=False, drop_last = True)
