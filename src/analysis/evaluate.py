@@ -219,8 +219,7 @@ def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:
     return all_docs
 
 
-def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5, 
-                        = True):
+def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5, ignore_same_vec = True):
     if method == "cosine":
 
         # normalize the vectors
