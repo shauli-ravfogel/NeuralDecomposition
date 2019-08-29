@@ -133,7 +133,7 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
         query_vec = extractor.extract(query_vec)
         all_vecs = [extractor.extract(v).reshape(-1) for v in all_vecs]
 
-    closest = get_closest_vectors(all_vecs, query_vec, all_sents, method=method, k=k)[0]
+    closest = get_closest_vectors(all_vecs, query_vec, all_sents, method=method, k=k, ignore_same_vec = False)[0]
     return [all_word_reprs[ind] for ind in closest]
 
 
@@ -182,7 +182,7 @@ def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
     query_mean = np.mean(sent_vecs, axis=0, keepdims=True)
     #all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
 
-    closest = get_closest_vectors(all_vecs, query_mean, method=method, k=k)[0]
+    closest = get_closest_vectors(all_vecs, query_mean, method=method, k=k, ignore_same_vec = False)[0]
     return [all_sentence_reprs[ind] for ind in closest]
 
 
@@ -219,7 +219,8 @@ def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:
     return all_docs
 
 
-def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5, ignore_same_vec = True):
+def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5, 
+                        = True):
     if method == "cosine":
 
         # normalize the vectors
