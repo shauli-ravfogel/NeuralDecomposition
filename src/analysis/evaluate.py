@@ -162,14 +162,14 @@ def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
 
     # all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
 
-    if extractor is not None:
+    # if extractor is not None:
+    #
+    #     print("Applying syntactic extractor...")
+    #
+    #     for i, sent in tqdm(enumerate(all_sentence_reprs), total=len(all_sentence_reprs), ascii=True):
+    #         all_sentence_reprs[i] = sent._replace(sent_vectors=extractor.extract(sent.sent_vectors))
 
-        print("Applying syntactic extractor...")
-
-        for i, sent in tqdm(enumerate(all_sentence_reprs), total=len(all_sentence_reprs), ascii=True):
-            all_sentence_reprs[i] = sent._replace(sent_vectors=extractor.extract(sent.sent_vectors))
-
-        sent_vecs = extractor.extract(sent_vecs)
+    sent_vecs = extractor.extract(sent_vecs)
 
         # represent each sentence as its mean vector
 

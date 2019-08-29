@@ -9,6 +9,7 @@ from flask_cors import CORS, cross_origin
 import spacy
 import pickle
 import sys
+from tqdm import tqdm
 
 sys.path.append('src/analysis/')
 from evaluate import get_closest_sentence_demo, get_sentence_representations
@@ -36,6 +37,11 @@ embedder = EmbedElmo(options, device=-1)
 extractor_path = '/home/nlp/ravfogs/neural_decomposition/src/linear_decomposition/models/cca.perform-pca:False.cca-dim:60.symmetry:False.method:sklearn.pickle'
 
 extractor = syntactic_extractor.CCASyntacticExtractor(extractor_path, numpy=False)
+
+for i, sent in tqdm(enumerate(sentence_reprs)):
+    sentence_reprs[i] = sent._replace(sent_vectors=extractor.extract(sent.sent_vectors))
+
+# sent_vecs = extractor.extract(sent_vecs)
 
 
 def get_logger(model_dir):
@@ -76,11 +82,12 @@ def get_token_for_char(doc, char_idx):
 
 
 def get_nearest(text):
-    text_split = text.split('*')
-    ind = len(text_split[0]) + 1
+    # text_split = text.split('*')
+    # ind = len(text_split[0]) + 1
 
-    doc = nlp(''.join(text_split))
-    token_ind = get_token_for_char(doc, ind)
+    # doc = nlp(''.join(text_split))
+    # token_ind = get_token_for_char(doc, ind)
+    doc = nlp(text)
 
     closest_sents = get_closest_sentence_demo(sentence_reprs, doc, embedder, extractor, k=5, method='l2')
     closest_str = [x.doc.text for x in closest_sents]
