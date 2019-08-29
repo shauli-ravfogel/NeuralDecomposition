@@ -10,9 +10,7 @@ import spacy
 import pickle
 import sys
 
-sys.path.append('../analysis/evaluate')
-sys.path.append('../analysis/embedder')
-sys.path.append('../analysis/syntactic_extractor')
+sys.path.append('src/analysis/')
 from evaluate import get_closest_sentence_demo, get_sentence_representations
 from embedder import EmbedElmo, EmbedBert
 import syntactic_extractor
@@ -24,16 +22,20 @@ nlp = spacy.load('en_core_web_sm')
 
 with open("/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/interim/encoded_elmo.pickle", "rb") as f:
     data = pickle.load(f)
-sentence_reprs = get_sentence_representations(data)
+# sentence_reprs = get_sentence_representations(data)
+#with open("sent_rep.pickle", "wb") as f:
+#    pickle.dump(sentence_reprs, f)
+with open("sent_rep.pickle", "rb") as f:
+    sentence_reprs = pickle.load(f)
 
 elmo_folder = 'data/external/'
 options = {'elmo_options_path': elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
            'elmo_weights_path': elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5'}
 embedder = EmbedElmo(options, device=-1)
 
-extractor_path = 'data/processed/models/cca.perform-pca:False.cca-dim:65.symmetry:True.method:numpy.examples:1500000' \
-                 '.pickle '
-extractor = syntactic_extractor.CCASyntacticExtractor(extractor_path, numpy=True)
+extractor_path = '/home/nlp/ravfogs/neural_decomposition/src/linear_decomposition/models/cca.perform-pca:False.cca-dim:60.symmetry:False.method:sklearn.pickle'
+
+extractor = syntactic_extractor.CCASyntacticExtractor(extractor_path, numpy=False)
 
 
 def get_logger(model_dir):
@@ -83,8 +85,7 @@ def get_nearest(text):
     closest_sents = get_closest_sentence_demo(sentence_reprs, doc, embedder, extractor, k=5, method='l2')
     closest_str = [x.doc.text for x in closest_sents]
 
-    ans = [doc.text + ' test1', doc.text + ' test2']
-    return '<br/>'.join(ans)
+    return '<br/>'.join(closest_str)
 
 
 @app.route('/syntax_extractor/', methods=['GET'])
@@ -96,16 +97,16 @@ def serve():
     if text.strip() == '':
         return ''
 
-    try:
-        doc = nlp(text)
+    #try:
+        # doc = nlp(text)
 
-        nearest = get_nearest(doc)
+    nearest = get_nearest(text)
 
-        logger.info('ans: ' + str(nearest))
-        html = nearest
+    logger.info('ans: ' + str(nearest))
+    html = nearest
 
-    except Exception as e:
-        logger.info('error. ' + str(e))
-        html = 'some error occurred while trying to find the NFH'
+    #except Exception as e:
+    #    logger.info('error. ' + str(e))
+    #    html = 'some error occurred while trying to find the NFH'
 
     return html

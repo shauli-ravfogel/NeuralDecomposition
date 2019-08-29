@@ -128,7 +128,7 @@ def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
 
     sent_vecs, _ = embedder.run_embedder([sent_words])[0]
 
-    all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
+    # all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
 
     if extractor is not None:
 
@@ -147,9 +147,9 @@ def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
         all_vecs.append(np.mean(sent.sent_vectors, axis=0))
 
     query_mean = np.mean(sent_vecs, axis=0, keepdims=True)
-    all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
+    #all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
 
-    closest = get_closest_vectors(all_vecs, query_mean, all_sents, method=method, k=k)[0]
+    closest = get_closest_vectors(all_vecs, query_mean, method=method, k=k)[0]
     return [all_sentence_reprs[ind] for ind in closest]
 
 
