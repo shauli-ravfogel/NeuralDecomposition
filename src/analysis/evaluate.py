@@ -235,9 +235,9 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], m
     top_k = distances.argsort(axis=1)[:, :k + 1]
     
     if ignore_same_vec:
-      closest_indices = top_k[:, 1: k + 1]  # ignore the word itself
+      closest_indices = top_k[:, 1: k + 1]  # ignore the same vec
     else:
-      closest_indices = top_k[:, 0: k]  # ignore the word itself
+      closest_indices = top_k[:, 0: k]  # don't ignore the same vec
       
     return closest_indices
 
