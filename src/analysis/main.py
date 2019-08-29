@@ -16,10 +16,10 @@ if __name__ == '__main__':
                         help='whether to encode the sentences with ELMO from scratch or use already calcuated '
                              'representation')
     parser.add_argument('--encoded_data', dest='encoded_data', type=str,
-                        default='../data/interim/encoded_sents.pickle',
+                        default='data/interim/encoded_sents.pickle',
                         help='path to the embedded sentences data')
     parser.add_argument('--elmo_folder', dest='elmo_folder', type=str,
-                        default='../data/external')
+                        default='data/external')
     parser.add_argument('--method', dest='method', type=str,
                         default='euc', help="similarity method (cosine / euc)")
     parser.add_argument('--cuda-device', dest='cuda_device', type=int, default=0,
@@ -48,10 +48,10 @@ if __name__ == '__main__':
         if args.embedder_type == 'elmo':
             options = {'elmo_options_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
                        'elmo_weights_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5'}
-            embedder = EmbedElmo(args.input_wiki, args.num_sents, options, device=args.cuda_device)
+            embedder = EmbedElmo(options, device=args.cuda_device)
         else:
-            embedder = EmbedBert(args.input_wiki, args.num_sents, {}, device=args.cuda_device)
-        data = embedder.get_data()
+            embedder = EmbedBert({}, device=args.cuda_device)
+        data = embedder.get_data(args.input_wiki, args.num_sents)
 
         with open(args.encoded_data, "wb") as f:
             pickle.dump(data, f)

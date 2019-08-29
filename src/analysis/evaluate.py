@@ -72,7 +72,7 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
 
 
 def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tokens.Doc,
-                          index: int, embedder, extractor, k: int, method: str) -> List[Word_vector]:
+                          index: int, embedder, extractor, k: int = 5, method: str = 'l2') -> List[Word_vector]:
     """
     Parameters
     ----------
@@ -90,7 +90,7 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
    """
 
     sent_words = [token.text for token in sentence]
-    sent_vecs, _ = embedder._run_embedder([sent_words])[0]
+    sent_vecs, _ = embedder.run_embedder([sent_words])[0]
 
     query_vec = sent_vecs[index]
     all_sents = [word_repr.sentence for word_repr in all_word_reprs]
@@ -106,7 +106,7 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
 
 
 def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
-                              sentence: spacy.tokens.Doc, embedder, extractor, k: int, method: str) -> List[
+                              sentence: spacy.tokens.Doc, embedder, extractor, k: int = 5, method: str = 'l2') -> List[
     Sentence_vector]:
     """
     Parameters
@@ -126,7 +126,7 @@ def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
 
     sent_words = [token.text for token in sentence]
 
-    sent_vecs, _ = embedder._run_embedder([sent_words])[0]
+    sent_vecs, _ = embedder.run_embedder([sent_words])[0]
 
     all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
 

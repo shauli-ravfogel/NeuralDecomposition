@@ -19,18 +19,20 @@ from allennlp.data.tokenizers.word_splitter import BertBasicWordSplitter
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.token_embedders.bert_token_embedder import BertEmbedder
 
+import sys
+sys.path.append('generate_dataset/collect_bert_states')
+from collect_bert_states import BertLayerEmbedder
+
 random.seed(0)
 from collections import Counter, defaultdict
 from tqdm.auto import tqdm
 
 
 class Embedder(object):
-    def __init__(self, wiki_path: str, num_sents: int, params: Dict, device: int=0):
-        self._sentences = self._load_sents(wiki_path, num_sents)
-        self._devide = device
+    def __init__(self):
+        pass
 
     def _load_sents(self, wiki_path, num_sents, max_length=35) -> List[List[str]]:
-
         print("Loading sentences...")
 
         with open(wiki_path, "r", encoding="utf8") as f:
@@ -47,19 +49,20 @@ class Embedder(object):
     def _embedder(self, sentence: List[str]) -> np.ndarray:
         raise NotImplementedError()
 
-    def get_data(self) -> List[Tuple[List[np.ndarray], str]]:
-        embeddings_and_sents = self._run_embedder(self._sentences)
+    def get_data(self, wiki_path: str, num_sents: int) -> List[Tuple[List[np.ndarray], str]]:
+        sentences = self._load_sents(wiki_path, num_sents)
+        embeddings_and_sents = self.run_embedder(sentences)
         return embeddings_and_sents
 
-    def _run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
+    def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
         raise NotImplementedError()
 
 
 class EmbedElmo(Embedder):
 
-    def __init__(self, wiki_path: str, num_sents: int, params: Dict, device=0):
+    def __init__(self, params: Dict, device: int = 0):
 
-        Embedder.__init__(self, wiki_path, num_sents, {}, device)
+        Embedder.__init__(self)
         elmo_options_path = params['elmo_options_path']
         elmo_weights_path = params['elmo_weights_path']
         self.embedder = self._load_elmo(elmo_weights_path, elmo_options_path, device=device)
@@ -69,7 +72,7 @@ class EmbedElmo(Embedder):
         print("Loading ELMO...")
         return ElmoEmbedder(elmo_options_path, elmo_weights_path, cuda_device=device)
 
-    def _run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
+    def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[np.ndarray, str]]:
 
         print("Running ELMO...")
 
@@ -93,18 +96,17 @@ class EmbedElmo(Embedder):
 
 
 class EmbedBert(Embedder):
-    def __init__(self, wiki_path: str, num_sents: int, params: Dict, device=0):
-
-        Embedder.__init__(self, wiki_path, num_sents, params, device)
+    def __init__(self, params: Dict, device: int = 0):
+        Embedder.__init__(self)
         config = BertConfig(vocab_size_or_config_json_file=30522)
         bert_model = BertModel(config)
 
         bert_name = 'bert-base-uncased'
         self.token_indexer = PretrainedBertIndexer(pretrained_model=bert_name, use_starting_offsets=True)
         self.vocab = Vocabulary()
-        self.embedder = BertEmbedder(bert_model, top_layer_only=True)
+        self.embedder = BertLayerEmbedder(bert_model).eval()
 
-    def _run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
+    def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
         print("Running Bert...")
 
         bert_embeddings = []
@@ -113,7 +115,6 @@ class EmbedBert(Embedder):
             bert_embeddings.append((self._embedder(sent), sent))
 
         return bert_embeddings
-
 
     def _embedder(self, sentence: List[str]) -> np.ndarray:
         toks = [Token(w) for w in sentence]
