@@ -257,9 +257,9 @@ def sentences2words(sentence_representations: List[Sentence_vector],
 
         if len(data) > num_words: break
 
-        vectors, words, docs = sent_rep
+        vectors, words, doc = sent_rep
 
-        for j, (vec, w, doc) in enumerate(zip(vectors, words, docs)):
+        for j, (vec, w) in enumerate(zip(vectors, words)):
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
@@ -386,7 +386,7 @@ def perform_tests(query_words, k_value_words, k=1):
 def same_ancestor_deps(query, value):
     ancestors = set()
 
-    token = query.token
+    token = query.doc[query.index]
     while token.dep_ != 'ROOT':
         ancestors.add(token.dep_)
         token = token.head
@@ -394,7 +394,7 @@ def same_ancestor_deps(query, value):
     dep_dic_pos = defaultdict(int)
     dep_dic_neg = defaultdict(int)
 
-    token = value[0].token
+    token = value[0].doc[value[0].index]
     while token.dep_ != 'ROOT':
         if token.dep_ in ancestors:
             dep_dic_pos['pos_' + token.dep_] += 1
