@@ -8,11 +8,19 @@ from flask_cors import CORS, cross_origin
 
 import spacy
 
+import sys
+sys.path.append('../analysis/evaluate')
+from evaluate import get_closest_sentence_demo, get_sentence_representations
+
 
 app = Flask(__name__)
 CORS(app)
 
 nlp = spacy.load('en_core_web_sm')
+
+with open(, "rb") as f:
+    data = pickle.load(f)
+sentence_reprs = get_sentence_representations(embds_and_sents)
 
 
 def get_logger(model_dir):
@@ -36,7 +44,30 @@ def get_logger(model_dir):
 logger = get_logger('./logs/')
 
 
-def get_nearest(doc):
+def get_token_for_char(doc, char_idx):
+    """
+    Convert between the characted index to the nlp token index
+    :param doc:
+    :param char_idx:
+    :return:
+    """
+    for i, token in enumerate(doc):
+        if char_idx > token.idx:
+            continue
+        if char_idx == token.idx:
+            return i
+        if char_idx < token.idx:
+            return i - 1
+
+
+def get_nearest(text):
+    text_split = text.split('*')
+    ind = len(text_split[0]) + 1
+
+    doc = nlp(''.join(text_split))
+    token_ind = get_token_for_char(doc, ind)
+
+    get_closest_sentence_demo()
     ans = [doc.text + ' test1', doc.text + ' test2']
     return '\n'.join(ans)
 

@@ -25,8 +25,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    collector_args = (args.input_path, args.output_path,
-                      args.num_examples, args.mode, args.exclude_function_words)
+    collector_args = (args.input_path, args.num_examples,
+            args.output_path, args.mode, args.exclude_function_words)
 
     if args.mode == "simple":
         collector = views_collector.SimpleCollector(*collector_args)

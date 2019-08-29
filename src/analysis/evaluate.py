@@ -21,9 +21,9 @@ from collections import Counter, defaultdict
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
-                                     ("tokens", List[spacy.tokens.Token])])
+                                     ("doc", spacy.tokens.Doc)])
 Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('sentence', List[str]),
-                                                ("token", spacy.tokens.Token)])
+                                                ("doc", spacy.tokens.Doc), ("index", int)])
 
 
 def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
@@ -71,7 +71,89 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
     closest_sentence_test(sentence_reprs, num_queries=num_queries, method=method, extractor=extractor)
 
 
-def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List[List[str]]):
+def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tokens.Doc,
+                          index: int, embedder, extractor, k: int, method: str) -> List[Word_vector]:
+    """
+    Parameters
+    ----------
+    all_word_reprs: A list of Word_vector objects, on which the closest-vector query is performed.
+    sentence: a spacy Doc representing the input sentence.
+    index: the index in the sentence to query.
+    embedder: embedder object
+    extractor: syntactic_extractor object. If None, don't apply syntactic extractor
+    k: int, how many closest-neighbors to collect.
+    method: "cosine" / "l2"
+    ----------
+    Returns
+    -------
+    closest: A list of Word_vector objects, representing the k closest-vectors to the query vector.
+   """
+
+    sent_words = [token.text for token in sentence]
+    sent_vecs, _ = embedder._run_embedder([sent_words])[0]
+
+    query_vec = sent_vecs[index]
+    all_sents = [word_repr.sentence for word_repr in all_word_reprs]
+    all_vecs = [word_repr.word_vector for word_repr in all_word_reprs]
+
+    if extractor is not None:
+        print("applying syntactic extractor")
+        query_vec = extractor.extract(query_vec)
+        all_vecs = [extractor.extract(v).reshape(-1) for v in all_vecs]
+
+    closest = get_closest_vectors(all_vecs, query_vec, all_sents, method=method, k=k)[0]
+    return [all_word_reprs[ind] for ind in closest]
+
+
+def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
+                              sentence: spacy.tokens.Doc, embedder, extractor, k: int, method: str) -> List[
+    Sentence_vector]:
+    """
+    Parameters
+    ----------
+    all_word_reprs: A list of Word_vector objects, on which the closest-vector query is performed.
+    sentence: a spacy Doc representing the input sentence.
+    index: the index in the sentence to query.
+    embedder: embedder object
+    extractor: syntactic_extractor object. If None, don't apply syntactic extractor
+    k: int, how many closest-neighbors to collect.
+    method: "cosine" / "l2"
+    ----------
+    Returns
+    -------
+    closest: A list of Sentence_vector objects, representing the k closest-vectors to the query vector.
+   """
+
+    sent_words = [token.text for token in sentence]
+
+    sent_vecs, _ = embedder._run_embedder([sent_words])[0]
+
+    all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
+
+    if extractor is not None:
+
+        print("Applying syntactic extractor...")
+
+        for i, sent in tqdm(enumerate(all_sentence_reprs), total=len(all_sentence_reprs), ascii=True):
+            all_sentence_reprs[i] = sent._replace(sent_vectors=extractor.extract(sent.sent_vectors))
+
+        sent_vecs = extractor.extract(sent_vecs)
+
+        # represent each sentence as its mean vector
+
+    all_vecs = []
+
+    for i, sent in enumerate(all_sentence_reprs):
+        all_vecs.append(np.mean(sent.sent_vectors, axis=0))
+
+    query_mean = np.mean(sent_vecs, axis=0, keepdims=True)
+    all_sents = [sent_repr.sent_str for sent_repr in all_sentence_reprs]
+
+    closest = get_closest_vectors(all_vecs, query_mean, all_sents, method=method, k=k)[0]
+    return [all_sentence_reprs[ind] for ind in closest]
+
+
+def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:
     """
         Parameters
 
@@ -91,7 +173,7 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
 
     nlp = spacy.load('en_core_web_sm')
 
-    all_tokens = []
+    all_docs = []
 
     for sent in tqdm(sentences, ascii=True):
 
@@ -99,12 +181,9 @@ def parse(sentences: List[List[str]]) -> (List[List[str]], List[List[str]], List
         for name, proc in nlp.pipeline:
             doc = proc(doc)
 
-        tokens = [token for token in doc]
-        all_tokens.append(tokens)
+        all_docs.append(doc)
 
-        assert len(sent) == len(tokens)
-
-    return all_tokens
+    return all_docs
 
 
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5):
@@ -139,12 +218,12 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
       """
 
     embds, sentences = list(zip(*embds_and_sents))
-    tokens = parse(sentences)
+    docs = parse(sentences)
 
-    assert len(sentences) == len(embds) == len(tokens)
+    assert len(sentences) == len(embds) == len(docs)
 
     embds_sents_deps = [Sentence_vector(e, s, tok) for e, s, tok in
-                        zip(embds, sentences, tokens)]
+                        zip(embds, sentences, docs)]
 
     return embds_sents_deps
 
@@ -178,13 +257,13 @@ def sentences2words(sentence_representations: List[Sentence_vector],
 
         if len(data) > num_words: break
 
-        vectors, words, tokens = sent_rep
+        vectors, words, docs = sent_rep
 
-        for j, (vec, w, token) in enumerate(zip(vectors, words, tokens)):
+        for j, (vec, w, doc) in enumerate(zip(vectors, words, docs)):
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), w, token))
+            data.append(Word_vector(vec.copy(), w, doc, j))
 
     random.seed(0)
     random.shuffle(data)
@@ -267,11 +346,11 @@ def node_height(token):
 
 
 def get_tests() -> List[Dict]:
-    tests = [{'func': lambda x: x.token.dep_, 'name': 'dependency edge'},
-             {'func': lambda x: x.token.pos_, 'name': 'pos'},
-             {'func': lambda x: x.token.tag_, 'name': 'tag'},
-             {'func': lambda x: x.token.head.dep_, 'name': 'head\'s dependency edge'},
-             {'func': lambda x: x.token.i, 'name': 'index'}]
+    tests = [{'func': lambda x: x.doc[x.index].dep_, 'name': 'dependency edge'},
+             {'func': lambda x: x.doc[x.index].pos_, 'name': 'pos'},
+             {'func': lambda x: x.doc[x.index].tag_, 'name': 'tag'},
+             {'func': lambda x: x.doc[x.index].head.dep_, 'name': 'head\'s dependency edge'},
+             {'func': lambda x: x.doc[x.index].i, 'name': 'index'}]
 
     return tests
 
@@ -293,8 +372,8 @@ def perform_tests(query_words, k_value_words, k=1):
                 t['neg'] += 1
 
             if k == 1:
-                depth1.append(node_height(query.token))
-                depth2.append(node_height(value[0].token))
+                depth1.append(node_height(query.doc[query.index]))
+                depth2.append(node_height(value[0].doc[value[0].index]))
 
     for t in tests:
         acc = t['pos'] / (t['pos'] + t['neg'])
@@ -326,7 +405,6 @@ def same_ancestor_deps(query, value):
 
 
 def perform_same_dep_father_test(query_words, k_value_words):
-
     dep_dic_pos = defaultdict(int)
     dep_dic_neg = defaultdict(int)
 
@@ -344,11 +422,13 @@ def persist_examples(extractor, query_words, k_value_words):
     fname = "results/closest_words.extractor:{}.txt".format(extractor is not None)
     with open(fname, "w", encoding="utf8") as f:
         for (query, value) in zip(query_words, k_value_words[0]):
-            dep1, dep2 = query.token.dep_, value.token.dep_
+            query_token = query.doc[query.index]
+            value_token = value.doc[value.index]
+            dep1, dep2 = query_token.dep_, value_token.dep_
             correct_dep = dep1 == dep2
-            word1, word2 = query.token.text, value.token.text
+            word1, word2 = query_token.text, value_token.text
             sent1, sent2 = query.sentence, value.sentence
-            ind1, ind2 = query.token.i, value.token.i
+            ind1, ind2 = query_token.i, value_token.i
             sent1_str = " ".join(sent1[:ind1] + ["***" + word1 + "***"] + sent1[ind1 + 1:])
             sent2_str = " ".join(sent2[:ind2] + ["***" + word2 + "***"] + sent2[ind2 + 1:])
 
@@ -363,34 +443,29 @@ def syntactic_extractor(data, extractor):
     return data
 
 
-def collect_deps_embeddings(words_reprs: List[Word_vector], extractor = None):
+def collect_deps_embeddings(words_reprs: List[Word_vector], extractor=None):
+    if extractor is not None:
 
-        if extractor is not None:
+        print("Applying syntactic extractor...")
 
-                print("Applying syntactic extractor...")
+        for i, word_representation in tqdm(enumerate(data), total=len(data), ascii=True):
+            words_reprs[i] = word_representation._replace(
+                word_vector=extractor.extract(word_representation.word_vector).reshape(-1))
 
-                for i, word_representation in tqdm(enumerate(data), total = len(data), ascii=True):
+    deps = [w.doc[w.index].dep for w in words_reprs]
+    counter = Counter(list)
 
-                        words_reprs[i] = word_representation._replace(word_vector = extractor.extract(word_representation.word_vector).reshape(-1))
+    for vec, dep in tqdm.tqdm(zip(words_reprs, deps), ascii=True):
+        counter[dep].append(vec)
 
-        deps = [w.token.dep for w in words_reprs]
-        counter = Counter(list)
+    dep2vec = {}
 
-        for vec, dep in tqdm.tqdm(zip(words_reprs, deps), ascii = True):
+    for dep in counter.keys():
+        dep2vec[dep] = np.mean(counter[dep])
 
-                counter[dep].append(vec)
+    with open("dep2vec.extractor:{}".format(extractor is not None), "wb") as f:
 
-        dep2vec = {}
-
-        for dep in counter.keys():
-
-                dep2vec[dep] = np.mean(counter[dep])
-
-        with open("dep2vec.extractor:{}".format(extractor is not None), "wb") as f:
-
-                pickle.dump(dep2vec, f)
-
-
+        pickle.dump(dep2vec, f)
 
 
 def closest_word_test(words_reprs: List[Word_vector], extractor=None,
