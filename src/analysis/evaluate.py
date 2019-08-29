@@ -84,7 +84,7 @@ def test_demo_words(all_word_reprs, elmo_embedder, extractor):
         for value_word_repr in closest:
         
             ind = value_word_repr.index
-            sent = value_word_repr.sent_str
+            sent = value_word_repr.sentence
             w = value_word_repr.word
             value_str = " ".join(sent[:ind] + ["***" + w + "***"] + sent[ind + 1:])
             print(value_str)
