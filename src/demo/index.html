@@ -36,6 +36,7 @@
 </nav>
 
 <!-- The main content of the page -->
+
 <div class="container">
   <div class="row">
 
@@ -43,13 +44,17 @@
     <form id="form_annotate" accept-charset="UTF-8" onsubmit="return false;">
     <div class="col-sm-12" style="margin-bottom: 5px;">
       <label for="text" class="label">&mdash; Text to annotate &mdash;</label>
-      <textarea class="form-control" rows="5" id="text" autofocus>Water enter the plant through the roots.
-The water is transported up the stem to the leafs.</textarea>
+      <textarea class="form-control" rows="5" id="text" autofocus>in the book he describes the beautiful flag carried by bob lennon .</textarea>
     </div>
 
     <!-- Submit button -->
     <div class="col-sm-2" style="text-align: center; margin-top: 7px; ">
-        <button id="submit" class="btn btn-block" type="button" onclick="annotate(); return null;">Submit</button>
+        <button id="submit_sentence" class="btn btn-block" type="button"
+                onclick="annotate(true); return null;">Sentence Similarity</button>
+    </div>
+    <div class="col-sm-2" style="text-align: center; margin-top: 7px; ">
+        <button id="submit_word" class="btn btn-block" type="button"
+            onclick="annotate(false); return null;">Word Similarity</button>
     </div>
     </form>
 

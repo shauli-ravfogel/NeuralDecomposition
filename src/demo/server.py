@@ -12,7 +12,8 @@ import sys
 from tqdm import tqdm
 
 sys.path.append('src/analysis/')
-from evaluate import get_closest_sentence_demo, get_sentence_representations, Sentence_vector
+from evaluate import get_closest_sentence_demo, get_closest_word_demo, get_sentence_representations, Sentence_vector, \
+    sentences2words
 from embedder import EmbedElmo, EmbedBert
 import syntactic_extractor
 import copy
@@ -25,7 +26,7 @@ nlp = spacy.load('en_core_web_sm')
 with open("/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/interim/encoded_elmo.pickle", "rb") as f:
     data = pickle.load(f)
 # sentence_reprs = get_sentence_representations(data)
-#with open("sent_rep.pickle", "wb") as f:
+# with open("sent_rep.pickle", "wb") as f:
 #    pickle.dump(sentence_reprs, f)
 with open("sent_rep.pickle", "rb") as f:
     sentence_reprs = pickle.load(f)
@@ -43,6 +44,15 @@ extractor = syntactic_extractor.CCASyntacticExtractor(extractor_path, numpy=Fals
 for i, sent in enumerate(tqdm(sentence_reprs)):
     x = Sentence_vector(extractor.extract(sent.sent_vectors), sent.sent_str, sent.doc)
     cca_sentence_reprs.append(x)
+
+words_reprs = sentences2words(sentence_reprs, num_words=50000,
+                              ignore_function_words=True)
+cca_word_reprs = []
+for i, word in enumerate(tqdm(words_reprs)):
+    cca_word_reprs.append(extractor.extract(word.word_vector).reshape(-1))
+
+
+
 # sent_vecs = extractor.extract(sent_vecs)
 
 
@@ -83,7 +93,7 @@ def get_token_for_char(doc, char_idx):
             return i - 1
 
 
-def get_nearest(text):
+def get_nearest_sentence(text):
     # text_split = text.split('*')
     # ind = len(text_split[0]) + 1
 
@@ -101,6 +111,34 @@ def get_nearest(text):
     return {'syntax': '<br/>'.join(closest_str_syntax), 'baseline': '<br/>'.join(closest_str_baseline)}
 
 
+def word_vector_to_text(word_vector):
+    ind = word_vector.index
+    doc = word_vector.doc
+
+    text = doc[:ind].text_with_ws + '*' + doc[ind] + '*'
+    if ind + 1 < len(doc):
+        text += doc[ind + 1:].text_with_ws
+    return text
+
+
+def get_nearest_word(text):
+    text_split = text.split('*')
+    ind = len(text_split[0]) + 1
+
+    doc = nlp(''.join(text_split))
+    token_ind = get_token_for_char(doc, ind)
+    doc = nlp(text)
+
+    closest_words_syntax = get_closest_word_demo(words_reprs, doc, token_ind, embedder, extractor=extractor, k=5,
+                                                 method='l2')
+    closest_str_syntax = [word_vector_to_text(x) for x in closest_words_syntax]
+
+    closest_word_baseline = get_closest_sentence_demo(cca_word_reprs, doc, embedder, extractor=None, k=5, method='l2')
+    closest_str_baseline = [word_vector_to_text(x) for x in closest_word_baseline]
+
+    return {'syntax': '<br/>'.join(closest_str_syntax), 'baseline': '<br/>'.join(closest_str_baseline)}
+
+
 @app.route('/syntax_extractor/', methods=['GET'])
 @cross_origin()
 def serve():
@@ -110,15 +148,18 @@ def serve():
     if text.strip() == '':
         return ''
 
-    #try:
-        # doc = nlp(text)
+    # try:
+    # doc = nlp(text)
 
-    nearest = get_nearest(text)
+    if bool(request.args.get('sentence_based')):
+        nearest = get_nearest_sentence(text)
+    else:
+        nearest = get_nearest_word(text)
 
     logger.info('ans: ' + str(nearest))
     html = nearest
 
-    #except Exception as e:
+    # except Exception as e:
     #    logger.info('error. ' + str(e))
     #    html = 'some error occurred while trying to find the NFH'
 

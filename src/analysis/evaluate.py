@@ -474,7 +474,7 @@ def persist_examples(extractor, query_words, k_value_words):
 
 def syntactic_extractor(data, extractor):
     print("Applying syntactic extractor...")
-    for i, word_representation in tqdm(enumerate(data), total=len(data)):
+    for i, word_representation in enumerate(tqdm(data)):
         data[i] = word_representation._replace(
             word_vector=extractor.extract(word_representation.word_vector).reshape(-1))
     return data
