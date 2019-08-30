@@ -80,9 +80,9 @@ def test_demo_words(all_word_reprs, elmo_embedder, extractor):
         word = sentence[index].text
         print("word: {}".format(word))
         closest = get_closest_word_demo(all_word_reprs, sentence, index, elmo_embedder, extractor, k = 10, method = "cosine")
-        
+
         for value_word_repr in closest:
-        
+
             ind = value_word_repr.index
             sent = value_word_repr.sentence
             w = value_word_repr.word
@@ -96,9 +96,9 @@ def test_demo_sentences(all_sents_repr, elmo_embedder, extractor):
         sentence = "had i not seen it myself, i could not have believed that."
         sentence = nlp(sentence)
         closest = get_closest_sentence_demo(all_sents_repr, sentence, elmo_embedder, extractor, k = 10, method = "cosine")
-        
+
         for value_sent_repr in closest:
-        
+
             sent = value_sent_repr.sent_str
             print(" ".join(sent))
             print("---------------------------------------------")
@@ -124,7 +124,13 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
     sent_words = [token.text for token in sentence]
     sent_vecs, _ = embedder.run_embedder([sent_words])[0]
 
+    print(sent_vecs)
+    print(sent_vecs.shape)
+
     query_vec = sent_vecs[index]
+
+    print(query_vec)
+    print(query_vec.shape)
     all_sents = [word_repr.sentence for word_repr in all_word_reprs]
     all_vecs = [word_repr.word_vector for word_repr in all_word_reprs]
 
@@ -133,7 +139,7 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
         query_vec = extractor.extract(query_vec)
         all_vecs = [extractor.extract(v).reshape(-1) for v in all_vecs]
 
-    closest = get_closest_vectors(all_vecs, query_vec, all_sents, method=method, k=k, ignore_same_vec = False)[0]
+    closest = get_closest_vectors(all_vecs, query_vec, method=method, k=k, ignore_same_vec = False)[0]
     return [all_word_reprs[ind] for ind in closest]
 
 
@@ -233,12 +239,12 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], m
         distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
 
     top_k = distances.argsort(axis=1)[:, :k + 1]
-    
+
     if ignore_same_vec:
       closest_indices = top_k[:, 1: k + 1]  # ignore the same vec
     else:
       closest_indices = top_k[:, 0: k]  # don't ignore the same vec
-      
+
     return closest_indices
 
 

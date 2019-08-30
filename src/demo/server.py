@@ -115,7 +115,7 @@ def word_vector_to_text(word_vector):
     ind = word_vector.index
     doc = word_vector.doc
 
-    text = doc[:ind].text_with_ws + '*' + doc[ind] + '*'
+    text = doc[:ind].text_with_ws + '*' + doc[ind].text + '*'
     if ind + 1 < len(doc):
         text += doc[ind + 1:].text_with_ws
     return text
@@ -133,7 +133,7 @@ def get_nearest_word(text):
                                                  method='l2')
     closest_str_syntax = [word_vector_to_text(x) for x in closest_words_syntax]
 
-    closest_word_baseline = get_closest_sentence_demo(cca_word_reprs, doc, embedder, extractor=None, k=5, method='l2')
+    closest_word_baseline = get_closest_word_demo(cca_word_reprs, doc, token_ind, embedder, extractor=None, k=5, method='l2')
     closest_str_baseline = [word_vector_to_text(x) for x in closest_word_baseline]
 
     return {'syntax': '<br/>'.join(closest_str_syntax), 'baseline': '<br/>'.join(closest_str_baseline)}
@@ -150,8 +150,10 @@ def serve():
 
     # try:
     # doc = nlp(text)
+    #print(request.args.get('sentence_based'))
+    #print(bool(request.args.get('sentence_based')))
 
-    if bool(request.args.get('sentence_based')):
+    if request.args.get('sentence_based') in ['true', '1']:
         nearest = get_nearest_sentence(text)
     else:
         nearest = get_nearest_word(text)
