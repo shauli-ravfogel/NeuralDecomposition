@@ -12,8 +12,8 @@ import sys
 from tqdm import tqdm
 
 sys.path.append('src/analysis/')
-from evaluate import get_closest_sentence_demo, get_closest_word_demo, get_sentence_representations, Sentence_vector, \
-    sentences2words
+from evaluate import get_closest_sentence_demo, get_closest_word_demo, get_sentence_representations,\
+    Sentence_vector, Word_vector, sentences2words
 from embedder import EmbedElmo, EmbedBert
 import syntactic_extractor
 import copy
@@ -49,7 +49,8 @@ words_reprs = sentences2words(sentence_reprs, num_words=50000,
                               ignore_function_words=True)
 cca_word_reprs = []
 for i, word in enumerate(tqdm(words_reprs)):
-    cca_word_reprs.append(extractor.extract(word.word_vector).reshape(-1))
+    x = extractor.extract(word.word_vector).reshape(-1)
+    cca_word_reprs.append(Word_vector(x, word.sentence, word.doc, word.index))
 
 
 
