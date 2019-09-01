@@ -70,8 +70,10 @@ class EmbedElmo(Embedder):
     def _load_elmo(self, elmo_weights_path, elmo_options_path, device=0):
 
         print("Loading ELMO...")
-        return ElmoEmbedder(elmo_options_path, elmo_weights_path, cuda_device=device)
-
+        if device != -1:
+            return ElmoEmbedder(elmo_options_path, elmo_weights_path, cuda_device=device)
+        else:
+            return ElmoEmbedder(elmo_options_path, elmo_weights_path)
     def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[np.ndarray, str]]:
 
         print("Running ELMO...")
