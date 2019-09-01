@@ -20,7 +20,7 @@ from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.token_embedders.bert_token_embedder import BertEmbedder
 
 import sys
-sys.path.append('generate_dataset/collect_bert_states')
+sys.path.append('src/generate_dataset')
 from collect_bert_states import BertLayerEmbedder
 
 random.seed(0)

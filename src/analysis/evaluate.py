@@ -122,21 +122,15 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
     sent_words = [token.text for token in sentence]
     sent_vecs, _ = embedder.run_embedder([sent_words])[0]
 
-    print(sent_vecs)
-    print(sent_vecs.shape)
-
     query_vec = sent_vecs[index]
 
-    print(query_vec)
-    print(query_vec.shape)
     all_vecs = [word_repr.word_vector for word_repr in all_word_reprs]
 
     if extractor is not None:
         print("applying syntactic extractor")
         query_vec = extractor.extract(query_vec)
-        # all_vecs = [extractor.extract(v).reshape(-1) for v in all_vecs]
 
-    closest = get_closest_vectors(all_vecs, query_vec, method=method, k=k, ignore_same_vec=False)[0]
+    closest = get_closest_vectors(np.array(all_vecs), query_vec.reshape(1, -1), method=method, k=k, ignore_same_vec=False)[0]
     return [all_word_reprs[ind] for ind in closest]
 
 
