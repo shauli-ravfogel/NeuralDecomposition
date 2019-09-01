@@ -22,5 +22,6 @@ class Dataset(data.Dataset):
 
         with torch.no_grad():
 
-            word_repres = self.data[index]
-            return [torch.from_numpy(w).float() for w in word_repres]
+            word_repres = self.data[index]["vecs"]
+            sent_i, sent_j = self.data[index]["sent1"], self.data[index]["sent2"]
+            return [torch.from_numpy(w).float().cuda() for w in word_repres], sent_i, sent_j

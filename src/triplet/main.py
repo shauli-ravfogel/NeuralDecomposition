@@ -2,15 +2,14 @@ import torch
 
 from torch import optim
 from torch.utils import data
-import matplotlib.pyplot as plt
 
 import loss
 import model
 import dataset
 import training
-import radam
+#import radam
 import math
-import adabound
+#import adabound
 
 def cyclical_lr(stepsize, min_lr=3 * 1e-4, max_lr=1e-1):
 
@@ -28,29 +27,46 @@ def cyclical_lr(stepsize, min_lr=3 * 1e-4, max_lr=1e-1):
 
     return lr_lambda
 
+BATCH = 2000
+USE_CCA = True
+CCA_FINAL_DIM = 1024
+TRIPLET_FINAL_DIM = 512
+K = 20
+MARGIN = 0.3
+SOFTPLUS = True
+PAIR_REPR = "abs-diff" # diff/abs-diff/product/abs-product
+
 if __name__ == '__main__':
 
-    loss_fn = loss.BatchHardTripletLoss()
+    loss_fn = loss.BatchHardTripletLoss2(alpha = MARGIN, k = K, softplus = SOFTPLUS)
+    cca_loss, cca_network = None, None
     pos_loss = torch.nn.CrossEntropyLoss()
-    network = model.Siamese()
+    networks = []
 
-    #optimizer = optim.Adam(network.parameters(), weight_decay = 5 * 1e-7) # 0 = no weight decay, 1 = full weight decay
+    if USE_CCA:
+
+        cca_network = model.SoftCCANetwork(dim = 2048, final = CCA_FINAL_DIM)
+        cca_loss = loss.SoftCCALoss()
+
+    triplet_network = model.Siamese(cca_network, final_dim = TRIPLET_FINAL_DIM, pair_repr = PAIR_REPR).cuda()
+
+    optimizer = optim.Adam(triplet_network.parameters()) # 0 = no weight decay, 1 = full weight decay
     #optimizer = radam.RAdam(network.parameters())
     #optimizer = optim.RMSprop(network.parameters(), weight_decay = 1e-7)
-    optimizer = optim.SGD(network.parameters(), weight_decay=1e-5, lr = 5 * 1e-1, momentum = 0.9, nesterov = True)
-    optimizer = adabound.AdaBound(network.parameters(), lr=1e-3, final_lr=0.1)
+    #optimizer = optim.SGD(network.parameters(), weight_decay=1e-3, lr = 1e-2, momentum = 0.9, nesterov = True)
+    #optimizer = adabound.AdaBound(network.parameters(), lr=1e-2, final_lr=0.1)
 
     #train = dataset.Dataset("sample.15k.pickle")
 
 
-    train = dataset.Dataset("sample3.60k")
-    dev = dataset.Dataset("sample3.5k")
+    train, dev = dataset.Dataset("sample.50k"), dataset.Dataset("sample.25k")
+    #train, dev = dataset.Dataset("train1.pickle"), dataset.Dataset("dev1.pickle")
 
     step_size = 4 * len(train)
     clr = cyclical_lr(step_size)
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, [clr])
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience = 3, factor = 0.5)
-    training_generator = data.DataLoader(train, batch_size=64, drop_last = True, shuffle=True)
-    dev_generator = data.DataLoader(dev, batch_size=64, shuffle=False, drop_last = True)
+    #scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, [clr])
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience = 4, factor = 0.8, verbose = True)
+    training_generator = data.DataLoader(train, batch_size=BATCH, drop_last = False, shuffle=True)
+    dev_generator = data.DataLoader(dev, batch_size=BATCH, shuffle=True, drop_last = False)
 
-    training.train(network, training_generator, dev_generator, loss_fn, optimizer, scheduler, num_epochs = 25000)
+    training.train(triplet_network, cca_network, training_generator, dev_generator, loss_fn, cca_loss, optimizer, scheduler, num_epochs = 25000)
