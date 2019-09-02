@@ -135,15 +135,14 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
 
 
 def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: List[Sentence_vector],
-                              sentence: spacy.tokens.Doc, embedder, extractor, k: int = 5, method: str = 'l2') -> List[
+                              sentence_vec: np.ndarray, extractor, k: int = 5, method: str = 'l2') -> List[
     Sentence_vector]:
     """
     Parameters
     ----------
     all_word_reprs: A list of Word_vector objects, on which the closest-vector query is performed.
-    sentence: a spacy Doc representing the input sentence.
+    sentence_vec: a list of np array values.
     index: the index in the sentence to query.
-    embedder: embedder object
     extractor: syntactic_extractor object. If None, don't apply syntactic extractor
     k: int, how many closest-neighbors to collect.
     method: "cosine" / "l2"
@@ -153,19 +152,10 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
     closest: A list of Sentence_vector objects, representing the k closest-vectors to the query vector.
    """
 
-    sent_words = [token.text for token in sentence]
-
-    sent_vecs, _ = embedder.run_embedder([sent_words])[0]
-
     if extractor is not None:
-        sent_vecs = extractor.extract(sent_vecs)
+        sentence_vec = extractor.extract(sentence_vec)
 
-    # represent each sentence as its mean vector
-    # all_vecs = []
-    # for i, sent in enumerate(all_sentence_reprs):
-    #     all_vecs.append(np.mean(sent.sent_vectors, axis=0))
-
-    query_mean = np.mean(sent_vecs, axis=0, keepdims=True)
+    query_mean = np.mean(sentence_vec, axis=0, keepdims=True)
 
     closest = get_closest_vectors(all_sentence_np, query_mean, method=method, k=k, ignore_same_vec=False)[0]
     return [all_sentence[ind] for ind in closest]
