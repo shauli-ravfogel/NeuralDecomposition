@@ -90,6 +90,7 @@ def get_token_for_char(doc, char_idx):
 
 
 def get_nearest_sentence(text):
+    print('starting to process')
     # text_split = text.split('*')
     # ind = len(text_split[0]) + 1
 
@@ -100,9 +101,11 @@ def get_nearest_sentence(text):
     closest_sents_syntax = get_closest_sentence_demo(cca_sentence_reprs, doc, embedder, extractor=extractor, k=5,
                                                      method='l2')
     closest_str_syntax = [x.doc.text for x in closest_sents_syntax]
+    print('got nearest sent cca')
 
     closest_sents_baseline = get_closest_sentence_demo(sentence_reprs, doc, embedder, extractor=None, k=5, method='l2')
     closest_str_baseline = [x.doc.text for x in closest_sents_baseline]
+    print('got narest sent baseline')
 
     return {'syntax': '<br/>'.join(closest_str_syntax), 'baseline': '<br/>'.join(closest_str_baseline)}
 
