@@ -20,7 +20,7 @@ from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.token_embedders.bert_token_embedder import BertEmbedder
 
 import sys
-sys.path.append('generate_dataset/collect_bert_states')
+sys.path.append('src/generate_dataset')
 from collect_bert_states import BertLayerEmbedder
 
 random.seed(0)
@@ -70,7 +70,10 @@ class EmbedElmo(Embedder):
     def _load_elmo(self, elmo_weights_path, elmo_options_path, device=0):
 
         print("Loading ELMO...")
+        # if device != -1:
         return ElmoEmbedder(elmo_options_path, elmo_weights_path, cuda_device=device)
+        # else:
+        #     return ElmoEmbedder(elmo_options_path, elmo_weights_path)
 
     def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[np.ndarray, str]]:
 
