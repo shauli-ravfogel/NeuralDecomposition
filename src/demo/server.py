@@ -9,6 +9,7 @@ from flask_cors import CORS, cross_origin
 import spacy
 import pickle
 import sys
+import numpy as np
 from tqdm import tqdm
 
 sys.path.append('src/analysis/')
@@ -48,6 +49,15 @@ cca_word_reprs = []
 for i, word in enumerate(tqdm(words_reprs)):
     x = extractor.extract(word.word_vector).reshape(-1)
     cca_word_reprs.append(Word_vector(x, word.sentence, word.doc, word.index))
+
+# normalizing the sentences embeddings
+sentence_normalized = []
+for i, sent in enumerate(sentence_reprs):
+    sentence_normalized.append(np.mean(sent.sent_vectors, axis=0))
+
+sentence_cca_normalized = []
+for i, sent in enumerate(cca_sentence_reprs):
+    sentence_cca_normalized.append(np.mean(sent.sent_vectors, axis=0))
 
 # sent_vecs = extractor.extract(sent_vecs)
 
@@ -97,11 +107,11 @@ def get_nearest_sentence(text):
     # token_ind = get_token_for_char(doc, ind)
     doc = nlp(text)
 
-    closest_sents_syntax = get_closest_sentence_demo(cca_sentence_reprs, doc, embedder, extractor=extractor, k=5,
+    closest_sents_syntax = get_closest_sentence_demo(sentence_cca_normalized, doc, embedder, extractor=extractor, k=5,
                                                      method='l2')
     closest_str_syntax = [x.doc.text for x in closest_sents_syntax]
 
-    closest_sents_baseline = get_closest_sentence_demo(sentence_reprs, doc, embedder, extractor=None, k=5, method='l2')
+    closest_sents_baseline = get_closest_sentence_demo(sentence_normalized, doc, embedder, extractor=None, k=5, method='l2')
     closest_str_baseline = [x.doc.text for x in closest_sents_baseline]
 
     return {'syntax': '<br/>'.join(closest_str_syntax), 'baseline': '<br/>'.join(closest_str_baseline)}
