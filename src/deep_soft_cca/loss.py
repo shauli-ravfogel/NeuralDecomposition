@@ -13,7 +13,7 @@ class SoftCCALoss(torch.nn.Module):
         self.p = p
         self.running_average = running_average
 
-    def forward(self, X, Y, r = 1e-6, alpha = 500, eps = 1e-7):
+    def forward(self, X, Y, r = 1e-7, alpha = 500, eps = 1e-7):
 
         m1 = torch.mean(X, dim=0, keepdim=True)
         m2 = torch.mean(Y, dim=0, keepdim=True)

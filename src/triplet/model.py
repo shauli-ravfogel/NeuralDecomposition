@@ -3,6 +3,18 @@ from torch import nn
 from pytorch_revgrad import RevGrad
 
 
+
+class GaussianNoise(nn.Module):
+    def __init__(self, stddev):
+        super().__init__()
+        self.stddev = stddev
+
+    def forward(self, din):
+        if self.training:
+            return din + torch.autograd.Variable(torch.randn(din.size()).cuda() * self.stddev)
+        return din
+
+
 class Siamese(nn.Module):
 
     def __init__(self, cca_model, final_dim, pair_repr):
@@ -12,15 +24,17 @@ class Siamese(nn.Module):
         self.cca_model = cca_model
         self.pair_repr = pair_repr
         if self.cca_model is None:
-            layer_sizes = [2048, 2048, 1024, 512, final_dim]
+            layer_sizes = [2048, final_dim]
         else:
-            layer_sizes = [self.cca_model.final, final_dim]#, final_dim]
+            layer_sizes = [self.cca_model.final, final_dim]
 
         layers = []
 
         for i, (layer_dim, next_layer_dim) in enumerate(zip(layer_sizes,layer_sizes[1:])):
 
             layers.append(nn.BatchNorm1d(layer_dim))
+            #if i == 0:
+            #    layers.append(GaussianNoise(stddev=0.001))
             layers.append(nn.Linear(layer_dim, next_layer_dim, bias = True))
             if i != len(layer_sizes) - 2:
                 layers.append(nn.ReLU())
@@ -55,6 +69,10 @@ class Siamese(nn.Module):
             return h1 * h2
         elif self.pair_repr == "abs-product":
             return torch.abs(h1 * h2)
+        elif self.pair_repr == "plus":
+            return h1 + h2
+        elif self.pair_repr == "abs-plus":
+            return torch.abs(h1 + h2)
 
     def forward(self, w1, w2, w3, w4): #(w1, w2 at the same ind), (w3, w4 at the same ind)
 
@@ -78,14 +96,14 @@ class SoftCCANetwork(nn.Module):
 
         super(SoftCCANetwork, self).__init__()
         self.final = final
-        layer_sizes = [dim, 1800, 1500, final]
-        #layer_sizes = [dim, final]
+        layer_sizes = [dim, 1500, final]
+        layer_sizes = [dim, 3000, final]
         layers = []
 
         for i, (layer_dim, next_layer_dim) in enumerate(zip(layer_sizes,layer_sizes[1:])):
 
             layers.append(nn.BatchNorm1d(layer_dim))
-            layers.append(nn.Linear(layer_dim, next_layer_dim, bias = False))
+            layers.append(nn.Linear(layer_dim, next_layer_dim, bias = True))
 
             if i != len(layer_sizes) - 2:
                 layers.append(nn.ReLU())
