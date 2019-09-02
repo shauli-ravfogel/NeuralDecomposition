@@ -134,7 +134,7 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
     return [all_word_reprs[ind] for ind in closest]
 
 
-def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
+def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: List[Sentence_vector],
                               sentence: spacy.tokens.Doc, embedder, extractor, k: int = 5, method: str = 'l2') -> List[
     Sentence_vector]:
     """
@@ -167,8 +167,8 @@ def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
 
     query_mean = np.mean(sent_vecs, axis=0, keepdims=True)
 
-    closest = get_closest_vectors(all_sentence_reprs, query_mean, method=method, k=k, ignore_same_vec=False)[0]
-    return [all_sentence_reprs[ind] for ind in closest]
+    closest = get_closest_vectors(all_sentence_np, query_mean, method=method, k=k, ignore_same_vec=False)[0]
+    return [all_sentence[ind] for ind in closest]
 
 
 def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:

@@ -107,11 +107,12 @@ def get_nearest_sentence(text):
     # token_ind = get_token_for_char(doc, ind)
     doc = nlp(text)
 
-    closest_sents_syntax = get_closest_sentence_demo(sentence_cca_normalized, doc, embedder, extractor=extractor, k=5,
-                                                     method='l2')
+    closest_sents_syntax = get_closest_sentence_demo(sentence_cca_normalized, cca_sentence_reprs,
+                                                     doc, embedder, extractor=extractor, k=5, method='l2')
     closest_str_syntax = [x.doc.text for x in closest_sents_syntax]
 
-    closest_sents_baseline = get_closest_sentence_demo(sentence_normalized, doc, embedder, extractor=None, k=5, method='l2')
+    closest_sents_baseline = get_closest_sentence_demo(sentence_normalized, sentence_reprs, doc,
+                                                       embedder, extractor=None, k=5, method='l2')
     closest_str_baseline = [x.doc.text for x in closest_sents_baseline]
 
     return {'syntax': '<br/>'.join(closest_str_syntax), 'baseline': '<br/>'.join(closest_str_baseline)}
