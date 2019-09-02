@@ -161,13 +161,13 @@ def get_closest_sentence_demo(all_sentence_reprs: List[Sentence_vector],
         sent_vecs = extractor.extract(sent_vecs)
 
     # represent each sentence as its mean vector
-    all_vecs = []
-    for i, sent in enumerate(all_sentence_reprs):
-        all_vecs.append(np.mean(sent.sent_vectors, axis=0))
+    # all_vecs = []
+    # for i, sent in enumerate(all_sentence_reprs):
+    #     all_vecs.append(np.mean(sent.sent_vectors, axis=0))
 
     query_mean = np.mean(sent_vecs, axis=0, keepdims=True)
 
-    closest = get_closest_vectors(all_vecs, query_mean, method=method, k=k, ignore_same_vec=False)[0]
+    closest = get_closest_vectors(all_sentence_reprs, query_mean, method=method, k=k, ignore_same_vec=False)[0]
     return [all_sentence_reprs[ind] for ind in closest]
 
 
