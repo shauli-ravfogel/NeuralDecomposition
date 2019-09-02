@@ -21,11 +21,11 @@ class SkipConectionLinear(nn.Module):
 
 class Siamese(nn.Module):
 
-    def __init__(self, dim = 2048, final = 512, skip_connections = False):
+    def __init__(self, dim = 2048, final = 512, skip_connections = True):
 
         super(Siamese, self).__init__()
         self.skip_connections = skip_connections
-        layer_sizes = [dim, 1700, 1500, 1300, 1024]
+        layer_sizes = [dim, 1500, 512, final]
         layer_sizes = [dim, final]
         layers = []
 
@@ -39,7 +39,7 @@ class Siamese(nn.Module):
                 layers.append(SkipConectionLinear(layer_dim, next_layer_dim))
 
             if i != len(layer_sizes) - 2:
-                layers.append(nn.ReLU())
+                layers.append(nn.LeakyReLU())
 
         #layers = [nn.Linear(dim, final, bias = False)]
         self.layers = nn.Sequential(*layers)
