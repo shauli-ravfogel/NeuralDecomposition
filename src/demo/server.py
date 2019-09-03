@@ -23,13 +23,14 @@ CORS(app)
 
 nlp = spacy.load('en_core_web_sm')
 
-with open("/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/interim/encoded_elmo_50k.pickle", "rb") as f:
+#with open("/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/interim/encoded_elmo_50k.pickle", "rb") as f:
+with open("/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/interim/encoded_elmo.pickle", "rb") as f:
     data = pickle.load(f)
-# sentence_reprs = get_sentence_representations(data)
-# with open("sent_rep.pickle", "wb") as f:
-#    pickle.dump(sentence_reprs, f)
-with open("sent_rep.pickle", "rb") as f:
-    sentence_reprs = pickle.load(f)
+sentence_reprs = get_sentence_representations(data)
+with open("sent_rep_500k.pickle", "wb") as f:
+    pickle.dump(sentence_reprs, f)
+#with open("sent_rep.pickle", "rb") as f:
+#    sentence_reprs = pickle.load(f)
 cca_sentence_reprs = []
 
 elmo_folder = 'data/external/'

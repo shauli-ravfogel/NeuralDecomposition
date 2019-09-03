@@ -9,7 +9,7 @@ sys.path.append('src/analysis/tree_distance')
 from typing import List, Tuple, Dict
 import typing
 from syntactic_extractor import SyntacticExtractor
-import tree_similarity
+# import tree_similarity
 import sklearn
 from sklearn import metrics
 import numpy as np
