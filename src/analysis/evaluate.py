@@ -71,6 +71,36 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
     closest_sentence_test(sentence_reprs, num_queries=num_queries, method=method, extractor=extractor)
 
 
+    
+    
+    
+def get_path_to_root(word: Word_vector):
+        
+        word = word.doc[word.index]
+        token_deps = [word.dep_]
+        curr_depth = 0
+
+        while (word.head != word): # while not root
+
+                head_dep = word.head.dep_
+                token_deps.append(head_dep)
+                word = word.head
+                curr_depth += 1
+        return token_deps
+        
+color_by_dep = lambda word: word.doc[word.index].dep_
+color_by_depth = lambda word: len(get_path_to_root(word))
+def color_by_dep_in_path(word, label="advcl"): 
+ 
+        path_to_root = get_path_to_root(word)
+        print(label, path_to_root, label in path_to_root)
+        
+        if label in path_to_root:
+                return "dep {} in path".format(label)
+        else:
+                return "dep {} not in path".format(label)
+          
+          
 def test_demo_words(all_word_reprs, elmo_embedder, extractor):
     nlp = spacy.load('en_core_web_sm')
     sentence = "had i not seen it myself, i could not have believed that."
