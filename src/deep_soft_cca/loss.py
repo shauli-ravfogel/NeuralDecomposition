@@ -13,7 +13,7 @@ class SoftCCALoss(torch.nn.Module):
         self.p = p
         self.running_average = running_average
 
-    def forward(self, X, Y, r = 1e-6, alpha = 1e-3, eps = 1e-7):
+    def forward(self, X, Y, r = 1e-7, alpha = 500, eps = 1e-7):
 
         m1 = torch.mean(X, dim=0, keepdim=True)
         m2 = torch.mean(Y, dim=0, keepdim=True)
@@ -25,7 +25,8 @@ class SoftCCALoss(torch.nn.Module):
         S22 = ((torch.t(Y)  @ Y) / (N - 1)) + r * torch.eye(d).float().cuda()
         #S12 = (torch.t(Y) @ X) / (N - 1)
 
-        corr_term = 0.5 * torch.norm(X - Y, p = 2, dim = 1).mean()#**2
+        corr_term = 0.5 * torch.norm(X - Y, p = self.p, dim = 1).mean()#**2
+
 
         # add variance penalty
 
@@ -37,17 +38,17 @@ class SoftCCALoss(torch.nn.Module):
         #S11 = S11 - torch.eye(S11.shape[0]).cuda()
         #S22 = S22 - torch.eye(S22.shape[0]).cuda()
 
-        decorrelation_term = 0.5 * (torch.norm(S11, p = 1) + torch.norm(S22, p = 1))
+        decorrelation_term = 0.5 * (torch.norm(S11, p = 1) + torch.norm(S22, p = 1)) * (1/d**2) * alpha
 
         #print(corr_term, alpha * decorrelation_term)
 
-        loss = corr_term + alpha * decorrelation_term # * (1./d**2)
+        loss = corr_term + decorrelation_term
 
         if np.random.random() < 0:
-            print(torch.norm(X, dim = 1).mean())
-            print(torch.diag(S11)[:10])
-            print("----------------")
-            print(S11[:,0][:10])
-            print(alpha * decorrelation_term, corr_term)
+            # print(torch.norm(X, dim = 1).mean())
+            # print(torch.diag(S11)[:10])
+            # print("----------------")
+            # print(S11[:,0][:10])
+            print(decorrelation_term, corr_term)
             print("=============================")
         return loss

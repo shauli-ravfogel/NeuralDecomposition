@@ -77,13 +77,6 @@ class HardNegativeSampler(object):
         return hardest_positive_idx, hardest_negatives_idx
 
 
-
-
-
-
-
-
-
 def pairwise_distances(x, y=None):
     '''
     Input: x is a Nxd matrix
@@ -92,27 +85,33 @@ def pairwise_distances(x, y=None):
             if y is not given then use 'y=x'.
     i.e. dist[i,j] = ||x[i,:]-y[j,:]||^2
     '''
-    x_norm = (x**2).sum(1).view(-1, 1)
+    x_norm = (x ** 2).sum(1).view(-1, 1)
     if y is not None:
-        y_norm = (y**2).sum(1).view(1, -1)
+        y_t = torch.transpose(y, 0, 1)
+        y_norm = (y ** 2).sum(1).view(1, -1)
     else:
-        y = x
+        y_t = torch.transpose(x, 0, 1)
         y_norm = x_norm.view(1, -1)
 
-    dist = x_norm + y_norm - 2.0 * torch.mm(x, torch.transpose(y, 0, 1))
-    return dist
+    dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
+    # Ensure diagonal is zero if x=y
+    # if y is None:
+    #     dist = dist - torch.diag(dist.diag)
+    dist[dist != dist] = 0  # replace nan values with 0
+    return torch.clamp(dist, 0.0, np.inf)
+
 
 
 class BatchHardTripletLoss2(torch.nn.Module):
 
-    def __init__(self, p = 2, alpha = 0.1, normalize = False, mode = "euc", softplus = True, k = 5):
+    def __init__(self, p = 2, alpha = 0.1, normalize = False, mode = "euc", final = "softplus", k = 5):
 
         super(BatchHardTripletLoss2, self).__init__()
         self.p = p
         self.alpha = alpha
         self.normalize = normalize
         self.mode = mode
-        self.softplus = softplus
+        self.final = final
         self.sampler = HardNegativeSampler(k = k)
         self.k = k
 
@@ -187,15 +186,28 @@ class BatchHardTripletLoss2(torch.nn.Module):
                 exit()
         differences = hardest_positive_dist - hardest_negative_dist
 
-        if not self.softplus:
+        if self.final == "plus":
             triplet_loss = torch.max(differences + self.alpha, torch.zeros_like(differences))
+        elif self.final == "softplus":
+            triplet_loss = F.softplus(differences, beta = 3)
+        elif self.final == "softmax":
+
+            z = torch.max(hardest_positive_dist, hardest_negative_dist)
+            pos = torch.exp(hardest_positive_dist - z)
+            neg = torch.exp(hardest_negative_dist - z)
+            triplet_loss = (pos / (pos + neg))
         else:
-            triplet_loss = F.softplus(differences)
+            #alpha = 0.01
+            #triplet_loss = torch.max(hardest_positive_dist/hardest_negative_dist, torch.ones_like(differences)*(1-alpha)) - (1-alpha)
+            triplet_loss = hardest_positive_dist - hardest_negative_dist
 
         relevant = triplet_loss[triplet_loss > 1e-5]
-        good = (triplet_loss < 1e-5).sum()
+        good = (hardest_positive_dist < hardest_negative_dist).sum() #(triplet_loss < 1e-5).sum()
         bad = batch.shape[0] - good
         mean_norm_squared = torch.mean(torch.norm(batch, dim = 1)**2)
+
+        #print(relevant.shape, relevant)
+        #print("***************************************")
 
         return torch.mean(relevant), torch.mean(differences), good, bad, torch.sqrt(mean_norm_squared)
 
@@ -214,110 +226,6 @@ class BatchHardTripletLoss2(torch.nn.Module):
 
 
 
-
-
-
-
-
-
-class BatchHardTripletLoss(torch.nn.Module):
-
-    def __init__(self, p = 2, alpha = 1, normalize = False, mode = "euc", softplus = False, k = 5):
-
-        super(BatchHardTripletLoss, self).__init__()
-        self.p = p
-        self.alpha = alpha
-        self.normalize = normalize
-        self.mode = mode
-        self.softplus = softplus
-        self.k = k
-
-    def get_mask(self, labels, positive = True):
-
-        diffs =  labels[None, :] - torch.t(labels[None, :])
-
-        if positive:
-
-            mask = diffs == 0
-
-        else:
-
-            mask = diffs != 0
-
-        if positive:
-            mask[range(len(mask)), range(len(mask))] = 0
-        return mask
-
-    def forward(self, h1, h2, sent1, sent2, index, evaluation = False):
-
-        if self.normalize or self.mode == "cosine":
-
-            h1 = h1 / torch.norm(h1, dim = 1, p = self.p, keepdim = True)
-            h2 = h2 / torch.norm(h2, dim = 1, p = self.p, keepdim = True)
-
-        sent1, sent2 = np.array(sent1, dtype = object), np.array(sent2, dtype = object)
-        labels = torch.arange(0, h1.shape[0])#.cuda()
-        labels = torch.cat((labels, labels), dim = 0)
-        batch = torch.cat((h1, h2), dim = 0)
-
-        sents = np.concatenate((sent1, sent2), axis = 0)
-
-        if self.mode == "euc":
-            dists = torch.norm((batch[:, None, :] - batch), dim = 2, p = self.p)
-        elif self.mode == "cosine":
-            dists = 1. - batch @ torch.t(batch)
-
-        dists = torch.clamp(dists, min = 1e-7)
-
-        mask_anchor_positive = self.get_mask(labels, positive = True).float()
-        mask_anchor_negative = self.get_mask(labels, positive=False).float()
-
-        anchor_positive_dist = mask_anchor_positive * dists
-        hardest_positive_dist, _ = torch.max(anchor_positive_dist, dim=1, keepdim=True)
-        max_anchor_negative_dist, _ = torch.max(dists, dim=1, keepdim=True)
-
-        anchor_negative_dist = dists + max_anchor_negative_dist * (1 - mask_anchor_negative)
-        k = int(np.random.choice(range(1, self.k + 1)))
-        #print(k)
-        #hardest_negative_dist, _ = torch.min(anchor_negative_dist, dim=1, keepdim=True)
-        try:
-            hardest_negative_dist, hardest_negative_indices = torch.kthvalue(anchor_negative_dist, dim=1, k = k, keepdim=True)
-            if evaluation and index == 0:
-
-
-                hardest_negative_indices = hardest_negative_indices.detach().cpu().numpy().squeeze()
-                neg_sents = sents[hardest_negative_indices]
-                with open("negatives.txt", "w") as f:
-                    for (anchor_sent, hard_sent) in zip(sents, neg_sents):
-                        f.write(anchor_sent + "\n")
-                        f.write("-----------------------------------------\n")
-                        f.write(hard_sent + "\n")
-                        f.write("==========================================================\n")
-        except Exception as e:
-                print(e)
-                print(k)
-                print(h1.shape, h2.shape)
-                print(labels.shape)
-                print(batch.shape)
-                print(dists.shape)
-                print(mask_anchor_positive.shape)
-                print(mask_anchor_negative.shape)
-                print(anchor_positive_dist.shape)
-                print(anchor_negative_dist.shape)
-                exit()
-        differences = hardest_positive_dist - hardest_negative_dist
-
-        if not self.softplus:
-            triplet_loss = torch.max(differences + self.alpha, torch.zeros_like(differences))
-        else:
-            triplet_loss = F.softplus(differences)
-
-        relevant = triplet_loss[triplet_loss > 1e-5]
-        good = (triplet_loss < 1e-5).sum()
-        bad = batch.shape[0] - good
-        mean_norm_squared = torch.mean(torch.norm(batch, dim = 1)**2)
-
-        return torch.mean(relevant) + 1e-4 * mean_norm_squared, torch.mean(differences), good, bad, torch.sqrt(mean_norm_squared)
 
 
 
@@ -354,7 +262,7 @@ class BatchAllTripletLoss(torch.nn.Module):
         batch = torch.cat((h1, h2), dim = 0)
 
         if self.mode == "euc":
-            dists = torch.norm((batch[:, None, :] - batch), dim = 2, p = self.p)
+            dists = pairwise_distances(batch)
         elif self.mode == "cosine":
             dists = 1. - batch @ torch.t(batch)
 
@@ -392,7 +300,7 @@ class SoftCCALoss(torch.nn.Module):
         self.p = p
         self.running_average = running_average
 
-    def forward(self, X, Y, r = 1e-6, alpha = 1e-3, eps = 1e-7):
+    def forward(self, X, Y, r = 1e-6, alpha = 500, eps = 1e-7):
 
         m1 = torch.mean(X, dim=0, keepdim=True)
         m2 = torch.mean(Y, dim=0, keepdim=True)
@@ -416,11 +324,11 @@ class SoftCCALoss(torch.nn.Module):
         #S11 = S11 - torch.eye(S11.shape[0]).cuda()
         #S22 = S22 - torch.eye(S22.shape[0]).cuda()
 
-        decorrelation_term = 0.5 * (torch.norm(S11, p = 1) + torch.norm(S22, p = 1))
+        decorrelation_term = 0.5 * (torch.norm(S11, p = 1) + torch.norm(S22, p = 1)) * (1/d**2) * alpha
 
         #print(corr_term, alpha * decorrelation_term)
 
-        loss = corr_term + alpha * decorrelation_term # * (1./d**2)
+        loss = 0.05 * (corr_term + decorrelation_term) # * (1./d**2)
 
         if np.random.random() < 0:
             print(torch.norm(X, dim = 1).mean())

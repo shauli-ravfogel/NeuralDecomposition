@@ -27,18 +27,20 @@ def cyclical_lr(stepsize, min_lr=3 * 1e-4, max_lr=1e-1):
 
     return lr_lambda
 
-BATCH = 2000
+BATCH = 3000
 USE_CCA = True
-CCA_FINAL_DIM = 1024
+CCA_FINAL_DIM = 2048
 TRIPLET_FINAL_DIM = 512
-K = 20
-MARGIN = 0.3
-SOFTPLUS = True
-PAIR_REPR = "abs-diff" # diff/abs-diff/product/abs-product
+K = 15
+MARGIN = 0.05
+MODE = "euc"
+FINAL = "softmax"
+
+PAIR_REPR = "diff" # diff/abs-diff/product/abs-product/plus
 
 if __name__ == '__main__':
 
-    loss_fn = loss.BatchHardTripletLoss2(alpha = MARGIN, k = K, softplus = SOFTPLUS)
+    loss_fn = loss.BatchHardTripletLoss2(alpha = MARGIN, k = K, final = FINAL, mode = MODE)
     cca_loss, cca_network = None, None
     pos_loss = torch.nn.CrossEntropyLoss()
     networks = []
@@ -50,7 +52,7 @@ if __name__ == '__main__':
 
     triplet_network = model.Siamese(cca_network, final_dim = TRIPLET_FINAL_DIM, pair_repr = PAIR_REPR).cuda()
 
-    optimizer = optim.Adam(triplet_network.parameters()) # 0 = no weight decay, 1 = full weight decay
+    optimizer = optim.Adam(triplet_network.parameters(), weight_decay = 3e-6) # 0 = no weight decay, 1 = full weight decay
     #optimizer = radam.RAdam(network.parameters())
     #optimizer = optim.RMSprop(network.parameters(), weight_decay = 1e-7)
     #optimizer = optim.SGD(network.parameters(), weight_decay=1e-3, lr = 1e-2, momentum = 0.9, nesterov = True)
@@ -59,8 +61,8 @@ if __name__ == '__main__':
     #train = dataset.Dataset("sample.15k.pickle")
 
 
-    train, dev = dataset.Dataset("sample.50k"), dataset.Dataset("sample.25k")
-    #train, dev = dataset.Dataset("train1.pickle"), dataset.Dataset("dev1.pickle")
+    train, dev = dataset.Dataset("sample.60k.dist_std=7"), dataset.Dataset("sample.30k.dist_std=7")
+    #train, dev = dataset.Dataset("train.dist_std=7"), dataset.Dataset("dev.dist_std=7")
 
     step_size = 4 * len(train)
     clr = cyclical_lr(step_size)

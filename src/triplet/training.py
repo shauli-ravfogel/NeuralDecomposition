@@ -9,18 +9,22 @@ MODE = "complex"
 
 def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss_fn, optimizer, scheduler, num_epochs):
 
-    SGD = True
+    SGD = False
 
     best_acc = 0
     best_loss = 1e7
+    training_loss_cca = []
+    training_loss_triplet = []
+    good, bad = 1e-6, 1e-6
 
     for epoch in range(num_epochs):
+
 
         #loss_fn.k = max(1, 1)
 
         if epoch  == 500:
 
-            optimizer  = torch.optim.SGD(model.parameters(), weight_decay=0.2 * 1e-4, lr = 1e-2, momentum = 0.9, nesterov = True)
+            optimizer  = torch.optim.SGD(model.parameters(), weight_decay=0.2 * 1e-7, lr = 0.3 * 1e-2, momentum = 0.9, nesterov = True)
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=4, factor=0.5,
                                                                    verbose=True)
             SGD = True
@@ -30,8 +34,12 @@ def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss
 
         if epoch >= 0:
 
-            acc, loss = evaluate(model, cca_model, loss_fn, dev_generator)
+            acc, loss, dev_cca_loss, dev_triplet_loss = evaluate(model, cca_model, loss_fn, cca_loss_fn, dev_generator)
             if SGD: scheduler.step(acc)
+
+            with open("TripletModel_last.pickle", "wb") as f:
+
+                pickle.dump(model, f)
 
             if (acc > best_acc):
                 best_acc = acc
@@ -43,9 +51,19 @@ def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss
                 best_loss = loss
 
         print()
-        print("Acc: {}; loss: {}".format(acc, loss))
-        print("\nEpoch {}. Best accuracy so far is {}; best loss so far is: {}".format(epoch, best_acc, best_loss))
-        #if acc > 0.95: exit()
+        print("DEV Acc: {}; DEV loss: {}".format(acc, loss))
+        print(" TRAIN acc: {}".format(good / (good + bad)))
+        if cca_loss_fn is not None:
+            print("mean DEV cca loss: {}; mean dev triplet loss: {}".format(dev_cca_loss, dev_triplet_loss))
+        total_loss = np.array(training_loss_cca) + np.array(training_loss_triplet) if cca_loss_fn is not None else training_loss_triplet
+
+        if training_loss_triplet:
+            print("Mean training loss: {}".format(np.mean(total_loss)))
+            if cca_loss_fn is not None:
+                print ("Mean training cca loss: {}; mean training triplet loss: {}".format(np.mean(training_loss_cca), np.mean(training_loss_triplet)))
+        print("\nEpoch {}. Best DEV accuracy so far is {}; best DEV loss so far is: {}".format(epoch, best_acc, best_loss))
+        training_loss_cca = []
+        training_loss_triplet = []
 
         model.train()
 
@@ -53,14 +71,15 @@ def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss
         i = 0
         pos_good, pos_bad = 1e-3, 1e-3
         loss_vals = []
+        good, bad = 0., 0.
 
         for (w1,w2,w3,w4), sent1, sent2 in t:
 
             i += 1
 
-            if i % 20 == -1:
-                print("Evaluting after 20 batches.")
-                acc, loss = evaluate(model, cca_model, loss_fn, dev_generator)
+            if i % 50 == -1:
+                print("Evaluting after 50 batches.")
+                acc, loss, dev_cca_loss, dev_triplet_loss = evaluate(model, cca_model, loss_fn, cca_loss_fn, dev_generator)
 
                 if (acc > best_acc):
                     best_acc = acc
@@ -76,9 +95,17 @@ def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss
             else:
                 loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, sent1, sent2, 0)
 
+            good += batch_good.detach().cpu().numpy().item()
+            bad += batch_bad.detach().cpu().numpy().item()
+            training_loss_triplet.append(loss.detach().cpu().numpy().item())
+
+
             if cca_model is not None:
 
-                loss += 4e-1 * 0.5 * (cca_loss_fn(w1, w2) + cca_loss_fn(w3,w4))
+                cca_loss = 0.5 * (cca_loss_fn(w1, w2) + cca_loss_fn(w3,w4))
+                training_loss_cca.append(cca_loss.detach().cpu().numpy().item())
+                #print(cca_loss, loss)
+                loss += cca_loss
 
                 """ 
                 pos_loss = pos_loss_fn(pos_pred, view1_indices.cuda())
@@ -97,14 +124,18 @@ def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss
 
         #print("Position accuracy: {}".format((pos_good / (pos_good + pos_bad))))
 
-def evaluate(model, cca_model, loss_fn, dev_generator):
+def evaluate(model, cca_model, loss_fn, cca_loss_fn, dev_generator):
 
     print("\nEvaluating...")
     model.eval()
     t = tqdm.tqdm(iter(dev_generator), leave=False, total=len(dev_generator), ascii=True)
     good, bad = 0., 0.
     loss_vals = []
+    cca_loss_vals = []
+    triplet_loss_vals = []
+
     norms = []
+    diffs = []
 
     for i, ((w1,w2,w3,w4), sent1, sent2) in enumerate(t):
 
@@ -116,7 +147,13 @@ def evaluate(model, cca_model, loss_fn, dev_generator):
             else:
                 loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, sent1, sent2, i, evaluation = True)
 
-            loss_vals.append(diff.detach().cpu().numpy().item())
+            loss_vals.append(loss.detach().cpu().numpy().item())
+            diffs.append(diff.detach().cpu().numpy().item())
+            if cca_model is not None:
+
+                cca_loss = 0.5 * (cca_loss_fn(w1, w2) + cca_loss_fn(w3,w4))
+                cca_loss_vals.append(cca_loss.detach().cpu().numpy().item())
+
             norms.append(norm.detach().cpu().numpy().item())
 
         good += batch_good
@@ -124,6 +161,15 @@ def evaluate(model, cca_model, loss_fn, dev_generator):
 
     good, bad = good.detach().cpu().numpy().item(), bad.detach().cpu().numpy().item()
     acc = good / (good + bad)
-    print("\nMean difference: {}".format(np.mean(loss_vals)))
+    triplet_loss_vals = np.array(loss_vals[:])
+    loss_vals = np.array(loss_vals)
+
+    if cca_loss_fn is not None:
+        total_loss = loss_vals + cca_loss_vals
+    else:
+        total_loss = loss_vals
+
+    print("\nMean difference: {}".format(np.mean(diffs)))
     print("Mean norm: {}".format(np.mean(norms)))
-    return acc, loss
+
+    return acc, np.mean(total_loss), np.mean(cca_loss_vals) if cca_loss_vals else [], np.mean(triplet_loss_vals)
