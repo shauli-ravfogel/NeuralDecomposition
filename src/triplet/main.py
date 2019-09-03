@@ -27,16 +27,16 @@ def cyclical_lr(stepsize, min_lr=3 * 1e-4, max_lr=1e-1):
 
     return lr_lambda
 
-BATCH = 3000
-USE_CCA = True
-CCA_FINAL_DIM = 2048
+BATCH = 5000
+USE_CCA = False
+CCA_FINAL_DIM = 1024
 TRIPLET_FINAL_DIM = 512
-K = 15
+K = 1
 MARGIN = 0.05
-MODE = "euc"
+MODE = "cosine"
 FINAL = "softmax"
 
-PAIR_REPR = "diff" # diff/abs-diff/product/abs-product/plus
+PAIR_REPR = "abs-diff" # diff/abs-diff/product/abs-product/plus
 
 if __name__ == '__main__':
 
