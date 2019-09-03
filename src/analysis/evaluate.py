@@ -566,7 +566,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     # persist_examples(extractor, query_words, k_value_words)
 
 
-def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean"):
+def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean", color_by_func = color_by_dep):
     random.seed(0)
     data = random.choices(words_reprs, k=num_vecs)
 
@@ -584,18 +584,16 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     embeddings, labels = [], []
 
-    dep_counter = Counter()
-    position_counter = Counter()
+    counter = Counter()
 
     for word_repr in data:
-        vec, dep, ind = word_repr.word_vector, word_repr.dep_edge, word_repr.index
+        vec = word_repr.word_vector
         embeddings.append(vec)
-        labels.append(dep if color_by == "dep" else ind)
-        dep_counter[dep] += 1
-        position_counter[ind] += 1
+        label = color_by_func(word_repr)
+        labels.append(label)
+        counter[label] += 1
 
-    counter = position_counter if color_by == "position" else dep_counter
-    label_set = [label for (label, count) in counter.most_common(18)]
+    label_set = [label for (label, count) in counter.most_common(7)]
     embeddings = np.array(embeddings)
     labels = np.array(labels)
 
@@ -606,7 +604,7 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     print("calculating projection...")
 
-    proj = TSNE(n_components=2, random_state=0, metric=metric).fit_transform(embeddings)
+    proj = TSNE(n_components=2, random_state=0, metric=metric, verbose = 1).fit_transform(embeddings)
 
     fig, ax = plt.subplots()
 
@@ -624,9 +622,9 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
         plt.legend()
 
-    elif color_by == "position":
+    else:
 
-        N = len(set(labels))
+        N = len(set(label_set))
         # define the colormap
         cmap = plt.cm.jet
         # extract all colors from the .jet map
@@ -639,7 +637,7 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
         scat = ax.scatter(xs, ys, c=labels, cmap=cmap, norm=norm, alpha=0.6)
         cb = plt.colorbar(scat, spacing='proportional', ticks=bounds)
-        cb.set_label('Position')
+        cb.set_label(color_by)
 
         title = "T-SNE by Position in the Sentence"
 
