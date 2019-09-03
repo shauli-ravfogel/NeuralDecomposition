@@ -7,6 +7,12 @@ import pickle
 DIM = 2048
 MODE = "complex"
 
+import os
+for fname in ["train_acc", "dev_acc"]:
+
+    if os.path.exists(fname):
+        os.remove(fname)
+
 def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss_fn, optimizer, scheduler, num_epochs):
 
     SGD = False
@@ -53,6 +59,12 @@ def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss
         print()
         print("DEV Acc: {}; DEV loss: {}".format(acc, loss))
         print(" TRAIN acc: {}".format(good / (good + bad)))
+
+        with open("train_acc", "a+") as f:
+            f.write("{}\n".format(good / (good + bad)))
+        with open("dev_acc", "a+") as f:
+            f.write("{}\n".format(acc))
+
         if cca_loss_fn is not None:
             print("mean DEV cca loss: {}; mean dev triplet loss: {}".format(dev_cca_loss, dev_triplet_loss))
         total_loss = np.array(training_loss_cca) + np.array(training_loss_triplet) if cca_loss_fn is not None else training_loss_triplet
