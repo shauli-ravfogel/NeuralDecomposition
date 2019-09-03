@@ -191,11 +191,11 @@ class BatchHardTripletLoss2(torch.nn.Module):
         elif self.final == "softplus":
             triplet_loss = F.softplus(differences, beta = 3)
         elif self.final == "softmax":
-
+            temp = 5 if self.mode != "cosine" else 1
             z = torch.max(hardest_positive_dist, hardest_negative_dist)
-            pos = torch.exp(hardest_positive_dist - z)
-            neg = torch.exp(hardest_negative_dist - z)
-            triplet_loss = (pos / (pos + neg))
+            pos = torch.exp((hardest_positive_dist - z)/temp)
+            neg = torch.exp((hardest_negative_dist - z)/temp)
+            triplet_loss = (pos / (pos + neg))**2
         else:
             #alpha = 0.01
             #triplet_loss = torch.max(hardest_positive_dist/hardest_negative_dist, torch.ones_like(differences)*(1-alpha)) - (1-alpha)

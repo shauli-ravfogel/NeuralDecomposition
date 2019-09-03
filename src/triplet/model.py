@@ -24,7 +24,7 @@ class Siamese(nn.Module):
         self.cca_model = cca_model
         self.pair_repr = pair_repr
         if self.cca_model is None:
-            layer_sizes = [2048, final_dim]
+            layer_sizes = [2048, 1024, final_dim]
         else:
             layer_sizes = [self.cca_model.final, final_dim]
 
@@ -97,7 +97,7 @@ class SoftCCANetwork(nn.Module):
         super(SoftCCANetwork, self).__init__()
         self.final = final
         layer_sizes = [dim, 1500, final]
-        layer_sizes = [dim, 3000, final]
+        layer_sizes = [dim, final]
         layers = []
 
         for i, (layer_dim, next_layer_dim) in enumerate(zip(layer_sizes,layer_sizes[1:])):
