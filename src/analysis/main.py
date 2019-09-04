@@ -9,17 +9,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Equivalent sentences generator',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--input-wiki', dest='input_wiki', type=str,
-                        default='../../data/external/wiki.clean.250k',
+                        default='data/external/wiki.clean.250k',
                         help='name of the source wikipedia text file')
     parser.add_argument('--encode_sentences', dest='encode_sentences', type=bool,
                         default=False,
                         help='whether to encode the sentences with ELMO from scratch or use already calcuated '
                              'representation')
     parser.add_argument('--encoded_data', dest='encoded_data', type=str,
-                        default='../../data/interim/encoded_sents.pickle',
+                        default='data/interim/encoded_sents.pickle',
                         help='path to the embedded sentences data')
     parser.add_argument('--elmo_folder', dest='elmo_folder', type=str,
-                        default='../../data/external')
+                        default='data/external')
     parser.add_argument('--method', dest='method', type=str,
                         default='cosine', help="similarity method (cosine / euc)")
     parser.add_argument('--cuda-device', dest='cuda_device', type=int, default=0,
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--extractor', dest='extractor', type=str, default="cca",
                         help='type of syntactic extracor (cca / neural_cca / numpy_cca)')
     parser.add_argument('--extractor_path', dest='extractor_path', type=str,
-                        default="../linear_decomposition/models/..", help='path to the fitted extractor model')
+                        default="src/linear_decomposition/models/..", help='path to the fitted extractor model')
     parser.add_argument('--embedder_type', dest='embedder_type', type=str,
                         default="elmo", help='elmo / bert')
     args = parser.parse_args()
