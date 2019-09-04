@@ -4,16 +4,69 @@ import torch
 import pickle
 import h5py
 
+
+
+def pad_tensor(vec, pad, dim):
+    """
+    args:
+        vec - tensor to pad
+        pad - the size to pad to
+        dim - dimension to pad
+
+    return:
+        a new tensor padded to 'pad' in dimension 'dim'
+    """
+    pad_size = list(vec.shape)
+    pad_size[dim] = pad - vec.size(dim)
+    return torch.cat([vec, torch.zeros(*pad_size).cuda()], dim=dim)
+
+
+class PadCollate:
+    """
+    a variant of callate_fn that pads according to the longest sequence in
+    a batch of sequences
+    """
+
+    def __init__(self, dim=0):
+        """
+        args:
+            dim - the dimension to be padded (dimension of time in sequences)
+        """
+        self.dim = dim
+
+    def pad_collate(self, batch):
+        """
+        args:
+            batch - list of (tensor, label)
+
+        reutrn:
+            xs - a tensor of all examples in 'batch' after padding
+            ys - a LongTensor of all labels in batch
+        """
+        # find longest sequence
+        max_len = max(map(lambda x: x[0].shape[self.dim], batch))
+        # pad according to max_len
+        batch = tuple(map(lambda x:
+                    pad_tensor(x, pad=max_len, dim=self.dim), batch))
+        # stack all
+
+        xs = torch.stack(batch, dim=0)
+        return xs
+
+    def __call__(self, batch):
+        return self.pad_collate(batch)
+
+
+
+
 class Dataset(data.Dataset):
     def __init__(self, data_path):
 
         with open(data_path, "rb") as f:
 
-            #self.data = h5py.File(data_path, 'r')
-            #self.keys = list(self.data.keys())
             self.data = pickle.load(f)
 
-        print("Training set size is {}".format(len(self.data)))
+        print("Dataset set size is {}".format(len(self.data)))
 
 
     def __len__(self):
@@ -24,16 +77,11 @@ class Dataset(data.Dataset):
 
         with torch.no_grad():
 
-            vecs1, vecs2 = np.random.choice(self.data, size = 2, replace = False)
-
-            """
-            i = self.keys[index]
-            j = self.keys[(index + np.random.choice(range(15))) % len(self)]
-            group1, group2 = self.data[i], self.data[j]
-            vecs1 = group1["vecs"][:,:,:]
-            vecs2 = group2["vecs"][:,:,:]
-             """
-            return torch.from_numpy(vecs1).float().cuda(), torch.from_numpy(vecs2).float().cuda()
+            instance = self.data[index]
+            sent1_vecs, sent2_vecs = instance["vecs"]
+            sent2_vecs = sent1_vecs
+            instance["vecs"] = (torch.from_numpy(sent1_vecs).float().cuda(), torch.from_numpy(sent2_vecs).float().cuda())
+            return instance["vecs"][0]
 
 if __name__ == '__main__':
 

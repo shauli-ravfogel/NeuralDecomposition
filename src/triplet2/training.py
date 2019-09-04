@@ -12,7 +12,7 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
 
         model.zero_grad()
 
-        if epoch >= 0:
+        if epoch > 0:
 
             acc = evaluate(model, loss_fn, dev_generator)
 
@@ -32,18 +32,18 @@ def train(model, training_generator, dev_generator, loss_fn, optimizer, num_epoc
         pos_good, pos_bad = 1e-3, 1e-3
         loss_vals = []
 
-        for sent1_vecs, sent2_vecs in t:
+        for sent1_vecs in t:
 
-            i,j = np.random.choice(range(15), replace = False, size =2)
-            pos_1, pos_2, neg = sent1_vecs[:, i, ...], sent1_vecs[:, j, ...], sent2_vecs[:, i, ...]
-            (p1, sent1), (p2,sent2), (p3,sent3) = model(pos_1), model(pos_2), model(neg)
+            print(sent1_vecs.shape)
+            exit()
+            model(sent1_vecs)
 
             l = min(p1.shape[1], p3.shape[1])
             p1,p2,p3 = p1[:, :l], p2[:, :l], p3[:, :l]
             loss, _, _ = loss_fn(p1, p2, p3, sent1, sent2)
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 100.)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1000.)
             optimizer.step()
             model.zero_grad()
 
