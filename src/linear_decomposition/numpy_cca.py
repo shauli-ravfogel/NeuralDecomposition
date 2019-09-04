@@ -8,6 +8,7 @@ from sklearn.utils.extmath import randomized_svd
 import time
 import torch
 from torch import nn
+import copy
 
 
 class CCAModel(object):
@@ -90,9 +91,10 @@ class CCAModel(object):
 
         else:
             # in test time, use saved mean and projection matrix.
+            view = copy.deepcopy(H1)
             print(H1.shape, self.mean_x.shape)
-            H1 -= self.mean_x[None, :]
-            x_proj = (H1.dot(self.A))[:, ::-1]
+            view -= self.mean_x[None, :]
+            x_proj = (view.dot(self.A))[:, ::-1]
 
             if H2 is not None:
                 H2 -= self.mean_y[None, :]

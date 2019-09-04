@@ -35,6 +35,6 @@ if __name__ == '__main__':
 
     data = read_file(args.input_wiki)
     filtered_data = list(filter(lambda x: args.min_length < len(x.split()) < args.max_length, data))
-    
+
     eval_data = filtered_data[args.train_size:]
     write_file(args.out_file, eval_data)
