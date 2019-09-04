@@ -16,6 +16,7 @@ def pad_tensor(vec, pad, dim):
     return:
         a new tensor padded to 'pad' in dimension 'dim'
     """
+    print(vec.shape, dim, pad)
     pad_size = list(vec.shape)
     pad_size[dim] = pad - vec.size(dim)
     return torch.cat([vec, torch.zeros(*pad_size).cuda()], dim=dim)
@@ -41,10 +42,9 @@ class PadCollate:
 
         reutrn:
             xs - a tensor of all examples in 'batch' after padding
-            ys - a LongTensor of all labels in batch
         """
         # find longest sequence
-        max_len = max(map(lambda x: x[0].shape[self.dim], batch))
+        max_len = max(map(lambda x: x.shape[self.dim], batch))
         # pad according to max_len
         batch = tuple(map(lambda x:
                     pad_tensor(x, pad=max_len, dim=self.dim), batch))
