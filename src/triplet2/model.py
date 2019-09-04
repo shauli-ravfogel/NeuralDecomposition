@@ -4,29 +4,32 @@ from pytorch_revgrad import RevGrad
 
 class Siamese(nn.Module):
 
-    def __init__(self, dim = 2048, final = 250):
+    def __init__(self, dim = 2048, final = 512):
 
         super(Siamese, self).__init__()
 
+        layer_sizes = [dim, 1500, 1024, final]
         layers = []
-        layers.append(nn.Linear(dim, 1500))
-        layers.append(nn.ReLU())
-        #layers.append(nn.Dropout(0.1))
-        layers.append(nn.Linear(1500, 1000))
-        layers.append(nn.ReLU())
-        layers.append(nn.Linear(1000, 500))
-        layers.append(nn.LeakyReLU())
-        layers.append(nn.Linear(500, 250))
-        layers.append(nn.Linear(250, final))
 
-        layers = [nn.Linear(dim, 1500, bias = False)]
-        layers.append(nn.Linear(1500, 1000, bias = False))
-        layers.append(nn.Linear(1000, 500, bias=False))
-        layers.append(nn.Linear(500, final, bias=False))
+        for i, (layer_dim, next_layer_dim) in enumerate(zip(layer_sizes,layer_sizes[1:])):
+
+            layers.append(nn.BatchNorm1d(layer_dim))
+            #if i == 0:
+            #    layers.append(GaussianNoise(stddev=0.001))
+            layers.append(nn.Linear(layer_dim, next_layer_dim, bias = True))
+            if i != len(layer_sizes) - 2:
+                layers.append(nn.ReLU())
+
         self.layers = nn.Sequential(*layers)
 
+    def process_word(self, word_vec):
+
+        return self.layers(word_vec)
 
     def forward(self, sent_vecs):
+
+        print(sent_vecs)
+        exit()
 
         transformed =  self.layers(sent_vecs) # (sent_length, 2048)
         #normalized =  transformed / transformed.norm(dim = 2)[..., None]
