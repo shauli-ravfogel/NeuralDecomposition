@@ -16,7 +16,7 @@ def pad_tensor(vec, pad, dim):
     return:
         a new tensor padded to 'pad' in dimension 'dim'
     """
-    print(vec.shape, dim, pad)
+    #print(vec.shape, dim, pad)
     pad_size = list(vec.shape)
     pad_size[dim] = pad - vec.size(dim)
     return torch.cat([vec, torch.zeros(*pad_size).cuda()], dim=dim)
@@ -35,23 +35,18 @@ class PadCollate:
         """
         self.dim = dim
 
-    def pad_collate(self, batch):
+    def pad_collate(self, batch_data):
         """
         args:
-            batch - list of (tensor, label)
+            batch_data - list of (x: tensor, y: tensor, x_str: str, y_str: str, length: int)
 
-        reutrn:
-            xs - a tensor of all examples in 'batch' after padding
         """
-        # find longest sequence
-        max_len = max(map(lambda x: x.shape[self.dim], batch))
-        # pad according to max_len
-        batch = tuple(map(lambda x:
-                    pad_tensor(x, pad=max_len, dim=self.dim), batch))
-        # stack all
 
-        xs = torch.stack(batch, dim=0)
-        return xs
+        X, Y, X_str, Y_str, lengths = list(zip(*batch_data))
+        X_padded = torch.nn.utils.rnn.pad_sequence(X, batch_first = True)
+        Y_padded = torch.nn.utils.rnn.pad_sequence(Y, batch_first = True)
+
+        return (X_padded, Y_padded, X_str, Y_str, lengths)
 
     def __call__(self, batch):
         return self.pad_collate(batch)
@@ -78,10 +73,14 @@ class Dataset(data.Dataset):
         with torch.no_grad():
 
             instance = self.data[index]
+            print(instance.keys())
+            exit()
             sent1_vecs, sent2_vecs = instance["vecs"]
-            sent2_vecs = sent1_vecs
-            instance["vecs"] = (torch.from_numpy(sent1_vecs).float().cuda(), torch.from_numpy(sent2_vecs).float().cuda())
-            return instance["vecs"][0]
+            x,y = torch.from_numpy(sent1_vecs).float().cuda(), torch.from_numpy(sent2_vecs).float().cuda()
+            x_sent, y_sent = instance["sent1"], instance["sent2"]
+            length = torch.LongTensor(instance["sent_length"]).cuda()
+
+            return (x,y,x_sent,y_sent, length)
 
 if __name__ == '__main__':
 

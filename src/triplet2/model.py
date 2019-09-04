@@ -13,7 +13,7 @@ class Siamese(nn.Module):
 
         for i, (layer_dim, next_layer_dim) in enumerate(zip(layer_sizes,layer_sizes[1:])):
 
-            layers.append(nn.BatchNorm1d(layer_dim))
+            #layers.append(nn.BatchNorm1d(layer_dim))
             #if i == 0:
             #    layers.append(GaussianNoise(stddev=0.001))
             layers.append(nn.Linear(layer_dim, next_layer_dim, bias = True))
@@ -26,16 +26,27 @@ class Siamese(nn.Module):
 
         return self.layers(word_vec)
 
-    def forward(self, sent_vecs):
+    def get_batch_mean(self, batch_transformed, sent_lengths):
 
-        print(sent_vecs)
-        exit()
+        max_len = batch_transformed.shape[1]
+        mask = torch.arange(max_len)[None, :].cuda() < sent_lengths[:, None] # mask padded elements
 
-        transformed =  self.layers(sent_vecs) # (sent_length, 2048)
-        #normalized =  transformed / transformed.norm(dim = 2)[..., None]
-        #distances = (transformed[0, ...] @ torch.t(transformed[0, ...]))[None, ...]
-        distances = torch.norm(transformed[..., None, :] - transformed, dim=3, p=2) # (sent_length, sent_length)
-        return torch.flatten(distances, start_dim = 1), transformed # (sent_length^2)
+        # zero out the padded elements
+
+        masked = mask[..., None].float().cuda() * batch_transformed
+
+        # calcualte means
+
+        summed = torch.sum(masked, axis = 1) # (BATCH_SIZE x dim)
+        mean = summed / sent_lengths[:, None].float() #(BATCH_SIZE, dim)
+
+        return mean
+
+    def forward(self, sent_vecs, lengths):
+
+        transformed =  self.layers(sent_vecs) # (BATCH_SIZE x MAX_SENT_LENGTH x 2048)
+        mean = self.get_batch_mean(transformed, lengths)
+        return mean
 
 if __name__ == '__main__':
 
