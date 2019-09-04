@@ -29,9 +29,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_examples', dest='num_examples', type=int,
                         default=1000000,
                         help='num_examples')
-    parser.add_argument('--output-path', dest='output_path', type=str,
-                        default="data/processed/models/",
-                        help='directory where to store the model')
+    # parser.add_argument('--output-path', dest='output_path', type=str,
+    #                     default="data/processed/models/",
+    #                     help='directory where to store the model')
     parser.add_argument('--output-file', dest='output_file', type=str,
                         help='extra string to add to the output file')
 
@@ -40,11 +40,11 @@ if __name__ == '__main__':
     cca_model = cca.run_cca(args.views_path, args.perform_pca, args.pca_dim, args.cca_dim, args.enforce_symmetry,
                             args.model, args.whiten, args.num_examples)
 
-    filename = args.output_path + "/cca" + args.output_file + \
-               ".perform-pca:{}.cca-dim:{}.symmetry:{}.whitening:{}.examples:{}.method:{}.pickle".format(
-                   args.perform_pca,
-                   args.cca_dim,
-                   args.enforce_symmetry, args.whiten, args.num_examples, args.model)
+    filename = args.output_file  # + \
+    # ".perform-pca:{}.cca-dim:{}.symmetry:{}.whitening:{}.examples:{}.method:{}.pickle".format(
+    #     args.perform_pca,
+    #     args.cca_dim,
+    #     args.enforce_symmetry, args.whiten, args.num_examples, args.model)
 
     with open(filename, "wb") as f:
         pickle.dump(cca_model, f)

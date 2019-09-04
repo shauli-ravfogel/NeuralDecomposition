@@ -26,23 +26,26 @@ python src/generate_dataset/collect_bert_states.py \
 
 ## collect views for CCA
 
-python src/linear_decomposition/collect_views.py --input-path data/interim/encoder_bert/sents_bert_base.hdf5 \
-          --num_examples 2000000 --mode simple --output-file bert_base_layer:-1
+python src/linear_decomposition/main_views_collector.py \
+        --input-path data/interim/encoder_bert/sents_bert_base.hdf5 \
+          --num_examples 2000000 --mode simple \
+          --output-file data/interim/views/bert_base_layer_2M:-1
 # the above script creates a views file in the ./views directory. The file is named according to the arguments (num_examples, etc.)
 
 ### run CCA
 
 python src/linear_decomposition/main.py \
-        --views-file-path data/interim/views/views.sentences:7.pairs:1008.mode:simple.no-func-words:True \
-        --cca-dim 100 --enforce-symmetry 1 --cca-model numpy --output-file bert_base_layer:-1
+        --views-file-path data/interim/views/bert_base_layer_2M:-1 \
+        --cca-dim 100 --enforce-symmetry 1 --cca-model numpy \
+        --output-file data/processed/models/cca:100_bert_base_layer:-1
 # the above script creates a CCA model in the models directory. The file is named according to the arguments (cca-dim etc.)
 
 ### evaluation
 
 # run analysis on the produced embeddings.
 python src/analysis/main.py --input-wiki data/external/wiki.clean.250k \
-        --encode_sentences 0 --encoded_data data/interim/encoded_sents.pickle \
-        --elmo_folder data/external --method cosine --cuda-device 0 \
+        --encode_sentences true --encoded_data data/interim/eval_encoded_sents_bert_base:-1.pickle \
+        --elmo_folder data/external/ --method cosine --cuda-device 0 \
         --num_sents 25000 --num_words 100000 --num_queries 5000 --extractor numpy_cca \
-        --extractor_path data/processed/models/cca.perform-pca:True.cca-dim:100.symmetry:True.pickle \
+        --extractor_path data/processed/models/cca:100_bert_base_layer:-1
 
