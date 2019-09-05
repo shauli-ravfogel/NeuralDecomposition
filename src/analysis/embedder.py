@@ -51,7 +51,7 @@ class Embedder(object):
 
     def get_data(self, wiki_path: str, num_sents: int) -> List[Tuple[List[np.ndarray], str]]:
         sentences = self._load_sents(wiki_path, num_sents)
-        embeddings_and_sents = self.run_embedder(sentences)
+        embeddings_and_sents = self.run_embedder(sentences[:100])
         return embeddings_and_sents
 
     def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
@@ -101,10 +101,11 @@ class EmbedElmo(Embedder):
 class EmbedBert(Embedder):
     def __init__(self, params: Dict, device: int = 0):
         Embedder.__init__(self)
-        config = BertConfig(vocab_size_or_config_json_file=30522)
-        bert_model = BertModel(config)
+        #config = BertConfig(vocab_size_or_config_json_file=30522)
+        #bert_model = BertModel(config)
 
-        bert_name = 'bert-base-uncased'
+        bert_name = 'bert-large-uncased'
+        bert_model = BertModel.from_pretrained(bert_name)
         self.token_indexer = PretrainedBertIndexer(pretrained_model=bert_name, use_starting_offsets=True)
         self.vocab = Vocabulary()
         self.embedder = BertLayerEmbedder(bert_model).eval()
