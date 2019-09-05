@@ -4,11 +4,11 @@ from pytorch_revgrad import RevGrad
 
 class Siamese(nn.Module):
 
-    def __init__(self, dim = 2048, final = 512):
+    def __init__(self, cca_network, dim = 2048, final_dim = 512):
 
         super(Siamese, self).__init__()
-
-        layer_sizes = [dim, 1500, 1024, final]
+        self.cca_network = cca_network
+        layer_sizes = [dim, final_dim]
         layers = []
 
         for i, (layer_dim, next_layer_dim) in enumerate(zip(layer_sizes,layer_sizes[1:])):
@@ -16,15 +16,15 @@ class Siamese(nn.Module):
             #layers.append(nn.BatchNorm1d(layer_dim))
             #if i == 0:
             #    layers.append(GaussianNoise(stddev=0.001))
-            layers.append(nn.Linear(layer_dim, next_layer_dim, bias = True))
+            layers.append(nn.Linear(layer_dim, next_layer_dim, bias = False))
             if i != len(layer_sizes) - 2:
                 layers.append(nn.ReLU())
 
         self.layers = nn.Sequential(*layers)
 
-    def process_word(self, word_vec):
+    def process(self, word_vec):
 
-        return self.layers(word_vec)
+        return word_vec, self.layers(word_vec)
 
     def get_batch_mean(self, batch_transformed, sent_lengths):
 
@@ -37,7 +37,7 @@ class Siamese(nn.Module):
 
         # calcualte means
 
-        summed = torch.sum(masked, axis = 1) # (BATCH_SIZE x dim)
+        summed = torch.sum(masked, dim = 1) # (BATCH_SIZE x dim)
         mean = summed / sent_lengths[:, None].float() #(BATCH_SIZE, dim)
 
         return mean
@@ -46,6 +46,7 @@ class Siamese(nn.Module):
 
         transformed =  self.layers(sent_vecs) # (BATCH_SIZE x MAX_SENT_LENGTH x 2048)
         mean = self.get_batch_mean(transformed, lengths)
+        #print(mean)
         return mean
 
 if __name__ == '__main__':
