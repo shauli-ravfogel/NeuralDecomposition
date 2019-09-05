@@ -4,38 +4,52 @@ from pytorch_revgrad import RevGrad
 
 class Siamese(nn.Module):
 
-    def __init__(self, dim = 2048, final = 512):
+    def __init__(self, cca_network, dim = 2048, final_dim = 512):
 
         super(Siamese, self).__init__()
-
-        layer_sizes = [dim, 1500, 1024, final]
+        self.cca_network = cca_network
+        layer_sizes = [dim, final_dim]
         layers = []
 
         for i, (layer_dim, next_layer_dim) in enumerate(zip(layer_sizes,layer_sizes[1:])):
 
-            layers.append(nn.BatchNorm1d(layer_dim))
+            #layers.append(nn.BatchNorm1d(layer_dim))
             #if i == 0:
             #    layers.append(GaussianNoise(stddev=0.001))
-            layers.append(nn.Linear(layer_dim, next_layer_dim, bias = True))
+            layers.append(nn.Linear(layer_dim, next_layer_dim, bias = False))
             if i != len(layer_sizes) - 2:
                 layers.append(nn.ReLU())
 
         self.layers = nn.Sequential(*layers)
 
-    def process_word(self, word_vec):
+    def process(self, word_vec):
 
-        return self.layers(word_vec)
+        return word_vec, self.layers(word_vec)
 
-    def forward(self, sent_vecs):
+    def get_batch_mean(self, batch_transformed, sent_lengths, word_dropout = 0.2):
 
-        print(sent_vecs)
-        exit()
+        max_len = batch_transformed.shape[1]
+        mask = torch.arange(max_len)[None, :].cuda() < sent_lengths[:, None] # mask padded elements
 
-        transformed =  self.layers(sent_vecs) # (sent_length, 2048)
-        #normalized =  transformed / transformed.norm(dim = 2)[..., None]
-        #distances = (transformed[0, ...] @ torch.t(transformed[0, ...]))[None, ...]
-        distances = torch.norm(transformed[..., None, :] - transformed, dim=3, p=2) # (sent_length, sent_length)
-        return torch.flatten(distances, start_dim = 1), transformed # (sent_length^2)
+        # zero out the padded elements
+
+        masked = mask[..., None].float().cuda() * batch_transformed
+        word_dropout_mask = (torch.cuda.FloatTensor(*mask.shape).uniform_() > word_dropout).float()
+        masked = word_dropout_mask * masked
+
+        # calcualte means
+
+        summed = torch.sum(masked, dim = 1) # (BATCH_SIZE x dim)
+        mean = summed / sent_lengths[:, None].float() #(BATCH_SIZE, dim)
+
+        return mean
+
+    def forward(self, sent_vecs, lengths):
+
+        transformed =  self.layers(sent_vecs) # (BATCH_SIZE x MAX_SENT_LENGTH x 2048)
+        mean = self.get_batch_mean(transformed, lengths)
+        #print(mean)
+        return mean
 
 if __name__ == '__main__':
 

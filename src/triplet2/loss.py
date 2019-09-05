@@ -69,7 +69,7 @@ def pairwise_distances(x, y=None):
 
 class BatchHardTripletLoss2(torch.nn.Module):
 
-    def __init__(self, p = 2, alpha = 0.1, normalize = False, mode = "euc", final = "softplus", k = 5):
+    def __init__(self, p = 2, alpha = 0.1, normalize = False, mode = "euc", final = "softmax", k = 1):
 
         super(BatchHardTripletLoss2, self).__init__()
         self.p = p
@@ -96,7 +96,7 @@ class BatchHardTripletLoss2(torch.nn.Module):
             mask[range(len(mask)), range(len(mask))] = 0
         return mask
 
-    def forward(self, h1, h2, sent1, sent2, index, evaluation = False):
+    def forward(self, h1, h2, sent1, sent2, labels, index, evaluation = False):
 
         if self.normalize or self.mode == "cosine":
 
@@ -104,7 +104,6 @@ class BatchHardTripletLoss2(torch.nn.Module):
             h2 = h2 / torch.norm(h2, dim = 1, p = self.p, keepdim = True)
 
         sent1, sent2 = np.array(sent1, dtype = object), np.array(sent2, dtype = object)
-        labels = torch.arange(0, h1.shape[0])#.cuda()
         labels = torch.cat((labels, labels), dim = 0)
         batch = torch.cat((h1, h2), dim = 0)
 
@@ -118,37 +117,23 @@ class BatchHardTripletLoss2(torch.nn.Module):
 
         dists = torch.clamp(dists, min = 1e-7)
 
-        try:
+        hardest_positive_idx, hardest_negatives_idx = self.sampler.get_distances(labels.detach().cpu().numpy(), dists.detach().cpu().numpy())
+        hardest_positive_idx, hardest_negatives_idx = torch.tensor(hardest_positive_idx).cuda(), torch.tensor(hardest_negatives_idx).cuda()
 
-            hardest_positive_idx, hardest_negatives_idx = self.sampler.get_distances(labels.detach().cpu().numpy(), dists.detach().cpu().numpy())
-            hardest_positive_idx, hardest_negatives_idx = torch.tensor(hardest_positive_idx).cuda(), torch.tensor(hardest_negatives_idx).cuda()
+        hardest_negative_dist = dists.gather(1, hardest_negatives_idx.view(-1,1))
+        hardest_positive_dist = dists.gather(1, hardest_positive_idx.view(-1,1))
 
-            hardest_negative_dist = dists.gather(1, hardest_negatives_idx.view(-1,1))
-            hardest_positive_dist = dists.gather(1, hardest_positive_idx.view(-1,1))
+        if evaluation and index == 0:
 
+            hardest_negative_indices = hardest_negatives_idx.detach().cpu().numpy().squeeze()
+            neg_sents = sents[hardest_negative_indices]
+            with open("negatives.txt", "w") as f:
+                for (anchor_sent, hard_sent) in zip(sents, neg_sents):
+                    f.write(anchor_sent + "\n")
+                    f.write("-----------------------------------------\n")
+                    f.write(hard_sent + "\n")
+                    f.write("==========================================================\n")
 
-            if evaluation and index == 0:
-
-                hardest_negative_indices = hardest_negatives_idx.detach().cpu().numpy().squeeze()
-                neg_sents = sents[hardest_negative_indices]
-                with open("negatives.txt", "w") as f:
-                    for (anchor_sent, hard_sent) in zip(sents, neg_sents):
-                        f.write(anchor_sent + "\n")
-                        f.write("-----------------------------------------\n")
-                        f.write(hard_sent + "\n")
-                        f.write("==========================================================\n")
-        except Exception as e:
-                print(e)
-                print(self.k)
-                print(h1.shape, h2.shape)
-                print(labels.shape)
-                print(batch.shape)
-                print(dists.shape)
-                print(mask_anchor_positive.shape)
-                print(mask_anchor_negative.shape)
-                print(anchor_positive_dist.shape)
-                print(anchor_negative_dist.shape)
-                exit()
         differences = hardest_positive_dist - hardest_negative_dist
 
         if self.final == "plus":

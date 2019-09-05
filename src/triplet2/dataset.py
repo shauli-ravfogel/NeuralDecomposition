@@ -5,22 +5,7 @@ import pickle
 import h5py
 
 
-
-def pad_tensor(vec, pad, dim):
-    """
-    args:
-        vec - tensor to pad
-        pad - the size to pad to
-        dim - dimension to pad
-
-    return:
-        a new tensor padded to 'pad' in dimension 'dim'
-    """
-    print(vec.shape, dim, pad)
-    pad_size = list(vec.shape)
-    pad_size[dim] = pad - vec.size(dim)
-    return torch.cat([vec, torch.zeros(*pad_size).cuda()], dim=dim)
-
+CUDA = False
 
 class PadCollate:
     """
@@ -28,30 +13,31 @@ class PadCollate:
     a batch of sequences
     """
 
-    def __init__(self, dim=0):
+    def __init__(self):
+
+        pass
+
+    def pad_collate(self, batch_data):
         """
         args:
-            dim - the dimension to be padded (dimension of time in sequences)
-        """
-        self.dim = dim
+            batch_data - list of (x: tensor, y: tensor, x_str: str, y_str: str, length: int)
 
-    def pad_collate(self, batch):
         """
-        args:
-            batch - list of (tensor, label)
+        X, Y, X_str, Y_str, lengths, sent_ids = list(zip(*batch_data))
+        print(type(X))
+        exit()
+        X = X[:, :28]
+        Y = Y[:, :28]
+        lengths = torch.LongTensor(lengths)
+        sent_ids = torch.LongTensor(sent_ids)
 
-        reutrn:
-            xs - a tensor of all examples in 'batch' after padding
-        """
-        # find longest sequence
-        max_len = max(map(lambda x: x.shape[self.dim], batch))
-        # pad according to max_len
-        batch = tuple(map(lambda x:
-                    pad_tensor(x, pad=max_len, dim=self.dim), batch))
-        # stack all
+        if CUDA:
+            lengths, sent_ids = lengths.cuda(), sent_ids.cuda()
 
-        xs = torch.stack(batch, dim=0)
-        return xs
+        X_padded = torch.nn.utils.rnn.pad_sequence(X, batch_first = True)
+        Y_padded = torch.nn.utils.rnn.pad_sequence(Y, batch_first = True)
+
+        return (X_padded, Y_padded, np.array(X_str), np.array(Y_str), lengths, sent_ids)
 
     def __call__(self, batch):
         return self.pad_collate(batch)
@@ -78,10 +64,16 @@ class Dataset(data.Dataset):
         with torch.no_grad():
 
             instance = self.data[index]
+
             sent1_vecs, sent2_vecs = instance["vecs"]
-            sent2_vecs = sent1_vecs
-            instance["vecs"] = (torch.from_numpy(sent1_vecs).float().cuda(), torch.from_numpy(sent2_vecs).float().cuda())
-            return instance["vecs"][0]
+            x,y = torch.from_numpy(sent1_vecs).float(), torch.from_numpy(sent2_vecs).float()
+            if CUDA:
+                x,y = x.cuda(), y.cuda()
+            x_sent, y_sent = instance["sent1"], instance["sent2"]
+            length = instance["sent_length"]
+            sent_id = instance["sent_id"]
+
+            return (x,y,x_sent,y_sent, length, sent_id)
 
 if __name__ == '__main__':
 
