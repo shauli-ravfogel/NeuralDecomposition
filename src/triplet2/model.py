@@ -26,7 +26,7 @@ class Siamese(nn.Module):
 
         return word_vec, self.layers(word_vec)
 
-    def get_batch_mean(self, batch_transformed, sent_lengths):
+    def get_batch_mean(self, batch_transformed, sent_lengths, word_dropout = 0.2):
 
         max_len = batch_transformed.shape[1]
         mask = torch.arange(max_len)[None, :].cuda() < sent_lengths[:, None] # mask padded elements
@@ -34,6 +34,8 @@ class Siamese(nn.Module):
         # zero out the padded elements
 
         masked = mask[..., None].float().cuda() * batch_transformed
+        word_dropout_mask = (torch.cuda.FloatTensor(*mask.shape).uniform_() > word_dropout).float()
+        masked = word_dropout_mask * masked
 
         # calcualte means
 
