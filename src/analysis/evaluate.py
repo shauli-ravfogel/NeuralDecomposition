@@ -305,7 +305,7 @@ def sentences2words(sentence_representations: List[Sentence_vector],
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), w, doc, j))
+            data.append(Word_vector(vec.copy(), words, doc, j))
 
     random.seed(0)
     random.shuffle(data)
