@@ -3,7 +3,7 @@
     {
       "tensorName": "My tensor",
       "tensorShape": [
-        15511,
+        12000,
         256
       ],
       "tensorPath": "https://raw.githubusercontent.com/Shaul1321/NeuralDecomposition/master/src/analysis/vecs.tsv",
