@@ -17,7 +17,7 @@ from allennlp.data.token_indexers.wordpiece_indexer import PretrainedBertIndexer
 from allennlp.data.tokenizers import WordTokenizer, Token
 from allennlp.data.tokenizers.word_splitter import BertBasicWordSplitter
 from allennlp.data.vocabulary import Vocabulary
-from allennlp.modules.token_embedders.bert_token_embedder import BertEmbedder
+from allennlp.modules.token_embedders.bert_token_embedder import BertEmbedder, PretrainedBertModel, PretrainedBertEmbedder
 
 import sys
 sys.path.append('src/generate_dataset')
@@ -108,7 +108,8 @@ class EmbedBert(Embedder):
         bert_model = BertModel.from_pretrained(bert_name)
         self.token_indexer = PretrainedBertIndexer(pretrained_model=bert_name, use_starting_offsets=True)
         self.vocab = Vocabulary()
-        self.embedder = BertLayerEmbedder(bert_model).eval()
+        # self.embedder = BertLayerEmbedder(bert_model).eval()
+        self.embedder = PretrainedBertEmbedder(bert_name)
 
     def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
         print("Running Bert...")
