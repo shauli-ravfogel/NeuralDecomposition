@@ -12,7 +12,7 @@ import numpy as np
 import nltk
 
 import torch
-from pytorch-transformers import BertTokenizer, BertForMaskedLM
+from pytorch_transformers import BertTokenizer, BertForMaskedLM
 
 
 class EquivalentSentencesGenerator:
