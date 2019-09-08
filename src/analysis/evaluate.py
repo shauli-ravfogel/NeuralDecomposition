@@ -17,6 +17,7 @@ from tqdm.auto import tqdm
 import spacy
 import random
 from scipy.stats.stats import pearsonr
+from scipy.stats import entropy
 from collections import Counter, defaultdict
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
@@ -64,94 +65,150 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
     # closest-word, with ELMO + syntactic extractor
     closest_word_test(words_reprs, num_queries=num_queries, method=method, extractor=extractor)
 
-    # closest-sentence, with ELMO alone (basline)
-    closest_sentence_test(sentence_reprs, num_queries=num_queries, method=method, extractor=None)
+    hard_pos = get_hard_pos(sentence_reprs)
+    hard_words = split_pos(words_reprs, hard_pos[:10])
+    closest_word_test(hard_words, num_queries=num_queries, method=method, extractor=None)
+    closest_word_test(hard_words, num_queries=num_queries, method=method, extractor=extractor)
 
-    # closest-sentence, with ELMO + syntactic extractor
-    closest_sentence_test(sentence_reprs, num_queries=num_queries, method=method, extractor=extractor)
+    short_sen, long_sen = length_split(sentence_reprs)
+    for split, name in zip([sentence_reprs, short_sen, long_sen], ['all', 'short', 'long']):
+
+        print('running sentence eval on: {} split'.format(name))
+        # closest-sentence, with ELMO alone (basline)
+        closest_sentence_test(split, num_queries=num_queries, method=method, extractor=None)
+
+        # closest-sentence, with ELMO + syntactic extractor
+        closest_sentence_test(split, num_queries=num_queries, method=method, extractor=extractor)
 
 
-    
-def persist_for_tsne(word_reprs, extractor, n = 10000):
+def split_pos(words_reprs: List[Word_vector], hard_pos: List[str]) -> List[Word_vector]:
+    filtered_words = []
 
-        def to_string(np_array):
-                return "\t".join(["%0.4f" % x for x in np_array])
-        
-        def sentence2str(sentence: List[str], index: int):
-        
-                return " ".join(sentence[:index] + ["@@@"+sentence[index]+"@@@"] + sentence[index + 1:])        
-        data = random.choices(word_reprs, k = n)
-        
-        # Apply syntactic extractor
-        
-        if extractor is not None:
-        
-                print("Applying syntactic extractor...")
-                
-                for i, word_representation in tqdm(enumerate(data), total = len(data), ascii=True):
-                
-                        data[i] = word_representation._replace(word_vector = extractor.extract(word_representation.word_vector).reshape(-1)[:])
-                                     
-        labels, vecs = [], []
-                        
-        for i in range(n):
-                
-                x = data[i]
-                vec = x.word_vector
-                position = x.index
-                token = x.sentence[position]
-                sent = x.sentence
-                dep_edge = x.doc[x.index].dep_
-                parent_dep = x.doc[x.index].head.dep_
-                pos = x.doc[x.index].tag_
-                depth = node_height(x.doc[x.index])
+    for word in words_reprs:
+        pos = word.doc[word.index].pos_
+        if pos in hard_pos:
+            filtered_words.append(word)
+    return filtered_words
 
-                vec = to_string(vec)
-                word_labels = "\t".join([str(position), pos, dep_edge, parent_dep, str(depth), token, sentence2str(sent, position)])
-                labels.append(word_labels)
-                vecs.append(vec)
-       
-        with open("vecs.tsv", "w") as f:
-       
-                for v in vecs:
-                        f.write(v + "\n")
-       
-        with open("labels.tsv", "w") as f:
-       
-                f.write("position\tPOS\tdep-edge\tparent's dep-edge\tdep-tree-depth\ttoken\tsent\n")
-                for word_labels in labels:
-                
-                        f.write(word_labels + "\n")
-    
-    
-    
+
+def get_hard_pos(sentence_representations: List[Sentence_vector]) -> List[str]:
+    pos_dep = defaultdict[list]
+    for sentence in sentence_representations:
+        doc = sentence.doc
+        for w in doc:
+            pos_dep[w.pos_].append(w.dep_)
+
+    norm_dic = {}
+    # normalizing
+    for k, v in pos_dep.items():
+        temp_dic = {}
+        d = Counter(v)
+        factor = 1.0 / sum(d.values())
+        for kk, val in d.items():
+            temp_dic[kk] = val * factor
+        norm_dic[k] = temp_dic
+
+    # calculating entropy
+    dic = {}
+    for k, v in pos_dep.items():
+        probs = v.values()
+        ent = entropy(probs)
+        dic[k] = ent
+
+    ordered_ent = sorted(dic.items(), key=lambda kv: kv[1])
+    ordered_ent.reverse()
+    return [x[0] for x in ordered_ent]
+
+
+def length_split(sentence_representations: List[Sentence_vector]) -> List[List[Sentence_vector]]:
+    short_sen, long_sen = [], []
+    for sentence in sentence_representations:
+        if len(sentence.sent_str) < 15:
+            short_sen.append(sentence)
+        else:
+            long_sen.append(sentence)
+    return [short_sen, long_sen]
+
+
+def persist_for_tsne(word_reprs, extractor, n=10000):
+    def to_string(np_array):
+        return "\t".join(["%0.4f" % x for x in np_array])
+
+    def sentence2str(sentence: List[str], index: int):
+
+        return " ".join(sentence[:index] + ["@@@" + sentence[index] + "@@@"] + sentence[index + 1:])
+
+    data = random.choices(word_reprs, k=n)
+
+    # Apply syntactic extractor
+
+    if extractor is not None:
+
+        print("Applying syntactic extractor...")
+
+        for i, word_representation in tqdm(enumerate(data), total=len(data), ascii=True):
+            data[i] = word_representation._replace(
+                word_vector=extractor.extract(word_representation.word_vector).reshape(-1)[:])
+
+    labels, vecs = [], []
+
+    for i in range(n):
+        x = data[i]
+        vec = x.word_vector
+        position = x.index
+        token = x.sentence[position]
+        sent = x.sentence
+        dep_edge = x.doc[x.index].dep_
+        parent_dep = x.doc[x.index].head.dep_
+        pos = x.doc[x.index].tag_
+        depth = node_height(x.doc[x.index])
+
+        vec = to_string(vec)
+        word_labels = "\t".join(
+            [str(position), pos, dep_edge, parent_dep, str(depth), token, sentence2str(sent, position)])
+        labels.append(word_labels)
+        vecs.append(vec)
+
+    with open("vecs.tsv", "w") as f:
+
+        for v in vecs:
+            f.write(v + "\n")
+
+    with open("labels.tsv", "w") as f:
+
+        f.write("position\tPOS\tdep-edge\tparent's dep-edge\tdep-tree-depth\ttoken\tsent\n")
+        for word_labels in labels:
+            f.write(word_labels + "\n")
+
+
 def get_path_to_root(word: Word_vector):
-        
-        word = word.doc[word.index]
-        token_deps = [word.dep_]
-        curr_depth = 0
+    word = word.doc[word.index]
+    token_deps = [word.dep_]
+    curr_depth = 0
 
-        while (word.head != word): # while not root
+    while word.head != word:  # while not root
 
-                head_dep = word.head.dep_
-                token_deps.append(head_dep)
-                word = word.head
-                curr_depth += 1
-        return token_deps
-        
+        head_dep = word.head.dep_
+        token_deps.append(head_dep)
+        word = word.head
+        curr_depth += 1
+    return token_deps
+
+
 color_by_dep = lambda word: word.doc[word.index].dep_
 color_by_depth = lambda word: len(get_path_to_root(word))
-def color_by_dep_in_path(word, label="advcl"): 
- 
-        path_to_root = get_path_to_root(word)
-        print(label, path_to_root, label in path_to_root)
-        
-        if label in path_to_root:
-                return "dep {} in path".format(label)
-        else:
-                return "dep {} not in path".format(label)
-          
-          
+
+
+def color_by_dep_in_path(word, label="advcl"):
+    path_to_root = get_path_to_root(word)
+    print(label, path_to_root, label in path_to_root)
+
+    if label in path_to_root:
+        return "dep {} in path".format(label)
+    else:
+        return "dep {} not in path".format(label)
+
+
 def test_demo_words(all_word_reprs, elmo_embedder, extractor):
     nlp = spacy.load('en_core_web_sm')
     sentence = "had i not seen it myself, i could not have believed that."
@@ -211,7 +268,8 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
         print("applying syntactic extractor")
         query_vec = extractor.extract(query_vec)
 
-    closest = get_closest_vectors(np.array(all_vecs), query_vec.reshape(1, -1), method=method, k=k, ignore_same_vec=False)[0]
+    closest = \
+    get_closest_vectors(np.array(all_vecs), query_vec.reshape(1, -1), method=method, k=k, ignore_same_vec=False)[0]
     return [all_word_reprs[ind] for ind in closest]
 
 
@@ -617,7 +675,8 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     # persist_examples(extractor, query_words, k_value_words)
 
 
-def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean", color_by_func = color_by_dep):
+def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color_by="position", metric="euclidean",
+                 color_by_func=color_by_dep):
     random.seed(0)
     data = random.choices(words_reprs, k=num_vecs)
 
@@ -655,7 +714,7 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     print("calculating projection...")
 
-    proj = TSNE(n_components=2, random_state=0, metric=metric, verbose = 1).fit_transform(embeddings)
+    proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
 
     fig, ax = plt.subplots()
 
