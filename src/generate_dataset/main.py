@@ -63,7 +63,7 @@ if __name__ == '__main__':
             # generator = generators.OnlineBertGenerator(args.input_wiki, args.output_sentences,
             #                                          args.num_sentences)
             generator = generators.BatchedOnlineBertGenerator(args.input_wiki, args.output_sentences,
-                                                              args.num_sentences, topn=13, ignore_first_k=0,
+                                                              args.num_sentences, topn=50, ignore_first_k=1,
                                                               maintain_pos=True)
 
         equivalent_sentences = generator.generate()

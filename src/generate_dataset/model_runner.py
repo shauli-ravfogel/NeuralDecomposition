@@ -4,7 +4,9 @@ import numpy as np
 import utils
 import tqdm
 import random
+import h5py
 
+FUNCTION_WORDS = utils.DEFAULT_PARAMS['function_words']
 
 class ModelRunner(object):
 
@@ -22,29 +24,32 @@ class ModelRunner(object):
 
         print("Running neural model on equivalent sentences...")
 
-        N = len(self.equivalent_sentences_dict)
+        print(type(self.equivalent_sentences_dict.items()))
+        
+        with h5py.File(self.output_file, 'w') as h5:
+                for i, group_of_equivalent_sentences in tqdm.tqdm(enumerate(self.equivalent_sentences_dict.values()), ascii = True):
+                        vecs = self.model.run(group_of_equivalent_sentences)
 
-        with open(self.output_file, "w", encoding="utf8") as f:
+                        L = len(group_of_equivalent_sentences[0])  # group's sentence length
+                        content_indices = np.array([i for i in range(L) if group_of_equivalent_sentences[0][i] not in FUNCTION_WORDS])
+                        sents = np.array(group_of_equivalent_sentences, dtype=object)
 
-            for i in tqdm.tqdm(range(N)):
-
-                equivalent_sentences = self.equivalent_sentences_dict[i]
-                all_vecs = self.model.run(equivalent_sentences)
-
-                to_write = []
-
-                assert len(equivalent_sentences) == len(all_vecs)
-
-                for sent, vecs in zip(equivalent_sentences, all_vecs):
-                    vecs_str = "*".join([utils.to_string(v) for v in vecs])
-
-                    sent_str = " ".join(sent)
-                    to_write.append(vecs_str)
-                    to_write.append(sent_str)
-
-                f.write("\t".join(to_write) + "\n")
+                        # data.append(bert_states)
+                        g = h5.create_group(str(i))
+                        g.attrs['group_size'], g.attrs['sent_length'] = sents.shape
+                        g.create_dataset('vecs', data=vecs, compression=True, chunks=True)
+                        dt = h5py.special_dtype(vlen=str)
+                        g.create_dataset('sents', data=sents, dtype=dt, compression=True, chunks=True)
+                        g.create_dataset('content_indices', data=content_indices, compression=True, chunks=True)
+                
 
 
+
+
+
+
+
+               
 class TuplesModelRunner(object):
 
     def __init__(self, model: model.ModelInterface,
@@ -63,7 +68,7 @@ class TuplesModelRunner(object):
 
         N = len(self.equivalent_sentences_dict)
 
-        with open(self.output_file, "w", encoding="utf8") as f:
+        with open(self.output_file, "w") as f:
 
             for i in tqdm.tqdm(range(N)):
 
@@ -76,7 +81,7 @@ class TuplesModelRunner(object):
 
                 for j in range(num_examples_per_sentence):
                     indices = np.random.choice(range(sent_length), size=num_indices)
-                    sent1_ind, sent2_ind = np.random.choice(range(num_equivalents), size=2, replace=False)
+                    sent1_ind, sent2_ind = np.random.choice(range(num_equivalents), size=2, replace = False)
                     sent1_vecs, sent2_vecs = vecs[sent1_ind][indices], vecs[sent2_ind][indices]
 
                     sent1_str, sent2_str = " ".join(equivalent_sentences[sent1_ind]), " ".join(

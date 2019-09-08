@@ -12,7 +12,7 @@ import numpy as np
 import nltk
 
 import torch
-from pytorch_pretrained_bert import BertTokenizer, BertForMaskedLM
+from pytorch_transformers import BertTokenizer, BertForMaskedLM
 
 
 class EquivalentSentencesGenerator:
@@ -294,8 +294,11 @@ class BertGenerator(EquivalentSentencesGenerator):
         super().__init__(data_filename, output_file, num_sentences)
 
         self.cuda_device = cuda_device
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.model = BertForMaskedLM.from_pretrained('bert-base-uncased')
+        #self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        #self.model = BertForMaskedLM.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('bert-large-uncased-whole-word-masking')
+        self.model = BertForMaskedLM.from_pretrained('bert-large-uncased-whole-word-masking')
+        
         self.model.eval()
         self.model.to('cuda:{}'.format(self.cuda_device))
         self.forbidden_guesses = utils.DEFAULT_PARAMS["function_words"]
@@ -333,7 +336,7 @@ class BertGenerator(EquivalentSentencesGenerator):
         if self.maintain_pos and original_pos is not None:
 
             # guesses = [w for w, pos in self.unigram_tagger.tag(guesses) if (w not in self.forbidden_guesses) and (original_pos == pos)]
-            guesses = [w for w in guesses if (self.w2pos[w][original_pos] > 0) and (w not in self.forbidden_guesses)]
+            guesses = [w for w in guesses if (self.w2pos[w][original_pos] > 1) and (w not in self.forbidden_guesses)]
 
         else:
             guesses = [w for w in guesses if w not in self.forbidden_guesses]
@@ -563,15 +566,15 @@ class BatchedOnlineBertGenerator(BertGenerator):
 
                 with torch.no_grad():
 
-                    predictions = self.model(tokens_tensor)  # (num_sentences, len(bert_tokens), voc_size)
+                    predictions = self.model(tokens_tensor)[0]  # (num_sentences, len(bert_tokens), voc_size)
 
-                _, predicted_indices = torch.topk(predictions[:, masked_index, :], k=175, sorted=True, largest=True,
+                _, predicted_indices = torch.topk(predictions[:, masked_index, :], k=220, sorted=True, largest=True,
                                                   dim=-1)
                 predicted_indices = predicted_indices.cpu().numpy()  # (num_sentences, k)
 
                 for i in range(1, self.num_sentences):  # the first sentence remains the original one
 
-                    guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices[i])[::-1]  # (k,)
+                    guesses = self.tokenizer.convert_ids_to_tokens(predicted_indices[i])  # (k,)
                     chosen_w = self.choose_word(guesses, original_pos=original_pos)
 
                     if chosen_w is not None:
