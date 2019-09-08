@@ -72,6 +72,57 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
 
 
     
+def persist_for_tsne(word_reprs, extractor, n = 10000):
+
+        def to_string(np_array):
+                return "\t".join(["%0.4f" % x for x in np_array])
+        
+        def sentence2str(sentence: List[str], index: int):
+        
+                return " ".join(sentence[:index] + ["@@@"+sentence[index]+"@@@"] + sentence[index + 1:])        
+        data = random.choices(word_reprs, k = n)
+        
+        # Apply syntactic extractor
+        
+        if extractor is not None:
+        
+                print("Applying syntactic extractor...")
+                
+                for i, word_representation in tqdm(enumerate(data), total = len(data), ascii=True):
+                
+                        data[i] = word_representation._replace(word_vector = extractor.extract(word_representation.word_vector).reshape(-1)[:])
+                                     
+        labels, vecs = [], []
+                        
+        for i in range(n):
+                
+                x = data[i]
+                vec = x.word_vector
+                position = x.index
+                token = x.sentence[position]
+                sent = x.sentence
+                dep_edge = x.doc[x.index].dep_
+                parent_dep = x.doc[x.index].head.dep_
+                pos = x.doc[x.index].tag_
+                depth = node_height(x.doc[x.index])
+
+                vec = to_string(vec)
+                word_labels = "\t".join([str(position), pos, dep_edge, parent_dep, str(depth), token, sentence2str(sent, position)])
+                labels.append(word_labels)
+                vecs.append(vec)
+       
+        with open("vecs.tsv", "w") as f:
+       
+                for v in vecs:
+                        f.write(v + "\n")
+       
+        with open("labels.tsv", "w") as f:
+       
+                f.write("position\tPOS\tdep-edge\tparent's dep-edge\tdep-tree-depth\ttoken\tsent\n")
+                for word_labels in labels:
+                
+                        f.write(word_labels + "\n")
+    
     
     
 def get_path_to_root(word: Word_vector):
@@ -305,7 +356,7 @@ def sentences2words(sentence_representations: List[Sentence_vector],
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), w, doc, j))
+            data.append(Word_vector(vec.copy(), words, doc, j))
 
     random.seed(0)
     random.shuffle(data)

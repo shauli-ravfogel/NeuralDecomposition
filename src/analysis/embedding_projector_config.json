@@ -1,0 +1,13 @@
+{
+  "embeddings": [
+    {
+      "tensorName": "My tensor",
+      "tensorShape": [
+        12000,
+        256
+      ],
+      "tensorPath": "https://raw.githubusercontent.com/Shaul1321/NeuralDecomposition/master/src/analysis/vecs.tsv",
+      "metadataPath": "https://raw.githubusercontent.com/Shaul1321/NeuralDecomposition/master/src/analysis/labels.tsv"
+    }
+  ]
+}
