@@ -47,6 +47,7 @@ class CCASyntacticExtractor(SyntacticExtractor):
         if self.numpy:
             return self.cca(inp, training=False)
         else:
+            #print(inp.shape)
             return self.cca.transform(inp)
 
 

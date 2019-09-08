@@ -19,6 +19,7 @@ import random
 from scipy.stats.stats import pearsonr
 from scipy.stats import entropy
 from collections import Counter, defaultdict
+import copy
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
@@ -64,16 +65,21 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
 
     # closest-word, with ELMO + syntactic extractor
     closest_word_test(words_reprs, num_queries=num_queries, method=method, extractor=extractor)
-
+    print('all words used: {}'.format(len(words_reprs)))
     hard_pos = get_hard_pos(sentence_reprs)
-    hard_words = split_pos(words_reprs, hard_pos[:10])
+    hard_words = split_pos(words_reprs, hard_pos[:5])
+
+    print('hard words')
+    print('hard pos word useds: {}'.format(len(hard_words)))
+    print('baseline')
     closest_word_test(hard_words, num_queries=num_queries, method=method, extractor=None)
+    print('our method')
     closest_word_test(hard_words, num_queries=num_queries, method=method, extractor=extractor)
 
     short_sen, long_sen = length_split(sentence_reprs)
     for split, name in zip([sentence_reprs, short_sen, long_sen], ['all', 'short', 'long']):
 
-        print('running sentence eval on: {} split'.format(name))
+        print('running sentence eval on: {} split, num sen: {}'.format(name, len(split)))
         # closest-sentence, with ELMO alone (basline)
         closest_sentence_test(split, num_queries=num_queries, method=method, extractor=None)
 
@@ -92,7 +98,7 @@ def split_pos(words_reprs: List[Word_vector], hard_pos: List[str]) -> List[Word_
 
 
 def get_hard_pos(sentence_representations: List[Sentence_vector]) -> List[str]:
-    pos_dep = defaultdict[list]
+    pos_dep = defaultdict(list)
     for sentence in sentence_representations:
         doc = sentence.doc
         for w in doc:
@@ -110,13 +116,15 @@ def get_hard_pos(sentence_representations: List[Sentence_vector]) -> List[str]:
 
     # calculating entropy
     dic = {}
-    for k, v in pos_dep.items():
-        probs = v.values()
+    for k, v in norm_dic.items():
+        probs = list(v.values())
+        #print(k, probs)
         ent = entropy(probs)
         dic[k] = ent
 
     ordered_ent = sorted(dic.items(), key=lambda kv: kv[1])
     ordered_ent.reverse()
+    print(ordered_ent)
     return [x[0] for x in ordered_ent]
 
 
@@ -474,18 +482,18 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
     query_sents = [sents[i] for i in range(num_queries)]
     value_sents = [sents[closest_ind[0]] for closest_ind in closest_indices]
 
-    kernel_sims, edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
-    avg_kernel_sim = np.mean(kernel_sims)
-    avg_edit_sims = np.mean(edit_sims)
+    #kernel_sims, edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
+    #avg_kernel_sim = np.mean(kernel_sims)
+    #avg_edit_sims = np.mean(edit_sims)
 
-    fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
-    with open(fname, "w", encoding="utf8") as f:
+    #fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
+    #with open(fname, "w", encoding="utf8") as f:
 
-        for (query, value, kernel_sim, edit_sim) in zip(query_sents, value_sents, kernel_sims, edit_sims):
-            f.write(" ".join(query) + "\t" + " ".join(value) + "\t" + str(kernel_sim) + "\t" + str(edit_sim) + "\n")
+    #    for (query, value, kernel_sim, edit_sim) in zip(query_sents, value_sents, kernel_sims, edit_sims):
+    #        f.write(" ".join(query) + "\t" + " ".join(value) + "\t" + str(kernel_sim) + "\t" + str(edit_sim) + "\n")
 
-    print("Normalized mean kernel-similarity: {}; Normalized mean edit-similarity: {}".format(avg_kernel_sim,
-                                                                                              avg_edit_sims))
+    #print("Normalized mean kernel-similarity: {}; Normalized mean edit-similarity: {}".format(avg_kernel_sim,
+#                                                                                              avg_edit_sims))
 
 
 def node_height(token):
@@ -536,7 +544,6 @@ def perform_tests(query_words, k_value_words, k=1):
 
 def same_ancestor_deps(query, value):
     ancestors = set()
-
     token = query.doc[query.index]
     while token.dep_ != 'ROOT':
         ancestors.add(token.dep_)
@@ -548,9 +555,9 @@ def same_ancestor_deps(query, value):
     token = value[0].doc[value[0].index]
     while token.dep_ != 'ROOT':
         if token.dep_ in ancestors:
-            dep_dic_pos['pos_' + token.dep_] += 1
+            dep_dic_pos[token.dep_] += 1
         else:
-            dep_dic_neg['neg_' + token.dep_] += 1
+            dep_dic_neg[token.dep_] += 1
         token = token.head
     return dep_dic_pos, dep_dic_neg
 
@@ -565,7 +572,7 @@ def perform_same_dep_father_test(query_words, k_value_words):
         dep_dic_neg.update(neg_dic)
 
     for dep, pos in dep_dic_pos.items():
-        acc = float(pos) / (pos + dep_dic_neg['dep'])
+        acc = float(pos) / (pos + dep_dic_neg[dep])
         print("Percentage of same ancestor dep {0} : {1}".format(dep, acc))
 
 
@@ -642,7 +649,7 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
 
     print("Performing closest-word test. Using extractor: {}".format(extractor is not None))
 
-    data = words_reprs
+    data = copy.deepcopy(words_reprs)
 
     # if supplied with extractor, use it to project the vectors to the syntactic space.
     if extractor is not None:

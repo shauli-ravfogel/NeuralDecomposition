@@ -51,7 +51,7 @@ class Embedder(object):
 
     def get_data(self, wiki_path: str, num_sents: int) -> List[Tuple[List[np.ndarray], str]]:
         sentences = self._load_sents(wiki_path, num_sents)
-        embeddings_and_sents = self.run_embedder(sentences[:100])
+        embeddings_and_sents = self.run_embedder(sentences)
         return embeddings_and_sents
 
     def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[List[np.ndarray], str]]:
@@ -70,10 +70,7 @@ class EmbedElmo(Embedder):
     def _load_elmo(self, elmo_weights_path, elmo_options_path, device=0):
 
         print("Loading ELMO...")
-        # if device != -1:
         return ElmoEmbedder(elmo_options_path, elmo_weights_path, cuda_device=device)
-        # else:
-        #     return ElmoEmbedder(elmo_options_path, elmo_weights_path)
 
     def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[np.ndarray, str]]:
 
@@ -81,8 +78,15 @@ class EmbedElmo(Embedder):
 
         elmo_embeddings = []
 
+        temp_list = []
         for sent in tqdm(sentences, ascii=True):
-            elmo_embeddings.append((self.embedder.embed_sentence(sent), sent))
+            temp_list.append(sent)
+
+            if len(temp_list) > 500:
+                batch_embeds = self.embedder.embed_batch(temp_list)
+                for sent, emb in zip(temp_list, batch_embeds):
+                    elmo_embeddings.append((emb, sent))
+                temp_list = []
 
         all_embeddings = []
 
@@ -101,8 +105,6 @@ class EmbedElmo(Embedder):
 class EmbedBert(Embedder):
     def __init__(self, params: Dict, device: int = 0):
         Embedder.__init__(self)
-        #config = BertConfig(vocab_size_or_config_json_file=30522)
-        #bert_model = BertModel(config)
 
         bert_name = 'bert-large-uncased'
         bert_model = BertModel.from_pretrained(bert_name)
