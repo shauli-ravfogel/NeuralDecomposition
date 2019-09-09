@@ -31,28 +31,20 @@ Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('s
 def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
               ignore_function_words=True):
     """
-
         the main function for running the experiments & printing their results.
-
         ----------
         Parameters
-
         embds_and_sents: A list of tuples (sentence_vectors ,sentence_str).
-
         extractor: SyntacticExtractor, required.
                    An instance of the interface SyntacticExtractor that extracts syntactic representations.
-
         ----------
         Returns
         -------
         Reports results in the terminal. Produces the following txt files:
-
               closest_sentences.extractor:False.txt: contains the results of the closest-sentence test, berfore the application of the syntactic extractor. Format: query-sentence tab closest-sentence tab kernel-similarity tab edit-distance-similarity:
               closest_sentences.extractor:True.txt: as above, after the applciation of the syntactic extractor.
-
               closest_words.extractor:False.txt: contains the results of the closest-word test, berfore the application of the syntactic extractor. Format: query-word tab closest-word tab query-word-dep tab closest-word-dep tab correct.
               The full context of the sentence is provided, and the words are marked by ***asterisks***.
-
               losest_words.extractor:True.txt: as above, after the application of the syntactic extractor.
         """
 
@@ -271,13 +263,14 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
     query_vec = sent_vecs[index]
 
     all_vecs = [word_repr.word_vector for word_repr in all_word_reprs]
+    all_sents = [word_repr.sentence for word_repr in all_word_reprs]
 
     if extractor is not None:
         print("applying syntactic extractor")
         query_vec = extractor.extract(query_vec)
 
     closest = \
-    get_closest_vectors(np.array(all_vecs), query_vec.reshape(1, -1), method=method, k=k, ignore_same_vec=False)[0]
+    get_closest_vectors(np.array(all_vecs), query_vec.reshape(1, -1), all_sents, method=method, k=k, ignore_same_vec=False)[0]
     return [all_word_reprs[ind] for ind in closest]
 
 
@@ -303,15 +296,15 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
         sentence_vec = extractor.extract(sentence_vec)
 
     query_mean = np.mean(sentence_vec, axis=0, keepdims=True)
-
-    closest = get_closest_vectors(all_sentence_np, query_mean, method=method, k=k, ignore_same_vec=False)[0]
+    sents = [s.sentence_str for s in all_sentence]
+    
+    closest = get_closest_vectors(all_sentence_np, query_mean, sents, method=method, k=k, ignore_same_vec=False)[0]
     return [all_sentence[ind] for ind in closest]
 
 
 def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:
     """
         Parameters
-
         sentences: A list of sentence, where each sentence is a list of word strings.
         ----------
         Returns
@@ -341,7 +334,7 @@ def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:
     return all_docs
 
 
-def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], method: str, k=5, ignore_same_vec=True):
+def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5, ignore_same_vec=True, filter_same_sentence = True):
     if method == "cosine":
 
         # normalize the vectors
@@ -354,6 +347,16 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], m
     else:
         distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
 
+    if ignore_same_vec and filter_same_sentence:
+        
+                for i in range(distances.shape[0]):
+        
+                        for j in range(distances.shape[1]):
+
+                                if sents[i] == sents[j]:
+                        
+                                        distances[i,j] = 1e7
+                                        
     top_k = distances.argsort(axis=1)[:, :k + 1]
 
     if ignore_same_vec:
@@ -367,13 +370,10 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], m
 def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], str]]) -> List[Sentence_vector]:
     """
         Parameters
-
         embds_and_sents: A list of tuples (sents_vectors, sentence string)
         ----------
         Returns
-
         embds_sents_deps: A list of Sentence_vectors.
-
       """
 
     embds, sentences = list(zip(*embds_and_sents))
@@ -391,18 +391,13 @@ def sentences2words(sentence_representations: List[Sentence_vector],
                     num_words, ignore_function_words=True) -> List[Word_vector]:
     """
         Parameters
-
         sentence_representations: A list of Sentence_vector, required.
                         contains the representation of all sentences.
-
         num_words: int, required.
                 How many words to collect.
-
         ignore_function_words: bool, optional.
                    whether or not to filter function words.
-
         ----------
-
         Returns
         -------
         word_vectors: A list of Word_vector, containing selected words from all sentences.
@@ -436,19 +431,14 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
                           method="cosine"):
     """
         Parameters
-
         embds_sents_deps: A list of tuples (sents_vectors, sentence string, deps), required.
                         contains embeddings, sents and deps of all sentences.
-
         extractor: SyntacticExtractor, optional.
                    An instance of the interface SyntacticExtractor that extracts syntactic representations.
                    if None, use unmodified ELMO vectors. else, project each ELMO vectors using the extractor.
-
         num_queries:
                    how many closest-sentence queries to perform.
-
         method: str, optional (cosine / euc)
-
                 what kind of similarity function to use.
         ----------
         """
@@ -477,7 +467,7 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
     # perform closest_vector query.
 
     queries = vecs[:num_queries]
-    closest_indices = get_closest_vectors(vecs, queries, method=method, k=1)
+    closest_indices = get_closest_vectors(vecs, queries, sents, method=method, k=1)
 
     query_sents = [sents[i] for i in range(num_queries)]
     value_sents = [sents[closest_ind[0]] for closest_ind in closest_indices]
@@ -631,18 +621,13 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
                       k=5):
     """
         Parameters
-
         words_reprs: A list of Word_vector, required.
-
         extractor: SyntacticExtractor, optional.
                    An instance of the interface SyntacticExtractor that extracts syntactic representations.
                    if None, use unmodified ELMO vectors. else, project each ELMO vectors using the extractor.
-
         num_queries:
                    how many closest-sentence queries to perform.
-
         method: str, optional (cosine / euc)
-
                 what kind of similarity function to use.
         ----------
         """
@@ -659,10 +644,10 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     # collect word vectors
     vecs = [word_representation.word_vector for word_representation in data]
     vecs = np.array(vecs)
-
+    sents = [word_representation.sentence for word_representation in data]
     # perform closest_vector query.
     queries = vecs[:num_queries]
-    closest_indices = get_closest_vectors(vecs, queries, method=method, k=k)
+    closest_indices = get_closest_vectors(vecs, queries, sents, method=method, k=k)
 
     query_words = [data[i] for i in range(num_queries)]
 
