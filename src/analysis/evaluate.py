@@ -315,17 +315,18 @@ def parse(sentences: List[List[str]], batch_size = 5000) -> List[spacy.tokens.Do
     print("Parsing...")
  
     nlp = spacy.load('en_core_web_sm')
-
+    nlp.remove_pipe("ner")
+    
     print("Creating docs...")
     docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii = True)]
     
-    pipeline = [nlp.create_pipe("tagger"), nlp.create_pipe("parser")]
-    print("Applying pipeline...")
+    pipeline = [(name, proc) for name, proc in nlp.pipeline]
     
-    for component in pipeline:
+    for name, component in pipeline:
+        print("Applying {}...".format(name))
         docs = component.pipe(docs, batch_size = batch_size)
 
-    return docs
+    return list(docs)
 
 
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5, ignore_same_vec=True, filter_same_sentence = True):
