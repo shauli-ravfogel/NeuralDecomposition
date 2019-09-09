@@ -9,7 +9,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Equivalent sentences generator',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--input-wiki', dest='input_wiki', type=str,
-                        default='data/external/wiki.clean.250k',
+                        default='data/external/wiki.clean.1million.eval',
                         help='name of the source wikipedia text file')
     parser.add_argument('--encode_sentences', dest='encode_sentences', type=bool,
                         default=False,
