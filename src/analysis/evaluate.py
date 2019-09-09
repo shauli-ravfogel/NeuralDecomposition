@@ -302,7 +302,7 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
     return [all_sentence[ind] for ind in closest]
 
 
-def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:
+def parse(sentences: List[List[str]], batch_size = 5000) -> List[spacy.tokens.Doc]:
     """
         Parameters
         sentences: A list of sentence, where each sentence is a list of word strings.
@@ -313,25 +313,19 @@ def parse(sentences: List[List[str]]) -> List[spacy.tokens.Doc]:
         """
 
     print("Parsing...")
-
-    tokens_dict = {" ".join(sentence): sentence for sentence in sentences}
-
-    def custom_tokenizer(text):
-        return tokens_dict[text]
-
+ 
     nlp = spacy.load('en_core_web_sm')
 
-    all_docs = []
+    print("Creating docs...")
+    docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii = True)]
+    
+    pipeline = [nlp.create_pipe("tagger"), nlp.create_pipe("parser")]
+    print("Applying pipeline...")
+    
+    for component in pipeline:
+        docs = component.pipe(docs, batch_size = batch_size)
 
-    for sent in tqdm(sentences, ascii=True):
-
-        doc = spacy.tokens.Doc(vocab=nlp.vocab, words=sent)
-        for name, proc in nlp.pipeline:
-            doc = proc(doc)
-
-        all_docs.append(doc)
-
-    return all_docs
+    return docs
 
 
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5, ignore_same_vec=True, filter_same_sentence = True):
