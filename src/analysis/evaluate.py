@@ -345,7 +345,7 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], s
     print('building index')
     indexer = AnnoyIndex(all_vecs[0].shape[0], 'angular')
 
-    indexer_name = 'annoy_knn_' + str(all_vecs[0].shape[0])
+    indexer_name = 'annoy_knn_' + str(all_vecs[0].shape[0]) + '_n:' + str(len(all_vecs))
     if os.path.exists(indexer_name):
         indexer.load(indexer_name)
     else:
