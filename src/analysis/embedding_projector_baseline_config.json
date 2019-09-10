@@ -3,7 +3,7 @@
     {
       "tensorName": "ELMO-basline",
       "tensorShape": [
-        60000,
+        40000,
         2048
       ],
       "tensorPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/labels.original.40k.tsv",
