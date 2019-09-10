@@ -37,7 +37,7 @@ python src/linear_decomposition/main_views_collector.py \
 python src/linear_decomposition/main.py \
         --views-file-path data/interim/views/bert_base_layer_2M:-1 \
         --cca-dim 100 --enforce-symmetry 1 --cca-model numpy \
-        --output-file data/processed/models/cca:100_bert_base_layer:-1
+        --output-file data/processed/models/cca:100_bert_base_layer:-1.pickle
 # the above script creates a CCA model in the models directory. The file is named according to the arguments (cca-dim etc.)
 
 ### evaluation

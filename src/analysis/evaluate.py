@@ -20,6 +20,7 @@ from scipy.stats.stats import pearsonr
 from scipy.stats import entropy
 from collections import Counter, defaultdict
 import copy
+from annoy import AnnoyIndex
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
@@ -70,7 +71,6 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
 
     short_sen, long_sen = length_split(sentence_reprs)
     for split, name in zip([sentence_reprs, short_sen, long_sen], ['all', 'short', 'long']):
-
         print('running sentence eval on: {} split, num sen: {}'.format(name, len(split)))
         # closest-sentence, with ELMO alone (basline)
         closest_sentence_test(split, num_queries=num_queries, method=method, extractor=None)
@@ -110,7 +110,7 @@ def get_hard_pos(sentence_representations: List[Sentence_vector]) -> List[str]:
     dic = {}
     for k, v in norm_dic.items():
         probs = list(v.values())
-        #print(k, probs)
+        # print(k, probs)
         ent = entropy(probs)
         dic[k] = ent
 
@@ -269,8 +269,9 @@ def get_closest_word_demo(all_word_reprs: List[Word_vector], sentence: spacy.tok
         print("applying syntactic extractor")
         query_vec = extractor.extract(query_vec)
 
-    closest = \
-    get_closest_vectors(np.array(all_vecs), query_vec.reshape(1, -1), all_sents, method=method, k=k, ignore_same_vec=False)[0]
+    closest = get_closest_vectors(np.array(all_vecs), query_vec.reshape(1, -1),
+                                  all_sents, method=method, k=k,
+                            ignore_same_vec=False)[0]
     return [all_word_reprs[ind] for ind in closest]
 
 
@@ -297,12 +298,12 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
 
     query_mean = np.mean(sentence_vec, axis=0, keepdims=True)
     sents = [s.sentence_str for s in all_sentence]
-    
+
     closest = get_closest_vectors(all_sentence_np, query_mean, sents, method=method, k=k, ignore_same_vec=False)[0]
     return [all_sentence[ind] for ind in closest]
 
 
-def parse(sentences: List[List[str]], batch_size = 5000) -> List[spacy.tokens.Doc]:
+def parse(sentences: List[List[str]], batch_size=5000) -> List[spacy.tokens.Doc]:
     """
         Parameters
         sentences: A list of sentence, where each sentence is a list of word strings.
@@ -313,51 +314,73 @@ def parse(sentences: List[List[str]], batch_size = 5000) -> List[spacy.tokens.Do
         """
 
     print("Parsing...")
- 
+
     nlp = spacy.load('en_core_web_sm')
     nlp.remove_pipe("ner")
-    
+
     print("Creating docs...")
-    docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii = True)]
-    
+    docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii=True)]
+
     pipeline = [(name, proc) for name, proc in nlp.pipeline]
-    
+
     for name, component in pipeline:
         print("Applying {}...".format(name))
-        docs = component.pipe(docs, batch_size = batch_size)
+        docs = component.pipe(docs, batch_size=batch_size)
 
     return list(docs)
 
 
-def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5, ignore_same_vec=True, filter_same_sentence = True):
+def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5,
+                        ignore_same_vec=True, filter_same_sentence=True):
     if method == "cosine":
 
         # normalize the vectors
-        all_vecs = all_vecs / np.linalg.norm(all_vecs, axis=1)[:, None]
-        queries = queries / np.linalg.norm(queries, axis=1)[:, None]
+        # all_vecs = all_vecs / np.linalg.norm(all_vecs, axis=1)[:, None]
+        # queries = queries / np.linalg.norm(queries, axis=1)[:, None]
 
         # perform dot product
-        distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="cosine")
+        # distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="cosine")
+        indexer = AnnoyIndex(all_vecs[0].shape[0], 'angular')
+        for i in range(len(all_vecs)):
+            indexer.add_item(i, all_vecs[i])
 
-    else:
-        distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
+        indexer.build(100)  # 10 trees
+        indexer.save('annoy_knn.ann')
 
-    if ignore_same_vec and filter_same_sentence:
-        
-                for i in range(distances.shape[0]):
-        
-                        for j in range(distances.shape[1]):
+    # else:
+    #     distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
 
-                                if sents[i] == sents[j]:
-                        
-                                        distances[i,j] = 1e7
-                                        
-    top_k = distances.argsort(axis=1)[:, :k + 1]
-
-    if ignore_same_vec:
-        closest_indices = top_k[:, 1: k + 1]  # ignore the same vec
-    else:
-        closest_indices = top_k[:, 0: k]  # don't ignore the same vec
+    # if ignore_same_vec and filter_same_sentence:
+    #
+    #     for i in range(distances.shape[0]):
+    #         for j in range(distances.shape[1]):
+    #
+    #             if sents[i] == sents[j]:
+    #                 distances[i, j] = 1e7
+    #
+    # top_k = distances.argsort(axis=1)[:, :k + 1]
+    # start = 1 if ignore_same_vec else 0
+    # end = start + k
+    closest_indices = []
+    for ind, query in enumerate(queries):
+        # 100 is a random "large" number in order to be able to filter same sentences
+        closest = indexer.get_nns_by_vector(query, k + 100 + 1)
+        if filter_same_sentence:
+            filtered_closest = []
+            query_sent = sents[ind]
+            for closest_ind in closest:
+                if sents[closest_ind] == query_sent:
+                    continue
+                filtered_closest.append(closest_ind)
+            closest = filtered_closest
+        if ignore_same_vec:
+            if all_vecs[closest[0]] == queries[ind]:
+                closest.pop(0)
+        closest_indices.append(closest[:k])
+    # if ignore_same_vec:
+    #     closest_indices = top_k[:, 1: k + 1]  # ignore the same vec
+    # else:
+    #     closest_indices = top_k[:, 0: k]  # don't ignore the same vec
 
     return closest_indices
 
@@ -467,17 +490,19 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
     query_sents = [sents[i] for i in range(num_queries)]
     value_sents = [sents[closest_ind[0]] for closest_ind in closest_indices]
 
-    #kernel_sims, edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
-    #avg_kernel_sim = np.mean(kernel_sims)
-    #avg_edit_sims = np.mean(edit_sims)
+    # kernel_sims, edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
+    # avg_kernel_sim = np.mean(kernel_sims)
+    # avg_edit_sims = np.mean(edit_sims)
 
-    #fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
-    #with open(fname, "w", encoding="utf8") as f:
+    # fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
+    # with open(fname, "w", encoding="utf8") as f:
 
     #    for (query, value, kernel_sim, edit_sim) in zip(query_sents, value_sents, kernel_sims, edit_sims):
     #        f.write(" ".join(query) + "\t" + " ".join(value) + "\t" + str(kernel_sim) + "\t" + str(edit_sim) + "\n")
 
-    #print("Normalized mean kernel-similarity: {}; Normalized mean edit-similarity: {}".format(avg_kernel_sim,
+    # print("Normalized mean kernel-similarity: {}; Normalized mean edit-similarity: {}".format(avg_kernel_sim,
+
+
 #                                                                                              avg_edit_sims))
 
 
