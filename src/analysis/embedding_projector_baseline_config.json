@@ -6,8 +6,8 @@
         60000,
         2048
       ],
-      "tensorPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/labels.original.10k.tsv",
-      "metadataPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/vecs.original.10k.tsv"
+      "tensorPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/labels.original.40k.tsv",
+      "metadataPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/vecs.original.40k.tsv"
     }
   ]
 }
