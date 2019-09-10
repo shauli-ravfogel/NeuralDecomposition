@@ -349,7 +349,7 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], s
     if os.path.exists(indexer_name):
         indexer.load(indexer_name)
     else:
-        for i in range(len(all_vecs)):
+        for i in tqdm(range(len(all_vecs))):
             indexer.add_item(i, all_vecs[i])
 
         indexer.build(100)  # 10 trees
