@@ -21,6 +21,8 @@ from scipy.stats import entropy
 from collections import Counter, defaultdict
 import copy
 from annoy import AnnoyIndex
+import os
+
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
@@ -332,20 +334,26 @@ def parse(sentences: List[List[str]], batch_size=5000) -> List[spacy.tokens.Doc]
 
 def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5,
                         ignore_same_vec=True, filter_same_sentence=True):
-    if method == "cosine":
-
+    # if method == "cosine":
         # normalize the vectors
         # all_vecs = all_vecs / np.linalg.norm(all_vecs, axis=1)[:, None]
         # queries = queries / np.linalg.norm(queries, axis=1)[:, None]
 
         # perform dot product
         # distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="cosine")
-        indexer = AnnoyIndex(all_vecs[0].shape[0], 'angular')
+
+    print('building index')
+    indexer = AnnoyIndex(all_vecs[0].shape[0], 'angular')
+
+    indexer_name = 'annoy_knn_' + str(all_vecs[0].shape[0])
+    if os.path.exists(indexer_name):
+        indexer.load(indexer_name)
+    else:
         for i in range(len(all_vecs)):
             indexer.add_item(i, all_vecs[i])
 
         indexer.build(100)  # 10 trees
-        indexer.save('annoy_knn.ann')
+        indexer.save(indexer_name)
 
     # else:
     #     distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
@@ -362,7 +370,7 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], s
     # start = 1 if ignore_same_vec else 0
     # end = start + k
     closest_indices = []
-    for ind, query in enumerate(queries):
+    for ind, query in enumerate(tqdm(queries)):
         # 100 is a random "large" number in order to be able to filter same sentences
         closest = indexer.get_nns_by_vector(query, k + 100 + 1)
         if filter_same_sentence:
@@ -374,7 +382,7 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], s
                 filtered_closest.append(closest_ind)
             closest = filtered_closest
         if ignore_same_vec:
-            if all_vecs[closest[0]] == queries[ind]:
+            if np.array_equal(all_vecs[closest[0]], queries[ind]):
                 closest.pop(0)
         closest_indices.append(closest[:k])
     # if ignore_same_vec:
