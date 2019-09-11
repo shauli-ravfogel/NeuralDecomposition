@@ -100,7 +100,7 @@ def syntax_neutralization(sentence_representations: List[Sentence_vector], num_q
     dists_after = sklearn.metrics.pairwise_distances(queries, values, metric="euclidean")
 
     dists_total = dists_original - alpha * dists_after
-    sents = np.array([sentence_representations[i].sent_str for i in range(num_queries)])
+    sents = np.array([sentence_representations[i].sent_str for i in range(len(sentence_representations))], dtype = "object")
     k = 5
     top_k = dists_total.argsort(axis=1)[:, :k + 1]
     closest_indices = top_k[:, 0: k]
