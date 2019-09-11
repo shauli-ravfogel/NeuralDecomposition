@@ -105,7 +105,7 @@ def syntax_neutralization(sentence_representations: List[Sentence_vector], num_q
     top_k = dists_total.argsort(axis=1)[:, :k + 1]
     closest_indices = top_k[:, 0: k]
 
-    with open("sents.txt", "wb", encoding = "utf-8") as f:
+    with open("sents.txt", "w", encoding = "utf-8") as f:
       for i in range(num_queries):
 
         original = " ".join(sents[i])
