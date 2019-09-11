@@ -5,6 +5,9 @@ import torch.nn.functional as F
 from torch import nn
 import random
 
+
+CUDA = False
+
 class HardNegativeSampler(object):
 
     def __init__(self, k = 5):
@@ -37,9 +40,13 @@ class HardNegativeSampler(object):
 
         anchor_negative_dist = dists + max_anchor_negative_dist * (1 - mask_anchor_negative)
         k = int(np.random.choice(range(1, self.k + 1)))
+        #k=0
         hardest_negatives_idx = np.argpartition(anchor_negative_dist, k, axis = 1)[:,k]
+        hardest_negatives_idx2 = np.argmin(anchor_negative_dist, axis = 1)
 
         return hardest_positive_idx, hardest_negatives_idx
+
+        #return dists[range(len(dists)), hardest_positive_idx], dists[range(len(dists)), hardest_negatives_idx]
 
 
 def pairwise_distances(x, y=None):
@@ -117,11 +124,21 @@ class BatchHardTripletLoss2(torch.nn.Module):
 
         dists = torch.clamp(dists, min = 1e-7)
 
+
         hardest_positive_idx, hardest_negatives_idx = self.sampler.get_distances(labels.detach().cpu().numpy(), dists.detach().cpu().numpy())
-        hardest_positive_idx, hardest_negatives_idx = torch.tensor(hardest_positive_idx).cuda(), torch.tensor(hardest_negatives_idx).cuda()
+        hardest_positive_idx, hardest_negatives_idx = torch.tensor(hardest_positive_idx), torch.tensor(hardest_negatives_idx)
+        if CUDA:
+            hardest_positive_idx, hardest_negatives_idx = hardest_positive_idx.cuda(), hardest_negatives_idx.cuda()     
+
 
         hardest_negative_dist = dists.gather(1, hardest_negatives_idx.view(-1,1))
         hardest_positive_dist = dists.gather(1, hardest_positive_idx.view(-1,1))
+
+
+        #if not evaluation:
+        #    print(dists.requires_grad, hardest_positive_dist.requires_grad)
+
+        #exit()
 
         if evaluation and index == 0:
 
@@ -137,6 +154,7 @@ class BatchHardTripletLoss2(torch.nn.Module):
         differences = hardest_positive_dist - hardest_negative_dist
 
         if self.final == "plus":
+            print
             triplet_loss = torch.max(differences + self.alpha, torch.zeros_like(differences))
         elif self.final == "softplus":
             triplet_loss = F.softplus(differences, beta = 3)
@@ -149,8 +167,10 @@ class BatchHardTripletLoss2(torch.nn.Module):
         else:
             triplet_loss = hardest_positive_dist - hardest_negative_dist
 
+        #print(hardest_positive_dist[0], hardest_negative_dist[0], differences[0])
+        #exit()
         relevant = triplet_loss[triplet_loss > 1e-5]
-        good = (hardest_positive_dist < hardest_negative_dist).sum() #(triplet_loss < 1e-5).sum()
+        good = (differences < 0).sum() #(triplet_loss < 1e-5).sum()
         bad = batch.shape[0] - good
         mean_norm_squared = torch.mean(torch.norm(batch, dim = 1)**2)
 
