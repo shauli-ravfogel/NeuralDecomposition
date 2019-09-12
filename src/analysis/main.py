@@ -1,4 +1,4 @@
-from embedder import EmbedElmo, EmbedBert
+from embedder import EmbedElmo, EmbedBert, EmbedRandomElmo
 import pickle
 import evaluate
 import argparse
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--extractor_path', dest='extractor_path', type=str,
                         default="src/linear_decomposition/models/..", help='path to the fitted extractor model')
     parser.add_argument('--embedder_type', dest='embedder_type', type=str,
-                        default="elmo", help='elmo / bert')
+                        default="elmo", help='elmo / elmo_rand_lstm / elmo_rand_all / bert')
     args = parser.parse_args()
 
     # use already-collected representations
@@ -45,10 +45,15 @@ if __name__ == '__main__':
 
     # recalculate representations
     else:
-        if args.embedder_type == 'elmo':
-            options = {'elmo_options_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
-                       'elmo_weights_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5'}
+        embedder_type = args.embedder_type
+        options = {'elmo_options_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
+                   'elmo_weights_path': args.elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5'}
+        if embedder_type == 'elmo':
             embedder = EmbedElmo(options, device=args.cuda_device)
+        elif embedder_type == 'elmo_rand_lstm':
+            embedder = EmbedRandomElmo(options, device=args.cuda_device, random_emb=False, random_lstm=True)
+        elif embedder_type == 'elmo_rand_all':
+            embedder = EmbedRandomElmo(options, device=args.cuda_device, random_emb=True, random_lstm=True)
         else:
             embedder = EmbedBert({}, device=args.cuda_device)
         data = embedder.get_data(args.input_wiki, args.num_sents)

@@ -19,6 +19,8 @@ from allennlp.data.tokenizers.word_splitter import BertBasicWordSplitter
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.token_embedders.bert_token_embedder import BertEmbedder, PretrainedBertModel, PretrainedBertEmbedder
 
+from random_elmo import RandomElmoEmbedder
+
 import sys
 sys.path.append('src/generate_dataset')
 from collect_bert_states import BertLayerEmbedder
@@ -101,6 +103,20 @@ class EmbedElmo(Embedder):
     def _embedder(self, sentence):
         return self._embedder(sentence)
 
+
+class EmbedRandomElmo(EmbedElmo):
+    def __init__(self, params: Dict, random_emb, random_lstm, device: int = 0):
+
+        Embedder.__init__(self)
+        elmo_options_path = params['elmo_options_path']
+        elmo_weights_path = params['elmo_weights_path']
+        self.embedder = self._load_random_elmo(elmo_weights_path, elmo_options_path, random_emb, random_lstm, device=device)
+
+    def _load_random_elmo(self, elmo_weights_path, elmo_options_path, random_emb, random_lstm, device=0):
+
+        print("Loading Random ELMO...")
+        return RandomElmoEmbedder(elmo_options_path, elmo_weights_path, cuda_device=device,
+                                  random_emb=random_emb, random_lstm=random_lstm)
 
 class EmbedBert(Embedder):
     def __init__(self, params: Dict, device: int = 0):
