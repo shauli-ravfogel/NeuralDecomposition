@@ -90,6 +90,12 @@ class EmbedElmo(Embedder):
                     elmo_embeddings.append((emb, sent))
                 temp_list = []
 
+        if len(temp_list) > 0:
+            if len(temp_list) > 500:
+                batch_embeds = self.embedder.embed_batch(temp_list)
+                for sent, emb in zip(temp_list, batch_embeds):
+                    elmo_embeddings.append((emb, sent))
+
         all_embeddings = []
 
         for (sent_emn, sent_str) in elmo_embeddings:
