@@ -1,9 +1,9 @@
 {
   "embeddings": [
     {
-      "tensorName": "My tensor",
+      "tensorName": "sentence_ELMO-after",
       "tensorShape": [
-        1000,
+        21052,
         128
       ],
       "tensorPath": "https://raw.githubusercontent.com/Shaul1321/NeuralDecomposition/master/src/analysis/vecs_sents.tsv",
