@@ -62,7 +62,7 @@ if __name__ == '__main__':
         print(args.extractor_path)
         extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy=True)
     elif args.extractor == "triplet":
-            extractor = syntactic_extractor.TripletLossModelExtractor()
+            extractor = syntactic_extractor.TripletLossModelExtractor(args.extractor_path)
     else:
         raise NotImplementedError()
     # Run tests.
