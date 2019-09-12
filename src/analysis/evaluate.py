@@ -332,15 +332,8 @@ def parse(sentences: List[List[str]], batch_size=5000) -> List[spacy.tokens.Doc]
     return list(docs)
 
 
-def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5,
-                        ignore_same_vec=True, filter_same_sentence=True):
-    # if method == "cosine":
-        # normalize the vectors
-        # all_vecs = all_vecs / np.linalg.norm(all_vecs, axis=1)[:, None]
-        # queries = queries / np.linalg.norm(queries, axis=1)[:, None]
-
-        # perform dot product
-        # distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="cosine")
+def get_closest_vectors_efficient(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str],
+                                  method: str, k=5, ignore_same_vec=True, filter_same_sentence=True):
 
     print('building index')
     indexer = AnnoyIndex(all_vecs[0].shape[0], 'angular')
@@ -355,20 +348,6 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], s
         indexer.build(100)  # 10 trees
         indexer.save(indexer_name)
 
-    # else:
-    #     distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
-
-    # if ignore_same_vec and filter_same_sentence:
-    #
-    #     for i in range(distances.shape[0]):
-    #         for j in range(distances.shape[1]):
-    #
-    #             if sents[i] == sents[j]:
-    #                 distances[i, j] = 1e7
-    #
-    # top_k = distances.argsort(axis=1)[:, :k + 1]
-    # start = 1 if ignore_same_vec else 0
-    # end = start + k
     closest_indices = []
     for ind, query in enumerate(tqdm(queries)):
         # 100 is a random "large" number in order to be able to filter same sentences
@@ -385,10 +364,37 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], s
             if np.array_equal(all_vecs[closest[0]], queries[ind]):
                 closest.pop(0)
         closest_indices.append(closest[:k])
-    # if ignore_same_vec:
-    #     closest_indices = top_k[:, 1: k + 1]  # ignore the same vec
-    # else:
-    #     closest_indices = top_k[:, 0: k]  # don't ignore the same vec
+
+    return closest_indices
+
+
+def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5,
+                        ignore_same_vec=True, filter_same_sentence=True):
+    if method == "cosine":
+
+        # normalize the vectors
+        all_vecs = all_vecs / np.linalg.norm(all_vecs, axis=1)[:, None]
+        queries = queries / np.linalg.norm(queries, axis=1)[:, None]
+
+        # perform dot product
+        distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="cosine")
+
+    else:
+        distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
+
+    if ignore_same_vec and filter_same_sentence:
+
+        for i in range(distances.shape[0]):
+            for j in range(distances.shape[1]):
+                if sents[i] == sents[j]:
+                    distances[i, j] = 1e7
+
+    top_k = distances.argsort(axis=1)[:, :k + 1]
+
+    if ignore_same_vec:
+        closest_indices = top_k[:, 1: k + 1]  # ignore the same vec
+    else:
+        closest_indices = top_k[:, 0: k]  # don't ignore the same vec
 
     return closest_indices
 
