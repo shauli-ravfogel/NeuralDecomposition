@@ -4,7 +4,7 @@ import pickle
 import torch
 
 sys.path.append("src/linear_decomposition/")
-
+sys.path.append("src/triplet2/")
 
 class SyntacticExtractor(object):
 

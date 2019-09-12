@@ -57,7 +57,7 @@ def extract_syntax(embeddings: torch.FloatTensor) -> torch.FloatTensor:
     pass
 
 
-@Model.register("constituency_parser")
+@Model.register("constituency_parser_syn")
 class SpanConstituencyParser(Model):
     """
     This ``SpanConstituencyParser`` simply encodes a sequence of text
