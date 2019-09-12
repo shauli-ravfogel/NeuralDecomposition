@@ -81,6 +81,47 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
         closest_sentence_test(split, num_queries=num_queries, method=method, extractor=extractor)
 
 
+        
+def syntax_neutralization(sentence_representations: List[Sentence_vector], num_queries, extractor, alpha = 5):
+
+    # collect scores on unmodified vectors. Those are assumed to capture mainly semantics.
+
+    values = [np.mean(sent_repr.sent_vectors, axis = 0) for sent_repr in sentence_representations]
+    queries = values[:num_queries]
+    dists_original = sklearn.metrics.pairwise_distances(queries, values, metric="euclidean")
+
+    # collect scores on modified vectors.
+
+    values = copy.deepcopy(sentence_representations)
+    for i, sent in enumerate(values):
+        values[i] = np.mean(extractor.extract(sent.sent_vectors), axis = 0)
+
+    queries = values[:num_queries]
+    dists_after = sklearn.metrics.pairwise_distances(queries, values, metric="euclidean")
+
+    dists_total = dists_original - alpha * dists_after
+    sents = np.array([sentence_representations[i].sent_str for i in range(len(sentence_representations))], dtype = "object")
+    k = 5
+    top_k = dists_total.argsort(axis=1)[:, :k + 1]
+    closest_indices = top_k[:, 0: k]
+
+    with open("sents.txt", "w", encoding = "utf-8") as f:
+      for i in range(num_queries):
+
+        original = " ".join(sents[i])
+        f.write(original + "\n")
+        f.write("========================================\n")
+        closest_idx = closest_indices[i]
+        closest_sents = sents[closest_idx]
+
+        for j in range(k):
+
+            f.write(" ".join(closest_sents[j]) + "\n")
+            f.write("-------------------------------------\n")
+    
+        
+        
+        
 def split_pos(words_reprs: List[Word_vector], hard_pos: List[str]) -> List[Word_vector]:
     filtered_words = []
 
