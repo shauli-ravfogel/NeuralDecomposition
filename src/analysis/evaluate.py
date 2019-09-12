@@ -80,7 +80,42 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
         # closest-sentence, with ELMO + syntactic extractor
         closest_sentence_test(split, num_queries=num_queries, method=method, extractor=extractor)
 
+        
+        
+        
+        
+        
+def choose_words_from_sents(sent_reprs, extractor, n = 10000):
 
+    sents_data = random.choices(sent_reprs, k=n)
+
+    # Apply syntactic extractor
+
+    if extractor is not None:
+
+        print("Applying syntactic extractor...")
+
+        for i, sent_repr in tqdm(enumerate(sents_data), total=len(sents_data), ascii=True):
+            sents_data[i] = sent_repr._replace(
+                sent_vectors = extractor.extract(sent_repr.sent_vectors))
+                
+    # choose words
+    data = []
+    
+    for sent in sents_data:
+    
+        i = np.random.choice(range(len(sent.sent_str)))
+        vec = sent.sent_vectors[i].reshape(-1)
+        word = sent.sent_str[i]
+        words = sent.sent_str
+        doc = sent.doc
+        data.append(Word_vector(vec.copy(), words, doc, i))
+        
+    return data
+  
+  
+  
+  
         
 def syntax_neutralization(sentence_representations: List[Sentence_vector], num_queries, extractor, alpha = 5):
 
