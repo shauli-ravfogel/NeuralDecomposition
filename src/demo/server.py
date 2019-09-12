@@ -18,19 +18,18 @@ from evaluate import get_closest_sentence_demo, get_closest_word_demo, get_sente
 from embedder import EmbedElmo, EmbedBert
 import syntactic_extractor
 import copy
-app = Flask(__name__)
-CORS(app)
 
 nlp = spacy.load('en_core_web_sm')
 
 #with open("/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/interim/encoded_elmo_50k.pickle", "rb") as f:
 with open("/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/interim/encoded_elmo.pickle", "rb") as f:
     data = pickle.load(f)
-sentence_reprs = get_sentence_representations(data)
-# with open("sent_rep_500k.pickle", "wb") as f:
-#     pickle.dump(sentence_reprs, f)
-#with open("sent_rep.pickle", "rb") as f:
-#    sentence_reprs = pickle.load(f)
+#sentence_reprs = get_sentence_representations(data)
+#with open("sent_rep_100k.pickle", "wb") as f:
+#    pickle.dump(sentence_reprs, f)
+#exit(0)
+with open("sent_rep.pickle", "rb") as f:
+    sentence_reprs = pickle.load(f)
 
 elmo_folder = 'data/external/'
 options = {'elmo_options_path': elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
@@ -40,6 +39,7 @@ extractor_path = '/home/nlp/ravfogs/neural_decomposition/src/linear_decompositio
 
 words_reprs = sentences2words(sentence_reprs, num_words=100000,
                               ignore_function_words=True)
+print('word reps len {}'.format(len(words_reprs)))
 
 extractor = syntactic_extractor.CCASyntacticExtractor(extractor_path, numpy=False)
 
@@ -87,6 +87,8 @@ def get_logger(model_dir):
 
 
 logger = get_logger('./logs/')
+app = Flask(__name__)
+CORS(app)
 
 
 def get_token_for_char(doc, char_idx):
@@ -147,6 +149,9 @@ def get_nearest_word(text):
     doc = nlp(''.join(text_split))
     token_ind = get_token_for_char(doc, ind)
     doc = nlp(text)
+
+    print(doc)
+    print(token_ind)
 
     closest_word_baseline = get_closest_word_demo(words_reprs, doc, token_ind, embedder, extractor=None, k=5,
                                                   method='l2')

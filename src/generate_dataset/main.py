@@ -82,13 +82,13 @@ if __name__ == '__main__':
                            elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
                            args.cuda_device, layers)
     elif random_state == 'lstm':
-        model = model.Elmo(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
+        model = model.ElmoRandom(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
                            elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
-                           args.cuda_device, rand_emb=False, rand_lstm=True)
+                           args.cuda_device, rand_emb=False, rand_lstm=True, layers=layers)
     elif random_state == 'all':
-        model = model.Elmo(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
+        model = model.ElmoRandom(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
                            elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
-                           args.cuda_device, rand_emb=True, rand_lstm=True)
+                           args.cuda_device, rand_emb=True, rand_lstm=True, layers=layers)
     else:
         raise NotImplementedError('need to chose of the available random states')
 

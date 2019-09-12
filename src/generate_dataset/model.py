@@ -31,11 +31,12 @@ class Elmo(ModelInterface):
 
 class ElmoRandom(ModelInterface):
 
-    def __init__(self, elmo_options, elmo_weights, cuda_device, rand_emb, rand_lstm):
+    def __init__(self, elmo_options, elmo_weights, cuda_device, rand_emb, rand_lstm, layers):
         options_file = elmo_options
         weight_file = elmo_weights
         self.elmo = RandomElmoEmbedder(options_file, weight_file, cuda_device=cuda_device,
-                                       rand_emb=rand_emb, rand_lstm=rand_lstm)
+                                       random_emb=rand_emb, random_lstm=rand_lstm)
+        self.layers = layers
 
     def run(self, sents):
         embeddings = self.elmo.embed_batch(sents)
