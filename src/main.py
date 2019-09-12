@@ -1,43 +1,31 @@
-import torch
-import torch.optim as optim
-from allennlp.common.file_utils import cached_path
-from allennlp.data.iterators import BasicIterator
-from allennlp.data.vocabulary import Vocabulary
-from allennlp.modules.feedforward import FeedForward
-from allennlp.nn.activations import Activation
-from allennlp.training.trainer import Trainer
-from framework.dataset_readers.data_reader import DataReader
-from framework.models.siamese_norm import SiameseModel
+import json
+import shutil
+import sys
 
-torch.manual_seed(1)
+from allennlp.commands import main
 
-reader = DataReader()
-# augmented
-# sample
-dir_path = '/home/lazary/workspace/thesis/tree-extractor/data/'
-train_dataset = reader.read(cached_path(dir_path + 'small_train'))
-validation_dataset = reader.read(cached_path(dir_path + 'small_dev'))
-vocab = Vocabulary.from_instances(train_dataset + validation_dataset)
-EMBEDDING_DIM = 6
-HIDDEN_DIM = 6
-scorer = FeedForward(1024, num_layers=2,
-                     hidden_dims=[150, 2], activations=[Activation.by_name('tanh')(),
-                                                        Activation.by_name('linear')()],
-                     dropout=0.2)
-representer = FeedForward(1024, num_layers=2,
-                          hidden_dims=[512, 1024], activations=[Activation.by_name('tanh')(),
-                                                                Activation.by_name('linear')()],
-                          dropout=0.2)
-model = SiameseModel(representer)
+config_file = "src/few_shots/experiments/random_lstm.json"
 
-optimizer = optim.Adam(model.parameters(), lr=0.0001)
-iterator = BasicIterator(batch_size=2)
-iterator.index_with(vocab)
-trainer = Trainer(model=model,
-                  optimizer=optimizer,
-                  iterator=iterator,
-                  train_dataset=train_dataset,
-                  validation_dataset=validation_dataset,
-                  patience=10,
-                  num_epochs=1000)
-trainer.train()
+# Use overrides to train on CPU.
+overrides = json.dumps({"trainer": {"cuda_device": -1}})
+
+serialization_dir = "../allen_logs/cons_random/"
+
+# Training will fail if the serialization directory already
+# has stuff in it. If you are running the same training loop
+# over and over again for debugging purposes, it will.
+# Hence we wipe it out in advance.
+# BE VERY CAREFUL NOT TO DO THIS FOR ACTUAL TRAINING!
+shutil.rmtree(serialization_dir, ignore_errors=True)
+
+# Assemble the command into sys.argv
+sys.argv = [
+    "allennlp",  # command name, not used by main
+    "train",
+    config_file,
+    "-s", serialization_dir,
+    "--include-package", "cons_random",
+    "-o", overrides,
+]
+
+main()

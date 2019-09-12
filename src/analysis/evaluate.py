@@ -374,10 +374,10 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
     if extractor is not None:
         sentence_vec = extractor.extract(sentence_vec)
 
-    query_mean = np.mean(sentence_vec, axis=0, keepdims=True)
+    # query_mean = np.mean(sentence_vec, axis=0, keepdims=True)
     sents = [s.sentence_str for s in all_sentence]
 
-    closest = get_closest_vectors(all_sentence_np, query_mean, sents, method=method, k=k, ignore_same_vec=False)[0]
+    closest = get_closest_vectors(all_sentence_np, sentence_vec, sents, method=method, k=k, ignore_same_vec=False)[0]
     return [all_sentence[ind] for ind in closest]
 
 
