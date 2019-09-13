@@ -636,7 +636,10 @@ def get_tests() -> List[Dict]:
              {'func': lambda x: x.doc[x.index].pos_, 'name': 'pos'},
              {'func': lambda x: x.doc[x.index].tag_, 'name': 'tag'},
              {'func': lambda x: x.doc[x.index].head.dep_, 'name': 'head\'s dependency edge'},
-             {'func': lambda x: x.doc[x.index].i, 'name': 'index'}]
+             {'func': lambda x: x.doc[x.index].i, 'name': 'index'}, 
+             {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:], 'name': 'constituency-path-length=until root'},
+             {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:4], 'name': 'constituency-path-length=3'},
+             {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:3], 'name': 'constituency-path-length=2'}]
 
     return tests
 
