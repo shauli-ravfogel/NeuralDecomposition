@@ -261,7 +261,7 @@ def persist_for_tsne(word_reprs, extractor, n=10000):
             
 def gat_constituency_path_to_root(tree: nltk.Tree, leaf_index: int) -> List[str]:
     
-    parented_tree = nltk.nltk.tree.ParentedTree.convert(tree)
+    parented_tree = nltk.tree.ParentedTree.convert(tree)
     labels = []
     path_to_leaf = parented_tree.leaf_treeposition(leaf_index)
     path_to_leaf_POS = path_to_leaf[:-1]
