@@ -257,6 +257,23 @@ def persist_for_tsne(word_reprs, extractor, n=10000):
         for word_labels in labels:
             f.write(word_labels + "\n")
 
+            
+def gat_constituency_path_to_root(tree: nltk.Tree, leaf_index: int) -> List[str]:
+    
+    labels = []
+    path_to_leaf = tree.leaf_treeposition(leaf_index)
+    path_to_leaf_POS = path_to_leaf[:-1]
+    
+    current, is_root = tree[path_to_leaf_POS], False
+    
+    while current is not None:
+        
+        labels.append(current.label())
+        current = current.parent()
+        
+    return labels[:-1]
+  
+  
 
 def get_path_to_root(word: Word_vector):
     word = word.doc[word.index]
