@@ -4,12 +4,12 @@ import sys
 
 from allennlp.commands import main
 
-config_file = "src/few_shots/experiments/random_lstm.json"
+config_file = "few_shots/experiments/constituency_baseline.json"
 
 # Use overrides to train on CPU.
 overrides = json.dumps({"trainer": {"cuda_device": -1}})
 
-serialization_dir = "../allen_logs/cons_random/"
+serialization_dir = "../allen_logs/const_base/"
 
 # Training will fail if the serialization directory already
 # has stuff in it. If you are running the same training loop
@@ -24,7 +24,7 @@ sys.argv = [
     "train",
     config_file,
     "-s", serialization_dir,
-    "--include-package", "cons_random",
+    "--include-package", "few_shots",
     "-o", overrides,
 ]
 
