@@ -12,7 +12,7 @@
     },
     "train_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/parsing/train",
     "validation_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/parsing/dev" ,
-    "test_data_path": "/home/lazary/workspace/thesis/NeuralDecomposition/data/parsing/test" ,
+    "test_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/parsing/test" ,
   "evaluate_on_test": true,
     "model": {
       "type": "constituency_parser_syn",
@@ -72,7 +72,7 @@
       "grad_norm": 5.0,
       "patience": 20,
       "validation_metric": "+evalb_f1_measure",
-      "cuda_device": 1,
+      "cuda_device": 2,
       "optimizer": {
         "type": "adadelta",
         "lr": 1.0,
