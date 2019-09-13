@@ -41,7 +41,7 @@ if __name__ == '__main__':
     # use already-collected representations
     if (not args.encode_sentences) and args.encoded_data != '':
         with open(args.encoded_data, "rb") as f:
-            data = pickle.load(f)
+            sentence_reprs = pickle.load(f)
 
     # recalculate representations
     else:
@@ -57,9 +57,10 @@ if __name__ == '__main__':
         else:
             embedder = EmbedBert({}, device=args.cuda_device)
         data = embedder.get_data(args.input_wiki, args.num_sents)
-
+        sentence_reprs = evaluate.get_sentence_representations(data)
+        
         with open(args.encoded_data, "wb") as f:
-            pickle.dump(data, f)
+            pickle.dump(sentence_reprs, f)
 
     if args.extractor == "cca":
         extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy=False)
@@ -71,5 +72,5 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError()
     # Run tests.
-    evaluate.run_tests(data, extractor, num_queries=args.num_queries, method=args.method,
+    evaluate.run_tests(sentence_reprs, extractor, num_queries=args.num_queries, method=args.method,
                        num_words=args.num_words, ignore_function_words=True)
