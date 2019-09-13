@@ -22,6 +22,7 @@ from collections import Counter, defaultdict
 import copy
 from annoy import AnnoyIndex
 import os
+import nltk
 
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
@@ -260,11 +261,12 @@ def persist_for_tsne(word_reprs, extractor, n=10000):
             
 def gat_constituency_path_to_root(tree: nltk.Tree, leaf_index: int) -> List[str]:
     
+    parented_tree = nltk.nltk.tree.ParentedTree.convert(tree)
     labels = []
-    path_to_leaf = tree.leaf_treeposition(leaf_index)
+    path_to_leaf = parented_tree.leaf_treeposition(leaf_index)
     path_to_leaf_POS = path_to_leaf[:-1]
     
-    current, is_root = tree[path_to_leaf_POS], False
+    current, is_root = parented_tree[path_to_leaf_POS], False
     
     while current is not None:
         
