@@ -6,8 +6,8 @@
         12000,
         256
       ],
-      "tensorPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/vecs.tsv",
-      "metadataPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/labels.tsv"
+      "tensorPath": "https://raw.githubusercontent.com/Shaul1321/NeuralDecomposition/master/src/analysis/vecs.tsv",
+	      "metadataPath": "https://raw.githubusercontent.com/Shaul1321/NeuralDecomposition/master/src/analysis/labels.tsv"
     }
   ]
 }
