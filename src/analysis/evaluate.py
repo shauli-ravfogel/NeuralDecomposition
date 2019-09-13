@@ -26,12 +26,12 @@ import os
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
-                                     ("doc", spacy.tokens.Doc)])
+                                     ("doc", spacy.tokens.Doc), ("tree", nltk.Tree)])
 Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('sentence', List[str]),
-                                                ("doc", spacy.tokens.Doc), ("index", int)])
+                                                ("doc", spacy.tokens.Doc), ("index", int), ("tree", nltk.Tree)])
 
 
-def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
+def run_tests(sentence_reprs: List[Sentence_vector], extractor, num_queries, method, num_words,
               ignore_function_words=True):
     """
         the main function for running the experiments & printing their results.
@@ -51,7 +51,6 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
               losest_words.extractor:True.txt: as above, after the application of the syntactic extractor.
         """
 
-    sentence_reprs = get_sentence_representations(embds_and_sents)  # sentence representatons
     words_reprs = sentences2words(sentence_reprs, num_words=num_words,
                                   ignore_function_words=ignore_function_words)  # words representatons
 
@@ -381,7 +380,7 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
     return [all_sentence[ind] for ind in closest]
 
 
-def parse(sentences: List[List[str]], batch_size=5000) -> List[spacy.tokens.Doc]:
+def parse(sentences: List[List[str]], batch_size = 5000) -> Tuple[List[spacy.tokens.Doc], List[nltk.Tree]]:
     """
         Parameters
         sentences: A list of sentence, where each sentence is a list of word strings.
@@ -392,20 +391,29 @@ def parse(sentences: List[List[str]], batch_size=5000) -> List[spacy.tokens.Doc]
         """
 
     print("Parsing...")
-
+ 
     nlp = spacy.load('en_core_web_sm')
     nlp.remove_pipe("ner")
-
+    
     print("Creating docs...")
-    docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii=True)]
-
+    docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii = True)]
+    
     pipeline = [(name, proc) for name, proc in nlp.pipeline]
-
+    
     for name, component in pipeline:
         print("Applying {}...".format(name))
-        docs = component.pipe(docs, batch_size=batch_size)
+        docs = component.pipe(docs, batch_size = batch_size)
+    
+    docs = list(docs)
+    import tensorflow as tf
+    import benepar
+    parser = benepar.Parser("benepar_en2")
+    print("Running benepar parser...")
+    with tf.device('/gpu:0'):
 
-    return list(docs)
+        trees = list(parser.parse_sents(sentences))
+    
+    return docs, trees
 
 
 def get_closest_vectors_efficient(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str],
