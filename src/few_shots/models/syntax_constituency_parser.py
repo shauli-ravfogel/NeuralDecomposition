@@ -117,7 +117,7 @@ class SpanConstituencyParser(Model):
 
         self.tag_projection_layer = TimeDistributed(Linear(output_dim, self.num_classes))
 
-        representation_dim = text_field_embedder.get_output_dim()
+        representation_dim = text_field_embedder.get_output_dim() * 2
         if pos_tag_embedding is not None:
             representation_dim += pos_tag_embedding.get_output_dim()
         check_dimensions_match(representation_dim,

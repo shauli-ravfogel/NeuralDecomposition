@@ -93,9 +93,10 @@ class ElmoTokenEmbedder(TokenEmbedder):
         ``(batch_size, timesteps, embedding_dim)``
         """
         elmo_output = self._elmo(inputs, word_inputs)
-
-        elmo_representations = torch.cat([x for x in elmo_output['elmo_representations'][1:]])
-
+        #import pdb
+        #pdb.set_trace()
+        elmo_representations = torch.cat([x for x in elmo_output['elmo_representations'][1:]], dim=2)
+        #print(elmo_representations.shape)
         return elmo_representations
 
     # Custom vocab_to_cache logic requires a from_params implementation.
