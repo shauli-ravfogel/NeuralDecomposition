@@ -24,6 +24,9 @@ from allennlp.training.metrics import CategoricalAccuracy
 from allennlp.training.metrics import EvalbBracketingScorer, DEFAULT_EVALB_DIR
 from allennlp.common.checks import ConfigurationError
 
+from src.analysis.triplet_extractor import TripletExtractor
+
+
 class SpanInformation(NamedTuple):
     """
     A helper namedtuple for handling decoding information.
@@ -97,6 +100,7 @@ class SpanConstituencyParser(Model):
                  text_field_embedder: TextFieldEmbedder,
                  span_extractor: SpanExtractor,
                  encoder: Seq2SeqEncoder,
+                 syntactic_extractor_path: str = None,
                  feedforward: FeedForward = None,
                  pos_tag_embedding: Embedding = None,
                  initializer: InitializerApplicator = InitializerApplicator(),
@@ -116,6 +120,11 @@ class SpanConstituencyParser(Model):
             output_dim = span_extractor.get_output_dim()
 
         self.tag_projection_layer = TimeDistributed(Linear(output_dim, self.num_classes))
+
+        if syntactic_extractor_path is not None:
+            self.syntax_extractor = TripletExtractor(syntactic_extractor_path)
+        else:
+            self.syntax_extractor = None
 
         representation_dim = text_field_embedder.get_output_dim() * 2
         if pos_tag_embedding is not None:
@@ -200,6 +209,10 @@ class SpanConstituencyParser(Model):
             A scalar loss to be optimised.
         """
         embedded_text_input = self.text_field_embedder(tokens)
+
+        if self.syntax_extractor is not None:
+            embedded_text_input = self.syntax_extractor.extract_syntax(embedded_text_input)
+
         if pos_tags is not None and self.pos_tag_embedding is not None:
             embedded_pos_tags = self.pos_tag_embedding(pos_tags)
             embedded_text_input = torch.cat([embedded_text_input, embedded_pos_tags], -1)

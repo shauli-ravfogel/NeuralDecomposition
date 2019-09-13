@@ -16,6 +16,7 @@
   "evaluate_on_test": true,
     "model": {
       "type": "constituency_parser_syn",
+      "syntactic_extractor_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/src/triplet/models/TripletModel.pickle",
       "text_field_embedder": {
         "token_embedders": {
             "elmo": {
