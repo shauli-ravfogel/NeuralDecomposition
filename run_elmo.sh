@@ -19,6 +19,12 @@ python src/generate_dataset/main.py --input-wiki data/interim/wikipedia.sample.t
         --substitutions-type bert --elmo_folder data/external \
         --cuda-device 0 --dataset-type all --layers 1,2
 
+python src/generate_dataset/main.py \
+    --output-data data/interim/encoded_elmo/encoded_rand_lstm_sents.hdf5 \
+    --substitutions-file /home/nlp/ravfogs/neural_decomposition/data/interim/sents_updated.pickle \
+    --cuda-device 2 --random lstm
+
+
 ## collect views for CCA
 
 python src/linear_decomposition/main_views_collector.py \
