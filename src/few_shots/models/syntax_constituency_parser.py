@@ -24,7 +24,7 @@ from allennlp.training.metrics import CategoricalAccuracy
 from allennlp.training.metrics import EvalbBracketingScorer, DEFAULT_EVALB_DIR
 from allennlp.common.checks import ConfigurationError
 
-from src.analysis.triplet_extractor import TripletExtractor
+from analysis.triplet_extractor import TripletExtractor
 
 
 class SpanInformation(NamedTuple):
@@ -129,14 +129,14 @@ class SpanConstituencyParser(Model):
         representation_dim = text_field_embedder.get_output_dim() * 2
         if pos_tag_embedding is not None:
             representation_dim += pos_tag_embedding.get_output_dim()
-        check_dimensions_match(representation_dim,
-                               encoder.get_input_dim(),
-                               "representation dim (tokens + optional POS tags)",
-                               "encoder input dim")
-        check_dimensions_match(encoder.get_output_dim(),
-                               span_extractor.get_input_dim(),
-                               "encoder input dim",
-                               "span extractor input dim")
+        #check_dimensions_match(representation_dim,
+        #                       encoder.get_input_dim(),
+        #                       "representation dim (tokens + optional POS tags)",
+        #                       "encoder input dim")
+        #check_dimensions_match(encoder.get_output_dim(),
+        #                       span_extractor.get_input_dim(),
+        #                       "encoder input dim",
+        #                       "span extractor input dim")
         if feedforward is not None:
             check_dimensions_match(span_extractor.get_output_dim(),
                                    feedforward.get_input_dim(),

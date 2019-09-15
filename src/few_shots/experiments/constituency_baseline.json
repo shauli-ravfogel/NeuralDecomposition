@@ -27,10 +27,6 @@
             }
         }
       },
-      "pos_tag_embedding":{
-        "embedding_dim": 50,
-        "vocab_namespace": "pos"
-      },
       "initializer": [
         ["tag_projection_layer.*weight", {"type": "xavier_normal"}],
         ["feedforward_layer.*weight", {"type": "xavier_normal"}],
@@ -39,7 +35,7 @@
       ],
       "encoder": {
         "type": "lstm",
-        "input_size": 2098,
+        "input_size": 2048,
         "hidden_size": 250,
         "num_layers": 2,
         "bidirectional": true,
@@ -72,7 +68,7 @@
       "grad_norm": 5.0,
       "patience": 20,
       "validation_metric": "+evalb_f1_measure",
-      "cuda_device": 2,
+      "cuda_device": 1,
       "optimizer": {
         "type": "adadelta",
         "lr": 1.0,
