@@ -23,6 +23,7 @@ from allennlp.nn.util import masked_softmax, get_lengths_from_binary_sequence_ma
 from allennlp.training.metrics import CategoricalAccuracy
 from allennlp.training.metrics import EvalbBracketingScorer, DEFAULT_EVALB_DIR
 from allennlp.common.checks import ConfigurationError
+from allennlp.commands.elmo import ElmoEmbedder
 
 from analysis.triplet_extractor import TripletExtractor
 
@@ -126,6 +127,12 @@ class SpanConstituencyParser(Model):
         else:
             self.syntax_extractor = None
 
+        self.use_raw_tokens = True
+        if self.use_raw_tokens:
+            options_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
+            weight_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+            self.elmo = ElmoEmbedder(options_file, weight_file, cuda_device=0)
+
         representation_dim = text_field_embedder.get_output_dim() * 2
         if pos_tag_embedding is not None:
             representation_dim += pos_tag_embedding.get_output_dim()
@@ -154,6 +161,7 @@ class SpanConstituencyParser(Model):
     @overrides
     def forward(self,  # type: ignore
                 tokens: Dict[str, torch.LongTensor],
+                tokens_raw: List[List[str]],
                 spans: torch.LongTensor,
                 metadata: List[Dict[str, Any]],
                 pos_tags: Dict[str, torch.LongTensor] = None,
@@ -171,6 +179,8 @@ class SpanConstituencyParser(Model):
             sequence.  The dictionary is designed to be passed directly to a ``TextFieldEmbedder``,
             which knows how to combine different word representations into a single vector per
             token in your input.
+        tokens_raw: List[List[str], required
+            List of lists of strings. This is the raw version of tokens.
         spans : ``torch.LongTensor``, required.
             A tensor of shape ``(batch_size, num_spans, 2)`` representing the
             inclusive start and end indices of all possible spans in the sentence.
@@ -208,7 +218,10 @@ class SpanConstituencyParser(Model):
         loss : ``torch.FloatTensor``, optional
             A scalar loss to be optimised.
         """
-        embedded_text_input = self.text_field_embedder(tokens)
+        if self.use_raw_tokens:
+            embedded_text_input = self.elmo.embed_batch(tokens_raw)
+        else:
+            embedded_text_input = self.text_field_embedder(tokens)
 
         if self.syntax_extractor is not None:
             embedded_text_input = self.syntax_extractor.extract_syntax(embedded_text_input)
