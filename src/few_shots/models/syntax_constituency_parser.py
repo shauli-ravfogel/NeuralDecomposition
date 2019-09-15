@@ -161,7 +161,6 @@ class SpanConstituencyParser(Model):
     @overrides
     def forward(self,  # type: ignore
                 tokens: Dict[str, torch.LongTensor],
-                tokens_raw: List[List[str]],
                 spans: torch.LongTensor,
                 metadata: List[Dict[str, Any]],
                 pos_tags: Dict[str, torch.LongTensor] = None,
@@ -179,8 +178,6 @@ class SpanConstituencyParser(Model):
             sequence.  The dictionary is designed to be passed directly to a ``TextFieldEmbedder``,
             which knows how to combine different word representations into a single vector per
             token in your input.
-        tokens_raw: List[List[str], required
-            List of lists of strings. This is the raw version of tokens.
         spans : ``torch.LongTensor``, required.
             A tensor of shape ``(batch_size, num_spans, 2)`` representing the
             inclusive start and end indices of all possible spans in the sentence.
@@ -219,7 +216,7 @@ class SpanConstituencyParser(Model):
             A scalar loss to be optimised.
         """
         if self.use_raw_tokens:
-            embedded_text_input = self.elmo.embed_batch(tokens_raw)
+            embedded_text_input = self.elmo.embed_batch([meta["tokens"] for meta in metadata])
         else:
             embedded_text_input = self.text_field_embedder(tokens)
 
