@@ -7,6 +7,7 @@ https://github.com/allenai/allennlp/blob/master/training_config/constituency_par
 from typing import Dict, Tuple, List, Optional, NamedTuple, Any
 from overrides import overrides
 
+import numpy as np
 import torch
 from torch.nn.modules.linear import Linear
 from nltk import Tree
@@ -158,6 +159,14 @@ class SpanConstituencyParser(Model):
             self._evalb_score = None
         initializer(self)
 
+    def fill_blanks(self, encoded_sents):
+        vecs = []
+        for i in range(len(encoded_sents)):
+            sent_embs = np.concatenate([encoded_sents[i][layer] for layer in [1, 2]], axis=1)
+            vecs.append(torch.tensor(sent_embs))
+
+        return torch.nn.utils.rnn.pad_sequence(vecs, batch_first=True)
+
     @overrides
     def forward(self,  # type: ignore
                 tokens: Dict[str, torch.LongTensor],
@@ -216,7 +225,12 @@ class SpanConstituencyParser(Model):
             A scalar loss to be optimised.
         """
         if self.use_raw_tokens:
-            embedded_text_input = self.elmo.embed_batch([meta["tokens"] for meta in metadata])
+            raw_tokens = [meta["tokens"] for meta in metadata]
+            res = self.elmo.embed_batch(raw_tokens)
+            embedded_text_input = self.fill_blanks(res)
+            # tensors = [torch.tensor([x]) for x in filled_res]
+            import pdb; pdb.set_trace()
+            # embedded_text_input = torch.cat(tensors, dim=0)
         else:
             embedded_text_input = self.text_field_embedder(tokens)
 
