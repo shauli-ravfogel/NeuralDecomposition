@@ -16,22 +16,17 @@
   "evaluate_on_test": true,
     "model": {
       "type": "constituency_parser_syn",
-      "syntactic_extractor_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/src/triplet/models/TripletModel.pickle",
       "text_field_embedder": {
         "token_embedders": {
             "elmo": {
                 "type": "layer_elmo_token_embedder",
-                "dropout": 0,
+                "dropout": 0.2,
                 "options_file": "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json",
                 "weight_file": "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5",
                 "do_layer_norm": false
             }
         }
       },
-      //"pos_tag_embedding":{
-      //  "embedding_dim": 50,
-      //  "vocab_namespace": "pos"
-      //},
       "initializer": [
         ["tag_projection_layer.*weight", {"type": "xavier_normal"}],
         ["feedforward_layer.*weight", {"type": "xavier_normal"}],
@@ -39,15 +34,11 @@
         ["encoder._module.weight_hh.*", {"type": "orthogonal"}]
       ],
       "encoder": {
-        "type": "lstm",
-        "input_size": 128,
-        "hidden_size": 250,
-        "num_layers": 2,
-        "bidirectional": true,
-        "dropout": 0.0
+        "type": "pass_through",
+        "input_dim": 2048,
       },
       "feedforward": {
-        "input_dim": 500,
+        "input_dim": 2048,
         "num_layers": 1,
         "hidden_dims": 250,
         "activations": "relu",
@@ -55,7 +46,7 @@
       },
       "span_extractor": {
         "type": "bidirectional_endpoint",
-        "input_dim": 500
+        "input_dim": 2048
       }
     },
     "iterator": {
@@ -77,6 +68,7 @@
       "optimizer": {
         "type": "adam",
         //"lr": 1.0,
+        //"rho": 0.95
       }
     }
   }

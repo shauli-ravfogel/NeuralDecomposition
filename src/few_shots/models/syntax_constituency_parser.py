@@ -228,8 +228,9 @@ class SpanConstituencyParser(Model):
             raw_tokens = [meta["tokens"] for meta in metadata]
             res = self.elmo.embed_batch(raw_tokens)
             embedded_text_input = self.fill_blanks(res)
+            embedded_text_input = embedded_text_input.cuda()
             # tensors = [torch.tensor([x]) for x in filled_res]
-            import pdb; pdb.set_trace()
+            #import pdb; pdb.set_trace()
             # embedded_text_input = torch.cat(tensors, dim=0)
         else:
             embedded_text_input = self.text_field_embedder(tokens)
