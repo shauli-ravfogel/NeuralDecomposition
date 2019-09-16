@@ -40,7 +40,6 @@ class PadCollate:
         del Y
 
         return (X_padded, Y_padded, np.array(X_str), np.array(Y_str), lengths, sent_ids)
-        return {"X": X_padded, "Y": Y_padded, "X_str": X_str, "Y_str": Y_str, "lengths": lengths}
 
     def __call__(self, batch):
         return self.pad_collate(batch)

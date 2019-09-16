@@ -4,7 +4,7 @@ import pickle
 import torch
 
 sys.path.append("src/linear_decomposition/")
-
+sys.path.append("src/triplet2/")
 
 class SyntacticExtractor(object):
 
@@ -31,6 +31,28 @@ class SiameseSyntacticExtractor(SyntacticExtractor):
         raise NotImplementedError
 
 
+class TripletLossModelExtractor(SyntacticExtractor):
+
+    def __init__(self, path_to_model):
+        SyntacticExtractor.__init__(self)
+        with open(path_to_model, "rb") as f:
+            self.model = pickle.load(f)
+
+        self.model.eval()
+        self.model.cuda()
+
+    def extract(self, contextualized_vector: np.ndarray) -> np.ndarray:
+        x = torch.from_numpy(contextualized_vector).float()[:].cuda()
+
+        if len(x.shape) == 1:
+            x = x.unsqueeze(0)
+
+        with torch.no_grad():
+            x, h = self.model.process(x)
+
+        return h.detach().cpu().numpy()
+
+
 class CCASyntacticExtractor(SyntacticExtractor):
 
     def __init__(self, path_to_model, numpy=True):
@@ -47,6 +69,7 @@ class CCASyntacticExtractor(SyntacticExtractor):
         if self.numpy:
             return self.cca(inp, training=False)
         else:
+            # print(inp.shape)
             return self.cca.transform(inp)
 
 

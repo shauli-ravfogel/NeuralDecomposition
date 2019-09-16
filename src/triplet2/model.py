@@ -31,7 +31,7 @@ class Siamese(nn.Module):
         self.self_attention = self_attention
         self.cca_network = cca_network
         self.word_dropout = word_dropout
-        self.pair_repr = "diff"
+        self.pair_repr = "abs-diff"
         layer_sizes = [dim, final_dim]
         layers = []
 
@@ -87,9 +87,9 @@ class Siamese(nn.Module):
         w3 = batch_transformed2[row_idx, l, :].squeeze()
         w4 = batch_transformed2[row_idx, m, :].squeeze()
 
-        #p1 = self.pair2vec(w2, w1)
-        #p2 = self.pair2vec(w4, w3)
-        #return (p1, p2)
+        p1 = self.pair2vec(w2, w1)
+        p2 = self.pair2vec(w4, w3)
+        return (p1, p2)
 
         return (w1, w3) if np.random.random() < 0.5 else (w2, w4)
 
@@ -98,9 +98,9 @@ class Siamese(nn.Module):
 
         transformed1 = self.layers(sent_vecs1)
         transformed2 = self.layers(sent_vecs2)
-
-        transformed1 = self.self_attention_layer(transformed1, transformed1, transformed1)
-        transformed2 = self.self_attention_layer(transformed2, transformed2, transformed2)
+        att_mask = (torch.arange(transformed1.shape[1])[None, :] < lengths[:, None]).float()
+        transformed1 = self.self_attention_layer(transformed1, transformed1, transformed1, mask = att_mask)
+        transformed2 = self.self_attention_layer(transformed2, transformed2, transformed2, mask = att_mask)
         p1, p2 = self.process_batch(transformed1, transformed2, lengths)
 
         return p1, p2

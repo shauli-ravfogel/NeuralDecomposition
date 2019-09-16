@@ -19,7 +19,7 @@ DEFAULT_PARAMS = {"file_name": "resources/wikipedia.sample.tokenized",
 
 
 def read_sentences(fname):
-    with open(fname, "r") as f:
+    with open(fname, "r", encoding = "utf-8") as f:
         lines = f.readlines()
 
     splitted = [line.strip().split(" ") for line in lines]

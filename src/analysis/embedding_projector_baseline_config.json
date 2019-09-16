@@ -1,0 +1,13 @@
+{
+  "embeddings": [
+    {
+      "tensorName": "ELMO-basline",
+      "tensorShape": [
+        40000,
+        2048
+      ],
+      "tensorPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/labels.original.40k.tsv",
+      "metadataPath": "http://nlp.biu.ac.il/~ravfogs/neural_decomposition/vecs.original.40k.tsv"
+    }
+  ]
+}
