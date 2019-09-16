@@ -120,7 +120,8 @@ class BertEmbedder(Embedder):
                 #self.model = BertForMaskedLM.from_pretrained('bert-base-uncased', output_hidden_states = True, output_attentions = True)
                 self.model.eval()
                 self.model.to('cuda:{}'.format(self.cuda_device))
-                self.layers = layers                
+                self.layers = layers 
+                self.use_mean = not isinstance(layers, list)
 
         def _tokenize(self, original_sentence: List[str]) -> Tuple[List[str], Dict[int, int]]:
     
@@ -161,7 +162,10 @@ class BertEmbedder(Embedder):
                 
                          bert_tokens, orig_to_tok_map = self._tokenize(sent)
                          sent_len = len(sent)
-                         embeddings = np.zeros((sent_len, len(self.layers) * 1024))
+                         if not self.use_mean:
+                            embeddings = np.zeros((num_sents, sent_len, len(self.layers) * 1024))
+                         else:
+                            embeddings = np.zeros((num_sents, sent_len, 1024))                         
                          indexed_tokens = self.tokenizer.convert_tokens_to_ids(bert_tokens)
                          tokens_tensor = torch.tensor([indexed_tokens]).to('cuda:{}'.format(self.cuda_device)) 
                            
@@ -169,8 +173,12 @@ class BertEmbedder(Embedder):
 
                                 all_hidden_states, all_attentions = self.model(tokens_tensor)[-2:]
          
-                                layers = [all_hidden_states[layer].squeeze() for layer in self.layers]
-                                vecs = torch.cat(layers, dim = 1).detach().cpu().numpy()
+                                if not self.use_mean:
+                                    layers = [all_hidden_states[layer].squeeze() for layer in self.layers]
+                                    vecs = torch.cat(layers, dim = 1).detach().cpu().numpy()
+ 
+                                else:
+                                    vecs = torch.mean(torch.cat(all_hidden_states, dim = 0), dim = 0).detach().cp
 
                                 for j in range(sent_len):  
                                         
