@@ -40,7 +40,8 @@ class Bert(ModelInterface):
                 #self.model = BertForMaskedLM.from_pretrained('bert-base-uncased', output_hidden_states = True, output_attentions = True)
                 self.model.eval()
                 self.model.to('cuda:{}'.format(self.cuda_device))
-                self.layers = layers                
+                self.layers = layers
+                self.use_mean = not isinstance(layers, list)                
 
         def _tokenize(self, original_sentence: List[str]) -> Tuple[List[str], Dict[int, int]]:
     
@@ -74,8 +75,12 @@ class Bert(ModelInterface):
         def run(self, sents: np.ndarray):
         
                 num_sents, sent_len = sents.shape
-                embeddings = np.zeros((num_sents, sent_len, len(self.layers) * 1024))
                 
+                if not self.use_mean:
+                    embeddings = np.zeros((num_sents, sent_len, len(self.layers) * 1024))
+                else:
+                    embeddings = np.zeros((num_sents, sent_len, 1024))
+ 
                 for i, sent in enumerate(sents):
                 
                         bert_tokens, orig_to_tok_map = self._tokenize(sent)
@@ -89,14 +94,21 @@ class Bert(ModelInterface):
                                 #first_hidden = all_hidden_states[1].squeeze()#.detach().cpu().numpy()
                                 #middle_hidden = all_hidden_states[int(len(all_hidden_states)/2)].squeeze()#.detach().cpu().numpy()
                                 
-                                layers = [all_hidden_states[layer].squeeze() for layer in self.layers]
-                                vecs = torch.cat(layers, dim = 1).detach().cpu().numpy()
+                                if not self.use_mean:
+                                    layers = [all_hidden_states[layer].squeeze() for layer in self.layers]
+                                    vecs = torch.cat(layers, dim = 1).detach().cpu().numpy()
+ 
+                                else:
+                                    vecs = torch.mean(torch.cat(all_hidden_states, dim = 0), dim = 0).detach().cpu().numpy()
 
                                 for j in range(sent_len):  
                                         
                                         embeddings[i,j] = vecs[orig_to_tok_map[j]]
   
                 return embeddings
+
+
+
 
 class ElmoRandom(ModelInterface):
 
