@@ -607,17 +607,17 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
     query_sents = [sentence_representations[i] for i in range(num_queries)]
     value_sents = [sentence_representations[closest_ind[0]] for closest_ind in closest_indices]
 
-    edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
-    #avg_kernel_sim = np.mean(kernel_sims)
-    avg_edit_sims = np.mean(edit_sims)
+    kernel_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
+    avg_kernel_sim = np.mean(kernel_sims)
+    #avg_edit_sims = np.mean(edit_sims)
 
     fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
     with open(fname, "w", encoding="utf8") as f:
 
-        for (query, value, edit_sim) in zip(query_sents, value_sents, edit_sims):
-            f.write(" ".join(query.sent_str) + "\t" + " ".join(value.sent_str) + "\t" + str(edit_sim) + "\n")
+        for (query, value, kernel_sim) in zip(query_sents, value_sents, kernel_sims):
+            f.write(" ".join(query.sent_str) + "\t" + " ".join(value.sent_str) + "\t" + str(kernel_sim) + "\n")
 
-    print("Normalized mean edit-similarity: {}".format(avg_edit_sims))
+    print("Normalized mean kernel-similarity: {}".format(avg_kernel_sim))
 
 
 def node_height(token):
