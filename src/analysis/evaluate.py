@@ -615,7 +615,7 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
     with open(fname, "w", encoding="utf8") as f:
 
         for (query, value, edit_sim) in zip(query_sents, value_sents, edit_sims):
-            f.write(" ".join(query) + "\t" + " ".join(value) + "\t" + str(edit_sim) + "\n")
+            f.write(" ".join(query.sent_str) + "\t" + " ".join(value.sent_str) + "\t" + str(edit_sim) + "\n")
 
     print("Normalized mean edit-similarity: {}".format(avg_edit_sims))
 
