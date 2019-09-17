@@ -5,7 +5,7 @@ from utils import DEFAULT_PARAMS
 
 FUNCTION_WORDS = DEFAULT_PARAMS["function_words"]
 sys.path.append('src/analysis/tree_distance')
-
+import tree_similarity
 from typing import List, Tuple, Dict
 import typing
 from syntactic_extractor import SyntacticExtractor
