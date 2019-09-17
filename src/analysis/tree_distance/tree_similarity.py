@@ -17,17 +17,17 @@ def _get_tree_size(tree):
 
 
 def get_similarity_scores(sents_lst_1, sents_lst_2):
-    kernel_similarities = []
 
-    print("Creating trees...")
-    trees_lst = [(_create_tree(s1), _create_tree(s2)) for (s1, s2) in
-                 tqdm(zip(sents_lst_1, sents_lst_2), total=len(sents_lst_1))]
-    print("Calculating kernel similarities...")
-    kernel_similarities = [_kernel_similarity(t1, t2) for (t1, t2) in tqdm(trees_lst, total=len(trees_lst))]
-    print("Calculating edit distance similarities...")
-    edit_similarities = [_edit_distance_similarity(t1, t2) for (t1, t2) in tqdm(trees_lst, total=len(trees_lst))]
-
-    return (kernel_similarities, edit_similarities)
+        kernel_similarities = []
+        
+        print("Creating trees...")
+        trees_lst = [(s1.tree, s2.tree) for (s1,s2) in zip(sents_lst_1,sents_lst_2)]
+        #print("Calculating kernel similarities...")
+        #kernel_similarities = [_kernel_similarity(t1,t2) for (t1,t2) in tqdm(trees_lst, total = len(trees_lst))]
+        print("Calculating edit distance similarities...")
+        edit_similarities = [_edit_distance_similarity(t1, t2) for (t1, t2) in tqdm(trees_lst, total = len(trees_lst))]
+        return edit_similarities
+        #return (kernel_similarities, edit_similarities)
 
 
 def _create_tree(sentence, remove_leaves=True):
