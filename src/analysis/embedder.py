@@ -109,6 +109,89 @@ class EmbedElmo(Embedder):
         return self._embedder(sentence)
 
 
+class BertEmbedder(Embedder):
+
+        def __init__(self, device, layers="mean"):
+        
+                self.cuda_device = device
+                self.tokenizer = BertTokenizer.from_pretrained('bert-large-uncased-whole-word-masking')
+                self.model = BertForMaskedLM.from_pretrained('bert-large-uncased-whole-word-masking', output_hidden_states = True, output_attentions = True)
+                #self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+                #self.model = BertForMaskedLM.from_pretrained('bert-base-uncased', output_hidden_states = True, output_attentions = True)
+                self.model.eval()
+                self.model.to('cuda:{}'.format(self.cuda_device))
+                self.layers = layers
+                self.use_mean = not isinstance(layers, list)           
+
+        def _tokenize(self, original_sentence: List[str]) -> Tuple[List[str], Dict[int, int]]:
+    
+                """
+                Parameters
+                ----------
+                Returns
+                -------
+                bert_tokens: The sentence, tokenized by BERT tokenizer.
+                orig_to_tok_map: An output dictionary consisting of a mapping (alignment) between indices in the original tokenized sentence, and indices in the sentence tokenized by the BERT tokenizer. See https://github.com/google-research/bert
+                """
+
+                bert_tokens = ["[CLS]"]
+                orig_to_tok_map = {}
+                has_subwords = False
+                is_subword = []
+        
+                for i, w in enumerate(original_sentence):
+            
+                        tokenized_w = self.tokenizer.tokenize(w)
+                        has_subwords = len(tokenized_w) > 1
+                        is_subword.append(has_subwords)
+                        bert_tokens.extend(tokenized_w)
+            
+                        orig_to_tok_map[i] = len(bert_tokens) - 1
+                  
+                bert_tokens.append("[SEP]")
+        
+                return (bert_tokens, orig_to_tok_map)
+
+        def run_embedder(self, sentences: List[List[str]]) -> List[Tuple[np.ndarray, str]]:
+
+                print("Running BERT...")
+
+                bert_embeddings = []
+                
+                for sent in tqdm(sentences, ascii=True):
+                
+                         bert_tokens, orig_to_tok_map = self._tokenize(sent)
+                         sent_len = len(sent)
+                        
+                         if not self.use_mean:
+                                embeddings = np.zeros((sent_len, len(self.layers) * 1024))
+                         else:
+                                embeddings = np.zeros((sent_len, 1024))
+                    
+                    
+                         indexed_tokens = self.tokenizer.convert_tokens_to_ids(bert_tokens)
+                         tokens_tensor = torch.tensor([indexed_tokens]).to('cuda:{}'.format(self.cuda_device)) 
+                           
+                         with torch.no_grad():
+
+                                all_hidden_states, all_attentions = self.model(tokens_tensor)[-2:]
+                                
+                                if not self.use_mean:
+                                    layers = [all_hidden_states[layer].squeeze() for layer in self.layers]
+                                    vecs = torch.cat(layers, dim = 1).detach().cpu().numpy()
+ 
+                                else:
+                                    vecs = torch.mean(torch.cat(all_hidden_states, dim = 0), dim = 0).detach().cpu().numpy()
+                                for j in range(sent_len):  
+                                        
+                                        embeddings[j] = vecs[orig_to_tok_map[j]]
+                         
+                         bert_embeddings.append((embeddings, sent))     
+
+                return bert_embeddings   
+    
+    
+    
 class EmbedRandomElmo(EmbedElmo):
     def __init__(self, params: Dict, random_emb, random_lstm, device: int = 0):
 

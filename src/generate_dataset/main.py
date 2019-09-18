@@ -40,15 +40,18 @@ if __name__ == '__main__':
                         help='cuda device to run the LM on')
     parser.add_argument('--dataset-type', dest='dataset_type', type=str, default="all",
                         help='all / pairs')
-    parser.add_argument('--layers', '--list', dest="list", help='list of ELMO layers to include', type=str,
+    parser.add_argument('--layers', '--list', dest="layers", help='list of ELMO layers to include', type=str,
                         default="1,2")
     parser.add_argument('--random', dest="random", type=str,
                         default="none", help='type of randomness applied to elmos layers: [none | lstm | all]')
 
     args = parser.parse_args()
 
-    layers = [int(item) for item in args.list.split(',')]
-
+    if args.layers != "mean":
+        layers = [int(item) for item in args.layers.split(',')]
+    else:
+        layers = "mean"
+        
     # If no substitution file is provided, need to build these
     if args.substitution_file == '':
 
@@ -91,7 +94,12 @@ if __name__ == '__main__':
                            args.cuda_device, rand_emb=True, rand_lstm=True, layers=layers)
     else:
         raise NotImplementedError('need to chose of the available random states')
-
+    
+    USE_ELMO = False
+    if not USE_ELMO:
+      print("Using BERT")
+      model = model.Bert(args.cuda_device, layers = layers) 
+      
     if args.dataset_type == "pairs":
         model_runner = TuplesModelRunner(model, equivalent_sentences, args.output_data, persist=True)
     else:

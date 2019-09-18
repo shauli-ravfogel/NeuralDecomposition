@@ -5,7 +5,7 @@ from utils import DEFAULT_PARAMS
 
 FUNCTION_WORDS = DEFAULT_PARAMS["function_words"]
 sys.path.append('src/analysis/tree_distance')
-
+import tree_similarity
 from typing import List, Tuple, Dict
 import typing
 from syntactic_extractor import SyntacticExtractor
@@ -604,23 +604,20 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
     queries = vecs[:num_queries]
     closest_indices = get_closest_vectors(vecs, queries, sents, method=method, k=1)
 
-    query_sents = [sents[i] for i in range(num_queries)]
-    value_sents = [sents[closest_ind[0]] for closest_ind in closest_indices]
+    query_sents = [sentence_representations[i] for i in range(num_queries)]
+    value_sents = [sentence_representations[closest_ind[0]] for closest_ind in closest_indices]
 
-    # kernel_sims, edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
-    # avg_kernel_sim = np.mean(kernel_sims)
-    # avg_edit_sims = np.mean(edit_sims)
+    kernel_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
+    avg_kernel_sim = np.mean(kernel_sims)
+    #avg_edit_sims = np.mean(edit_sims)
 
-    # fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
-    # with open(fname, "w", encoding="utf8") as f:
+    fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
+    with open(fname, "w", encoding="utf8") as f:
 
-    #    for (query, value, kernel_sim, edit_sim) in zip(query_sents, value_sents, kernel_sims, edit_sims):
-    #        f.write(" ".join(query) + "\t" + " ".join(value) + "\t" + str(kernel_sim) + "\t" + str(edit_sim) + "\n")
+        for (query, value, kernel_sim) in zip(query_sents, value_sents, kernel_sims):
+            f.write(" ".join(query.sent_str) + "\t" + " ".join(value.sent_str) + "\t" + str(kernel_sim) + "\n")
 
-    # print("Normalized mean kernel-similarity: {}; Normalized mean edit-similarity: {}".format(avg_kernel_sim,
-
-
-#                                                                                              avg_edit_sims))
+    print("Normalized mean kernel-similarity: {}".format(avg_kernel_sim))
 
 
 def node_height(token):
