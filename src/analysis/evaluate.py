@@ -23,7 +23,10 @@ import copy
 from annoy import AnnoyIndex
 import os
 import nltk
+import matplotlib
+matplotlib.use('tkagg')
 from MulticoreTSNE import MulticoreTSNE as FAST_TSNE
+import matplotlib.pyplot as plt
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
