@@ -23,7 +23,7 @@ import copy
 from annoy import AnnoyIndex
 import os
 import nltk
-
+from MulticoreTSNE import MulticoreTSNE as FAST_TSNE
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
@@ -843,8 +843,9 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     print("calculating projection...")
 
-    proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
-
+    #proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
+    proj = FAST_TSNE(n_jobs=4, n_components = 2, random_state = 0, metric = metric, verbose = 1, n_iter = 1000).fit_transform(embeddings)
+        
     fig, ax = plt.subplots()
 
     xs, ys = proj[:, 0], proj[:, 1]
@@ -882,5 +883,5 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     title += "\n        (#words: {}; applied syntactic extractor: {}; metric: {})".format(num_vecs,
                                                                                           extractor is not None, metric)
-    ax.set_title(title)
+    #ax.set_title(title)
     plt.show()
