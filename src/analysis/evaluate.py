@@ -85,7 +85,19 @@ def run_tests(sentence_reprs: List[Sentence_vector], extractor, num_queries, met
 
 
 
+def record_dep_confusion(queries, values):
 
+        dep2values = defaultdict(list)
+        
+        for (query, value) in zip(queries, values):
+        
+                dep_query, dep_value = query.doc[query.index].dep_, value.doc[value.index].dep_
+                if dep_query != dep_value:
+                        dep2values[dep_query].append((dep_value, query, value))
+        
+        with open("confusion.pickle", "wb") as f:
+        
+                pickle.dump(dep2values, f)
 
 
 def choose_words_from_sents(sent_reprs, extractor, n = 10000):
@@ -795,7 +807,9 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     for i in range(k):
         value_words = [data[closest_ind[i]] for closest_ind in closest_indices]
         k_value_words.append(value_words)
-
+        if i == 0:
+                record_dep_confusion(query_words, value_words)
+            
     # exact match
     perform_tests(query_words, k_value_words, k=1)
 
