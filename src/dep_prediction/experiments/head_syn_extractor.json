@@ -24,6 +24,13 @@
                 "do_layer_norm": false
             }
         }
+      },
+      "feedforward": {
+        "input_dim": 256,
+        "num_layers": 2,
+        "hidden_dims": [200, 1],
+        "activations": ["relu" ,"linear"],
+        "dropout": 0.1
       }
     },
     "iterator": {

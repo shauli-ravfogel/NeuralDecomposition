@@ -63,12 +63,14 @@ class DependencyModel(Model):
     def __init__(self,
                  vocab: Vocabulary,
                  text_field_embedder: TextFieldEmbedder,
-                 syntactic_extractor_path: str = None) -> None:
+                 syntactic_extractor_path: str = None,
+                 feedforward: FeedForward = None,) -> None:
         super().__init__(vocab)
 
         self.text_field_embedder = text_field_embedder
         self.num_classes = self.vocab.get_vocab_size("labels")
-        self.bilinear = BilinearSimilarity(128, 128)
+        # self.bilinear = BilinearSimilarity(300, 300)
+        self.feedforward_layer = feedforward
 
         if syntactic_extractor_path is not None:
             self.syntax_extractor = TripletExtractor(syntactic_extractor_path)
@@ -140,7 +142,12 @@ class DependencyModel(Model):
                                                       index.view(-1, 1)
                                                       .unsqueeze(2).repeat(1, 1, embedded_text_input.shape[-1])).squeeze(1)
 
-        logits = self.bilinear(embedded_text_input, selected_indices.unsqueeze(1))
+        bs = index.shape[0]
+        sentence_size = embedded_text_input.shape[1]
+        emb_size = embedded_text_input.shape[-1]
+        reprs = torch.cat([embedded_text_input, selected_indices.unsqueeze(1).expand(bs, sentence_size, emb_size)], dim=2)
+
+        logits = self.feedforward_layer(reprs).squeeze(2)
 
         y_hat = torch.argmax(logits, dim=1)
 

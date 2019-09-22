@@ -5,6 +5,7 @@
 			"elmo": {
 		    	"type": "elmo_characters"
     		}
+//        "tokens": { "type": "single_id" }
       }
     },
     "train_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/dep_parsing/train.txt",
@@ -23,6 +24,18 @@
                 "do_layer_norm": false
             }
         }
+//        "tokens": {
+//            "type": "embedding",
+//            "embedding_dim": 300,
+//            "trainable": false
+//        }
+      },
+      "feedforward": {
+        "input_dim": 2048,
+        "num_layers": 2,
+        "hidden_dims": [200, 1],
+        "activations": ["relu" ,"linear"],
+        "dropout": 0.1
       }
     },
     "iterator": {
