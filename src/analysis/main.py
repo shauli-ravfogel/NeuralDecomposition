@@ -58,7 +58,7 @@ if __name__ == '__main__':
         elif embedder_type == 'elmo_rand_all':
             embedder = EmbedRandomElmo(options, device=args.cuda_device, random_emb=True, random_lstm=True)
         else:
-            embedder = EmbedBert({}, device=args.cuda_device, layers = layers)
+            embedder = BertEmbedder(device=args.cuda_device, layers = layers)
         data = embedder.get_data(args.input_wiki, args.num_sents)
         sentence_reprs = evaluate.get_sentence_representations(data)
         
