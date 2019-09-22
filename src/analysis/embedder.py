@@ -178,6 +178,8 @@ class BertEmbedder(Embedder):
 
                                     mean_vecs = torch.mean(torch.cat(all_hidden_states, dim = 0), dim = 0)#.detach().cpu().numpy()
                                     vecs = torch.cat((vecs, mean_vecs), dim = 1)
+                                
+                                vecs = vecs.detach().cpu().numpy()
 
                                 for j in range(sent_len):  
                                         
