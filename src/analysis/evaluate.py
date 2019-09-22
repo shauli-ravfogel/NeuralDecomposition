@@ -23,7 +23,10 @@ import copy
 from annoy import AnnoyIndex
 import os
 import nltk
-
+import matplotlib
+matplotlib.use('tkagg')
+from MulticoreTSNE import MulticoreTSNE as FAST_TSNE
+import matplotlib.pyplot as plt
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
@@ -82,7 +85,19 @@ def run_tests(sentence_reprs: List[Sentence_vector], extractor, num_queries, met
 
 
 
+def record_dep_confusion(queries, values):
 
+        dep2values = defaultdict(list)
+        
+        for (query, value) in zip(queries, values):
+        
+                dep_query, dep_value = query.doc[query.index].dep_, value.doc[value.index].dep_
+                if dep_query != dep_value:
+                        dep2values[dep_query].append((dep_value, query, value))
+        
+        with open("confusion.pickle", "wb") as f:
+        
+                pickle.dump(dep2values, f)
 
 
 def choose_words_from_sents(sent_reprs, extractor, n = 10000):
@@ -795,7 +810,9 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     for i in range(k):
         value_words = [data[closest_ind[i]] for closest_ind in closest_indices]
         k_value_words.append(value_words)
-
+        if i == 0:
+                record_dep_confusion(query_words, value_words)
+            
     # exact match
     perform_tests(query_words, k_value_words, k=1)
 
@@ -846,8 +863,9 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     print("calculating projection...")
 
-    proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
-
+    #proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
+    proj = FAST_TSNE(n_jobs=4, n_components = 2, random_state = 0, metric = metric, verbose = 1, n_iter = 1000).fit_transform(embeddings)
+        
     fig, ax = plt.subplots()
 
     xs, ys = proj[:, 0], proj[:, 1]
@@ -885,5 +903,5 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     title += "\n        (#words: {}; applied syntactic extractor: {}; metric: {})".format(num_vecs,
                                                                                           extractor is not None, metric)
-    ax.set_title(title)
+    #ax.set_title(title)
     plt.show()

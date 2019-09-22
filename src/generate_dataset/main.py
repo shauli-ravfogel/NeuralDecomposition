@@ -4,6 +4,9 @@ import model
 from model_runner import ModelRunner, TuplesModelRunner
 import pickle
 
+#import torch.backends
+#torch.backends.cudnn.benchmark=True
+#torch.backends.cudnn.fastest=True
 
 pos_tags_to_replace = ["NN", "NNS", "NNP", "NNPS", "PRP$", "JJ", "CD", "VB", "VBD", "VBG", "VBN",
                        "VBP", "VBZ"]
@@ -12,45 +15,47 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Equivalent sentences generator',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--input-wiki', dest='input_wiki', type=str,
-                        default='data/external/wikipedia.sample.tokenized',
+                        default='../../data/external/wiki.clean.250k',
                         help='name of the source wikipedia text file')
     parser.add_argument('--w2v-file', dest='w2v_file', type=str,
-                        default='data/external/GoogleNews-vectors-negative300.bin',
+                        default='../../data/external/GoogleNews-vectors-negative300.bin',
                         help='name of the source wikipedia text file')
     parser.add_argument('--output-data', dest='output_data', type=str,
-                        default='data/interim/bert_online_data_same_pos.txt',
+                        default='../../data/interim/elmo_states.fwd.wiki.hdf5',
                         help='name of the output file')
     parser.add_argument('--output-sentences', dest='output_sentences', type=str,
-                        default='data/interim/bert_online_sents_same_pos.pickle',
+                        default='../../data/interim/bert.wiki.repeat=1.guesses=30.pickle',
                         help='name of the output file')
     parser.add_argument('--pos-tags-to-replace', dest='pos_tags_to_replace', type=list,
                         default=pos_tags_to_replace, help='which POS tags to replace')
     parser.add_argument('--pos2words-file', dest='pos2words_file', type=str,
-                        default='data/external/pos2words.pickle',
+                        default='../../data/external/pos2words.pickle',
                         help='name of the output file')
-    parser.add_argument('--num-sentences', dest='num_sentences', type=int, default=30,
+    parser.add_argument('--num-sentences', dest='num_sentences', type=int, default=7,
                         help='Number of equivalent sentences to generate from each sentence.')
     parser.add_argument('--substitutions-type', dest='substitution_type', type=str,
                         default='bert')
     parser.add_argument('--substitutions-file', dest='substitution_file', type=str,
-                        default='')
+                        default = '../../data/interim/bert.wiki.repeat=1.guesses=30.pickle')
     parser.add_argument('--elmo_folder', dest='elmo_folder', type=str,
-                        default='data/external')
-    parser.add_argument('--cuda-device', dest='cuda_device', type=int, default=0,
+                        default='../../data/external')
+    parser.add_argument('--cuda-device', dest='cuda_device', type=int, default=2,
                         help='cuda device to run the LM on')
     parser.add_argument('--dataset-type', dest='dataset_type', type=str, default="all",
                         help='all / pairs')
-    parser.add_argument('--layers', '--list', dest="layers", help='list of ELMO layers to include', type=str,
-                        default="1,2")
-    parser.add_argument('--random', dest="random", type=str,
-                        default="none", help='type of randomness applied to elmos layers: [none | lstm | all]')
+    parser.add_argument('--layers', '--list', dest = "layers", help='list of ELMO layers to include', type=str, default = "0,1,2")
+
 
     args = parser.parse_args()
+
+    layers = [int(item) if item.isdigit() else item for item in args.layers.split(',')]
 
     if args.layers != "mean":
         layers = [int(item) for item in args.layers.split(',')]
     else:
         layers = "mean"
+
+    maintain_pos = True
 
     # If no substitution file is provided, need to build these
     if args.substitution_file == '':
@@ -62,14 +67,13 @@ if __name__ == '__main__':
                                                            args.w2v_file, 7)
         elif args.substitution_type == 'pos':
             generator = generators.POSBasedEGenerator2(args.input_wiki, args.output_sentences,
-                                                       args.pos_tags_to_replace, args.num_sentences,
-                                                       args.pos2words_file)
+                                                      args.pos_tags_to_replace, args.num_sentences,
+                                                      args.pos2words_file)
         else:
-            # generator = generators.OnlineBertGenerator(args.input_wiki, args.output_sentences,
+            #generator = generators.OnlineBertGenerator(args.input_wiki, args.output_sentences,
             #                                          args.num_sentences)
             generator = generators.BatchedOnlineBertGenerator(args.input_wiki, args.output_sentences,
-                                                              args.num_sentences, topn=50, ignore_first_k=1,
-                                                              maintain_pos=True)
+                                                      args.num_sentences, topn = (25 if maintain_pos else 20), ignore_first_k = 0, maintain_pos = maintain_pos, cuda_device = args.cuda_device, num_repeats = 1) # was 13
 
         equivalent_sentences = generator.generate()
     # otherwise, reading that file
@@ -77,21 +81,14 @@ if __name__ == '__main__':
         with open(args.substitution_file, "rb") as f:
             equivalent_sentences = pickle.load(f)
 
-    elmo_folder = args.elmo_folder
+    use_elmo = True
 
-    random_state = args.random
-    if random_state == 'none':
+    if use_elmo:
+        elmo_folder = args.elmo_folder
+
         model = model.Elmo(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
-                           elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
-                           args.cuda_device, layers)
-    elif random_state == 'lstm':
-        model = model.ElmoRandom(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
-                           elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
-                           args.cuda_device, rand_emb=False, rand_lstm=True, layers=layers)
-    elif random_state == 'all':
-        model = model.ElmoRandom(elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_options.json',
-                           elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
-                           args.cuda_device, rand_emb=True, rand_lstm=True, layers=layers)
+                       elmo_folder + '/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5',
+                       args.cuda_device, layers, only_fwd = True)
     else:
         raise NotImplementedError('need to chose of the available random states')
 

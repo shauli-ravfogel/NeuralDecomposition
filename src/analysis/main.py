@@ -36,8 +36,11 @@ if __name__ == '__main__':
                         default="src/linear_decomposition/models/..", help='path to the fitted extractor model')
     parser.add_argument('--embedder_type', dest='embedder_type', type=str,
                         default="elmo", help='elmo / elmo_rand_lstm / elmo_rand_all / bert')
-    args = parser.parse_args()
+    parser.add_argument('--layers', '--list', dest = "layers", help='list of bert/elmo layers to include', type=str, default = "16,mean")
 
+    args = parser.parse_args()
+    layers = [int(item) if item.isdigit() else item for item in args.layers.split(',')]
+    
     # use already-collected representations
     if (not args.encode_sentences) and args.encoded_data != '':
         with open(args.encoded_data, "rb") as f:
@@ -55,7 +58,7 @@ if __name__ == '__main__':
         elif embedder_type == 'elmo_rand_all':
             embedder = EmbedRandomElmo(options, device=args.cuda_device, random_emb=True, random_lstm=True)
         else:
-            embedder = EmbedBert({}, device=args.cuda_device)
+            embedder = BertEmbedder(device=args.cuda_device, layers = layers)
         data = embedder.get_data(args.input_wiki, args.num_sents)
         sentence_reprs = evaluate.get_sentence_representations(data)
         
