@@ -3,6 +3,7 @@ from model_interface import ModelInterface
 import numpy as np
 import torch.nn as nn
 import torch
+from typing import List, Dict, Tuple
 
 import sys
 sys.path.append('src/analysis')
@@ -32,7 +33,7 @@ class Elmo(ModelInterface):
 class Bert(ModelInterface):
 
         def __init__(self, cuda_device, layers=[1, 16, -1]):
-        
+
                 self.cuda_device = cuda_device
                 self.tokenizer = BertTokenizer.from_pretrained('bert-large-uncased-whole-word-masking')
                 self.model = BertForMaskedLM.from_pretrained('bert-large-uncased-whole-word-masking', output_hidden_states = True, output_attentions = True)
@@ -41,10 +42,10 @@ class Bert(ModelInterface):
                 self.model.eval()
                 self.model.to('cuda:{}'.format(self.cuda_device))
                 self.layers = layers
-                self.use_mean = not isinstance(layers, list)                
+                self.use_mean = not isinstance(layers, list)
 
         def _tokenize(self, original_sentence: List[str]) -> Tuple[List[str], Dict[int, int]]:
-    
+
                 """
                 Parameters
                 ----------
@@ -58,31 +59,31 @@ class Bert(ModelInterface):
                 orig_to_tok_map = {}
                 has_subwords = False
                 is_subword = []
-        
+
                 for i, w in enumerate(original_sentence):
-            
+
                         tokenized_w = self.tokenizer.tokenize(w)
                         has_subwords = len(tokenized_w) > 1
                         is_subword.append(has_subwords)
                         bert_tokens.extend(tokenized_w)
-            
+
                         orig_to_tok_map[i] = len(bert_tokens) - 1
-                  
+
                 bert_tokens.append("[SEP]")
-        
+
                 return (bert_tokens, orig_to_tok_map)
 
         def run(self, sents: np.ndarray):
-        
+
                 num_sents, sent_len = sents.shape
-                
+
                 if not self.use_mean:
                     embeddings = np.zeros((num_sents, sent_len, len(self.layers) * 1024))
                 else:
                     embeddings = np.zeros((num_sents, sent_len, 1024))
- 
+
                 for i, sent in enumerate(sents):
-                
+
                         bert_tokens, orig_to_tok_map = self._tokenize(sent)
                         indexed_tokens = self.tokenizer.convert_tokens_to_ids(bert_tokens)
                         tokens_tensor = torch.tensor([indexed_tokens]).to('cuda:{}'.format(self.cuda_device))
@@ -93,18 +94,18 @@ class Bert(ModelInterface):
                                 #last_hidden = all_hidden_states[-1].squeeze()#.detach().cpu().numpy()
                                 #first_hidden = all_hidden_states[1].squeeze()#.detach().cpu().numpy()
                                 #middle_hidden = all_hidden_states[int(len(all_hidden_states)/2)].squeeze()#.detach().cpu().numpy()
-                                
+
                                 if not self.use_mean:
                                     layers = [all_hidden_states[layer].squeeze() for layer in self.layers]
                                     vecs = torch.cat(layers, dim = 1).detach().cpu().numpy()
- 
+
                                 else:
                                     vecs = torch.mean(torch.cat(all_hidden_states, dim = 0), dim = 0).detach().cpu().numpy()
 
-                                for j in range(sent_len):  
-                                        
+                                for j in range(sent_len):
+
                                         embeddings[i,j] = vecs[orig_to_tok_map[j]]
-  
+
                 return embeddings
 
 

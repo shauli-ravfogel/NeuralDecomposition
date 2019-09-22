@@ -51,7 +51,7 @@ if __name__ == '__main__':
         layers = [int(item) for item in args.layers.split(',')]
     else:
         layers = "mean"
-        
+
     # If no substitution file is provided, need to build these
     if args.substitution_file == '':
 
@@ -94,12 +94,12 @@ if __name__ == '__main__':
                            args.cuda_device, rand_emb=True, rand_lstm=True, layers=layers)
     else:
         raise NotImplementedError('need to chose of the available random states')
-    
-    USE_ELMO = False
+
+    USE_ELMO = True
     if not USE_ELMO:
       print("Using BERT")
-      model = model.Bert(args.cuda_device, layers = layers) 
-      
+      model = model.Bert(args.cuda_device, layers = layers)
+
     if args.dataset_type == "pairs":
         model_runner = TuplesModelRunner(model, equivalent_sentences, args.output_data, persist=True)
     else:

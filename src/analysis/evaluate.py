@@ -4,8 +4,8 @@ sys.path.append('src/generate_dataset')
 from utils import DEFAULT_PARAMS
 
 FUNCTION_WORDS = DEFAULT_PARAMS["function_words"]
-sys.path.append('src/analysis/tree_distance')
-import tree_similarity
+#sys.path.append('src/analysis/tree_distance')
+#import tree_similarity
 from typing import List, Tuple, Dict
 import typing
 from syntactic_extractor import SyntacticExtractor
@@ -258,24 +258,24 @@ def persist_for_tsne(word_reprs, extractor, n=10000):
         for word_labels in labels:
             f.write(word_labels + "\n")
 
-            
+
 def gat_constituency_path_to_root(tree: nltk.Tree, leaf_index: int) -> List[str]:
-    
+
     parented_tree = nltk.tree.ParentedTree.convert(tree)
     labels = []
     path_to_leaf = parented_tree.leaf_treeposition(leaf_index)
     path_to_leaf_POS = path_to_leaf[:-1]
-    
+
     current, is_root = parented_tree[path_to_leaf_POS], False
-    
+
     while current is not None:
-        
+
         labels.append(current.label())
         current = current.parent()
-        
+
     return labels[:-1]
-  
-  
+
+
 
 def get_path_to_root(word: Word_vector):
     word = word.doc[word.index]
@@ -399,7 +399,7 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
     return [all_sentence[ind] for ind in closest]
 
 
-def parse(sentences: List[List[str]], batch_size = 5000) -> Tuple[List[spacy.tokens.Doc], List[nltk.Tree]]:
+def parse(sentences: List[List[str]], batch_size = 5000, benepar=False) -> Tuple[List[spacy.tokens.Doc], List[nltk.Tree]]:
     """
         Parameters
         sentences: A list of sentence, where each sentence is a list of word strings.
@@ -410,29 +410,32 @@ def parse(sentences: List[List[str]], batch_size = 5000) -> Tuple[List[spacy.tok
         """
 
     print("Parsing...")
- 
+
     nlp = spacy.load('en_core_web_sm')
     nlp.remove_pipe("ner")
-    
+
     print("Creating docs...")
     docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii = True)]
-    
+
     pipeline = [(name, proc) for name, proc in nlp.pipeline]
-    
+
     for name, component in pipeline:
         print("Applying {}...".format(name))
         docs = component.pipe(docs, batch_size = batch_size)
-    
-    docs = list(docs)
-    import tensorflow as tf
-    import benepar
-    parser = benepar.Parser("benepar_en2")
-    print("Running benepar parser...")
-    with tf.device('/gpu:0'):
 
-        trees = list(parser.parse_sents(sentences))
-    
-    return docs, trees
+    docs = list(docs)
+
+    if benepar:
+        import tensorflow as tf
+        import benepar
+        parser = benepar.Parser("benepar_en2")
+        print("Running benepar parser...")
+        with tf.device('/gpu:0'):
+
+            trees = list(parser.parse_sents(sentences))
+        return docs, trees
+
+    return docs
 
 
 def get_closest_vectors_efficient(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str],
@@ -511,12 +514,12 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
         embds_sents_deps: A list of Sentence_vectors.
       """
 
-    embds, sentences = list(zip(*embds_and_sents))
+    embds, sentences, _, _ = list(zip(*embds_and_sents))
     docs = parse(sentences)
 
     assert len(sentences) == len(embds) == len(docs)
 
-    embds_sents_deps = [Sentence_vector(e, s, tok) for e, s, tok in
+    embds_sents_deps = [Sentence_vector(e, s, tok, None) for e, s, tok in
                         zip(embds, sentences, docs)]
 
     return embds_sents_deps
@@ -546,13 +549,13 @@ def sentences2words(sentence_representations: List[Sentence_vector],
 
         if len(data) > num_words: break
 
-        vectors, words, doc = sent_rep
+        vectors, words, doc, _ = sent_rep
 
         for j, (vec, w) in enumerate(zip(vectors, words)):
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), words, doc, j))
+            data.append(Word_vector(copy.deepcopy(vec), words, doc, j, None))
 
     random.seed(0)
     random.shuffle(data)
@@ -633,7 +636,7 @@ def get_tests() -> List[Dict]:
              {'func': lambda x: x.doc[x.index].pos_, 'name': 'pos'},
              {'func': lambda x: x.doc[x.index].tag_, 'name': 'tag'},
              {'func': lambda x: x.doc[x.index].head.dep_, 'name': 'head\'s dependency edge'},
-             {'func': lambda x: x.doc[x.index].i, 'name': 'index'}, 
+             {'func': lambda x: x.doc[x.index].i, 'name': 'index'},
              {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:], 'name': 'constituency-path-length=until root'},
              {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:4], 'name': 'constituency-path-length=3'},
              {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:3], 'name': 'constituency-path-length=2'}]
