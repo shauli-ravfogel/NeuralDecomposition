@@ -68,14 +68,14 @@ class DependencyModel(Model):
 
         self.text_field_embedder = text_field_embedder
         self.num_classes = self.vocab.get_vocab_size("labels")
-        self.bilinear = BilinearSimilarity(300, 300)
+        self.bilinear = BilinearSimilarity(128, 128)
 
         if syntactic_extractor_path is not None:
             self.syntax_extractor = TripletExtractor(syntactic_extractor_path)
         else:
             self.syntax_extractor = None
 
-        self.use_raw_tokens = False
+        self.use_raw_tokens = True
         if self.use_raw_tokens:
             options_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
             weight_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"

@@ -7,9 +7,9 @@
     		}
       }
     },
-    "train_data_path": "/home/lazary/workspace/thesis/NeuralDecomposition/data/dep_parsing/train.txt",
-    "validation_data_path": "/home/lazary/workspace/thesis/NeuralDecomposition/data/dep_parsing/dev.txt" ,
-    "test_data_path": "/home/lazary/workspace/thesis/NeuralDecomposition/data/dep_parsing/test.txt" ,
+    "train_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/dep_parsing/train.txt",
+    "validation_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/dep_parsing/dev.txt" ,
+    "test_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/dep_parsing/test.txt" ,
   "evaluate_on_test": true,
     "model": {
       "type": "head_model",
