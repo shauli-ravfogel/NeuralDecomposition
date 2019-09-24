@@ -6,7 +6,7 @@ import sys
 sys.path.append('../src/generate_dataset')
 import typing
 from typing import List, Tuple, Dict
-import evaluate3 as evaluate
+import evaluate
 import numpy as np
 import spacy
 import nltk
