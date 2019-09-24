@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_queries', dest='num_queries', type=int, default=4000,
                         help='number of closest-vector queries to perform within the tests.')
     parser.add_argument('--extractor', dest='extractor', type=str, default="cca",
-                        help='type of syntactic extracor (cca / neural_cca / numpy_cca / triplet)')
+                        help='type of syntactic extracor (cca / neural_cca / numpy_cca / triplet / pca)')
     parser.add_argument('--extractor_path', dest='extractor_path', type=str,
                         default="src/linear_decomposition/models/..", help='path to the fitted extractor model')
     parser.add_argument('--embedder_type', dest='embedder_type', type=str,
@@ -72,6 +72,8 @@ if __name__ == '__main__':
         extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy=True)
     elif args.extractor == "triplet":
             extractor = syntactic_extractor.TripletLossModelExtractor(args.extractor_path)
+    elif args.extractor == "pca":
+            extractor = syntactic_extractor.PCASyntacticExtractor(args.extractor_path)
     else:
         raise NotImplementedError()
     # Run tests.
