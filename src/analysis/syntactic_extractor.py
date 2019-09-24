@@ -98,3 +98,21 @@ class NeuralCCASyntacticExtractor(SyntacticExtractor):
 
             # print("---------------------------------------------------------")
             return o.detach().cpu().numpy()[:, :]
+
+      
+    
+    
+class PCASyntacticExtractor(SyntacticExtractor):
+
+        def __init__(self, path="pca/pca_model.elmo.75"):
+        
+                with open(path, "rb") as f:
+                
+                        self.model = pickle.load(f)
+                        
+
+        def extract(self, contextualized_vector: np.ndarray) -> np.ndarray:
+        
+                inp = np.expand_dims(contextualized_vector, 0) if len(contextualized_vector.shape) == 1 else contextualized_vector
+                transformed = self.model.transform(inp)
+                return transformed
