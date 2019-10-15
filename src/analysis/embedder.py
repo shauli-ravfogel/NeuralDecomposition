@@ -111,7 +111,7 @@ class EmbedElmo(Embedder):
 
 class BertEmbedder(Embedder):
 
-        def __init__(self, device, layers=[1, 16, -1]):
+        def __init__(self, device, layers=[1, 16, "mean"):
         
                 self.cuda_device = device
                 self.tokenizer = BertTokenizer.from_pretrained('bert-large-uncased-whole-word-masking')
@@ -120,8 +120,8 @@ class BertEmbedder(Embedder):
                 #self.model = BertForMaskedLM.from_pretrained('bert-base-uncased', output_hidden_states = True, output_attentions = True)
                 self.model.eval()
                 self.model.to('cuda:{}'.format(self.cuda_device))
-                self.layers = layers 
-                self.use_mean = not isinstance(layers, list)
+                self.num_vecs = len(layers)            
+                self.use_mean, self.layers = "mean" in layers, [l for l in layers if l != "mean"]         
 
         def _tokenize(self, original_sentence: List[str]) -> Tuple[List[str], Dict[int, int]]:
     
@@ -162,23 +162,24 @@ class BertEmbedder(Embedder):
                 
                          bert_tokens, orig_to_tok_map = self._tokenize(sent)
                          sent_len = len(sent)
-                         if not self.use_mean:
-                            embeddings = np.zeros((num_sents, sent_len, len(self.layers) * 1024))
-                         else:
-                            embeddings = np.zeros((num_sents, sent_len, 1024))                         
+                         embeddings = np.zeros((sent_len, self.num_vecs * 1024))
+
+                         
                          indexed_tokens = self.tokenizer.convert_tokens_to_ids(bert_tokens)
                          tokens_tensor = torch.tensor([indexed_tokens]).to('cuda:{}'.format(self.cuda_device)) 
                            
                          with torch.no_grad():
 
                                 all_hidden_states, all_attentions = self.model(tokens_tensor)[-2:]
-         
-                                if not self.use_mean:
-                                    layers = [all_hidden_states[layer].squeeze() for layer in self.layers]
-                                    vecs = torch.cat(layers, dim = 1).detach().cpu().numpy()
- 
-                                else:
-                                    vecs = torch.mean(torch.cat(all_hidden_states, dim = 0), dim = 0).detach().cp
+                                layers = [all_hidden_states[layer].squeeze() for layer in self.layers]
+                                vecs = torch.cat(layers, dim = 1)  #.detach().cpu().numpy()
+       	       	       	       	
+                                if self.use_mean:
+
+                                    mean_vecs = torch.mean(torch.cat(all_hidden_states, dim = 0), dim = 0)#.detach().cpu().numpy()
+                                    vecs = torch.cat((vecs, mean_vecs), dim = 1)
+                                
+                                vecs = vecs.detach().cpu().numpy()
 
                                 for j in range(sent_len):  
                                         

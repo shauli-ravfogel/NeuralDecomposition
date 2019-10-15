@@ -4,8 +4,8 @@ sys.path.append('src/generate_dataset')
 from utils import DEFAULT_PARAMS
 
 FUNCTION_WORDS = DEFAULT_PARAMS["function_words"]
-sys.path.append('src/analysis/tree_distance')
-
+#sys.path.append('src/analysis/tree_distance')
+#import tree_similarity
 from typing import List, Tuple, Dict
 import typing
 from syntactic_extractor import SyntacticExtractor
@@ -23,7 +23,10 @@ import copy
 from annoy import AnnoyIndex
 import os
 import nltk
-
+import matplotlib
+matplotlib.use('tkagg')
+from MulticoreTSNE import MulticoreTSNE as FAST_TSNE
+import matplotlib.pyplot as plt
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
@@ -82,7 +85,19 @@ def run_tests(sentence_reprs: List[Sentence_vector], extractor, num_queries, met
 
 
 
+def record_dep_confusion(queries, values):
 
+        dep2values = defaultdict(list)
+        
+        for (query, value) in zip(queries, values):
+        
+                dep_query, dep_value = query.doc[query.index].dep_, value.doc[value.index].dep_
+                if dep_query != dep_value:
+                        dep2values[dep_query].append((dep_value, query, value))
+        
+        with open("confusion.pickle", "wb") as f:
+        
+                pickle.dump(dep2values, f)
 
 
 def choose_words_from_sents(sent_reprs, extractor, n = 10000):
@@ -258,24 +273,24 @@ def persist_for_tsne(word_reprs, extractor, n=10000):
         for word_labels in labels:
             f.write(word_labels + "\n")
 
-            
+
 def gat_constituency_path_to_root(tree: nltk.Tree, leaf_index: int) -> List[str]:
-    
+
     parented_tree = nltk.tree.ParentedTree.convert(tree)
     labels = []
     path_to_leaf = parented_tree.leaf_treeposition(leaf_index)
     path_to_leaf_POS = path_to_leaf[:-1]
-    
+
     current, is_root = parented_tree[path_to_leaf_POS], False
-    
+
     while current is not None:
-        
+
         labels.append(current.label())
         current = current.parent()
-        
+
     return labels[:-1]
-  
-  
+
+
 
 def get_path_to_root(word: Word_vector):
     word = word.doc[word.index]
@@ -399,7 +414,7 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
     return [all_sentence[ind] for ind in closest]
 
 
-def parse(sentences: List[List[str]], batch_size = 5000) -> Tuple[List[spacy.tokens.Doc], List[nltk.Tree]]:
+def parse(sentences: List[List[str]], batch_size = 5000, benepar=False) -> Tuple[List[spacy.tokens.Doc], List[nltk.Tree]]:
     """
         Parameters
         sentences: A list of sentence, where each sentence is a list of word strings.
@@ -410,29 +425,32 @@ def parse(sentences: List[List[str]], batch_size = 5000) -> Tuple[List[spacy.tok
         """
 
     print("Parsing...")
- 
+
     nlp = spacy.load('en_core_web_sm')
     nlp.remove_pipe("ner")
-    
+
     print("Creating docs...")
     docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii = True)]
-    
+
     pipeline = [(name, proc) for name, proc in nlp.pipeline]
-    
+
     for name, component in pipeline:
         print("Applying {}...".format(name))
         docs = component.pipe(docs, batch_size = batch_size)
-    
-    docs = list(docs)
-    import tensorflow as tf
-    import benepar
-    parser = benepar.Parser("benepar_en2")
-    print("Running benepar parser...")
-    with tf.device('/gpu:0'):
 
-        trees = list(parser.parse_sents(sentences))
-    
-    return docs, trees
+    docs = list(docs)
+
+    if benepar:
+        import tensorflow as tf
+        import benepar
+        parser = benepar.Parser("benepar_en2")
+        print("Running benepar parser...")
+        with tf.device('/gpu:0'):
+
+            trees = list(parser.parse_sents(sentences))
+        return docs, trees
+
+    return docs
 
 
 def get_closest_vectors_efficient(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str],
@@ -511,12 +529,12 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
         embds_sents_deps: A list of Sentence_vectors.
       """
 
-    embds, sentences = list(zip(*embds_and_sents))
+    embds, sentences, _, _ = list(zip(*embds_and_sents))
     docs = parse(sentences)
 
     assert len(sentences) == len(embds) == len(docs)
 
-    embds_sents_deps = [Sentence_vector(e, s, tok) for e, s, tok in
+    embds_sents_deps = [Sentence_vector(e, s, tok, None) for e, s, tok in
                         zip(embds, sentences, docs)]
 
     return embds_sents_deps
@@ -546,13 +564,13 @@ def sentences2words(sentence_representations: List[Sentence_vector],
 
         if len(data) > num_words: break
 
-        vectors, words, doc = sent_rep
+        vectors, words, doc, _ = sent_rep
 
         for j, (vec, w) in enumerate(zip(vectors, words)):
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), words, doc, j))
+            data.append(Word_vector(copy.deepcopy(vec), words, doc, j, None))
 
     random.seed(0)
     random.shuffle(data)
@@ -604,23 +622,20 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
     queries = vecs[:num_queries]
     closest_indices = get_closest_vectors(vecs, queries, sents, method=method, k=1)
 
-    query_sents = [sents[i] for i in range(num_queries)]
-    value_sents = [sents[closest_ind[0]] for closest_ind in closest_indices]
+    query_sents = [sentence_representations[i] for i in range(num_queries)]
+    value_sents = [sentence_representations[closest_ind[0]] for closest_ind in closest_indices]
 
-    # kernel_sims, edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
-    # avg_kernel_sim = np.mean(kernel_sims)
-    # avg_edit_sims = np.mean(edit_sims)
+    kernel_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
+    avg_kernel_sim = np.mean(kernel_sims)
+    #avg_edit_sims = np.mean(edit_sims)
 
-    # fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
-    # with open(fname, "w", encoding="utf8") as f:
+    fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
+    with open(fname, "w", encoding="utf8") as f:
 
-    #    for (query, value, kernel_sim, edit_sim) in zip(query_sents, value_sents, kernel_sims, edit_sims):
-    #        f.write(" ".join(query) + "\t" + " ".join(value) + "\t" + str(kernel_sim) + "\t" + str(edit_sim) + "\n")
+        for (query, value, kernel_sim) in zip(query_sents, value_sents, kernel_sims):
+            f.write(" ".join(query.sent_str) + "\t" + " ".join(value.sent_str) + "\t" + str(kernel_sim) + "\n")
 
-    # print("Normalized mean kernel-similarity: {}; Normalized mean edit-similarity: {}".format(avg_kernel_sim,
-
-
-#                                                                                              avg_edit_sims))
+    print("Normalized mean kernel-similarity: {}".format(avg_kernel_sim))
 
 
 def node_height(token):
@@ -636,7 +651,7 @@ def get_tests() -> List[Dict]:
              {'func': lambda x: x.doc[x.index].pos_, 'name': 'pos'},
              {'func': lambda x: x.doc[x.index].tag_, 'name': 'tag'},
              {'func': lambda x: x.doc[x.index].head.dep_, 'name': 'head\'s dependency edge'},
-             {'func': lambda x: x.doc[x.index].i, 'name': 'index'}, 
+             {'func': lambda x: x.doc[x.index].i, 'name': 'index'},
              {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:], 'name': 'constituency-path-length=until root'},
              {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:4], 'name': 'constituency-path-length=3'},
              {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:3], 'name': 'constituency-path-length=2'}]
@@ -795,7 +810,9 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     for i in range(k):
         value_words = [data[closest_ind[i]] for closest_ind in closest_indices]
         k_value_words.append(value_words)
-
+        if i == 0:
+                record_dep_confusion(query_words, value_words)
+            
     # exact match
     perform_tests(query_words, k_value_words, k=1)
 
@@ -846,8 +863,9 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     print("calculating projection...")
 
-    proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
-
+    #proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
+    proj = FAST_TSNE(n_jobs=4, n_components = 2, random_state = 0, metric = metric, verbose = 1, n_iter = 1000).fit_transform(embeddings)
+        
     fig, ax = plt.subplots()
 
     xs, ys = proj[:, 0], proj[:, 1]
@@ -885,5 +903,5 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     title += "\n        (#words: {}; applied syntactic extractor: {}; metric: {})".format(num_vecs,
                                                                                           extractor is not None, metric)
-    ax.set_title(title)
+    #ax.set_title(title)
     plt.show()

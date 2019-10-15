@@ -31,13 +31,16 @@ if __name__ == '__main__':
     parser.add_argument('--num_queries', dest='num_queries', type=int, default=4000,
                         help='number of closest-vector queries to perform within the tests.')
     parser.add_argument('--extractor', dest='extractor', type=str, default="cca",
-                        help='type of syntactic extracor (cca / neural_cca / numpy_cca / triplet)')
+                        help='type of syntactic extracor (cca / neural_cca / numpy_cca / triplet / pca)')
     parser.add_argument('--extractor_path', dest='extractor_path', type=str,
                         default="src/linear_decomposition/models/..", help='path to the fitted extractor model')
     parser.add_argument('--embedder_type', dest='embedder_type', type=str,
                         default="elmo", help='elmo / elmo_rand_lstm / elmo_rand_all / bert')
-    args = parser.parse_args()
+    parser.add_argument('--layers', '--list', dest = "layers", help='list of bert/elmo layers to include', type=str, default = "16,mean")
 
+    args = parser.parse_args()
+    layers = [int(item) if item.isdigit() else item for item in args.layers.split(',')]
+    
     # use already-collected representations
     if (not args.encode_sentences) and args.encoded_data != '':
         with open(args.encoded_data, "rb") as f:
@@ -55,7 +58,7 @@ if __name__ == '__main__':
         elif embedder_type == 'elmo_rand_all':
             embedder = EmbedRandomElmo(options, device=args.cuda_device, random_emb=True, random_lstm=True)
         else:
-            embedder = EmbedBert({}, device=args.cuda_device)
+            embedder = BertEmbedder(device=args.cuda_device, layers = layers)
         data = embedder.get_data(args.input_wiki, args.num_sents)
         sentence_reprs = evaluate.get_sentence_representations(data)
         
@@ -69,6 +72,8 @@ if __name__ == '__main__':
         extractor = syntactic_extractor.CCASyntacticExtractor(args.extractor_path, numpy=True)
     elif args.extractor == "triplet":
             extractor = syntactic_extractor.TripletLossModelExtractor(args.extractor_path)
+    elif args.extractor == "pca":
+            extractor = syntactic_extractor.PCASyntacticExtractor(args.extractor_path)
     else:
         raise NotImplementedError()
     # Run tests.
