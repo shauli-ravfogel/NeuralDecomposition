@@ -10,15 +10,15 @@ class ELMOEncoder(nn.Module):
     def __init__(self, elmo_options_path = "../../data/elmo_2x4096_512_2048cnn_2xhighway_options.json",
                  elmo_weights_path = "../../data/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5",
                  finetune = True,
-                 attention = True,
-                 layer_sizes = [2048, 75],
-                 reduce = "mean"):
+                 attention = False,
+                 layer_sizes = [1024, 512],
+                 reduce = "mean"): #TODO: self attetion is broken, gives None when using a mask
 
         super().__init__()
 
         grad = True if finetune else False
         self.elmo = Elmo(elmo_options_path, elmo_weights_path, num_output_representations = 2, requires_grad = grad)
-        self.self_attention = torch.nn.MultiheadAttention(1024, num_heads=1, dropout=0.0)
+        self.self_attention = torch.nn.MultiheadAttention(layer_sizes[-1], num_heads=1, dropout=0.0)
         self.attention = attention
         self.reduce = reduce
 
@@ -44,23 +44,25 @@ class ELMOEncoder(nn.Module):
         last_layer = batch_embeds[-1] #(batch size, max_seq len, 1024)
         last_layer = last_layer.transpose(0,1) #(seq len, batch_size, 1024)
 
+        last_layer = self.layers(last_layer)  # apply final transformation
+
         if self.attention:
-            attn_output, attn_output_weights = self.self_attention(last_layer, last_layer, last_layer, key_padding_mask = batch_mask)
+            attn_output, attn_output_weights = self.self_attention(last_layer, last_layer, last_layer, key_padding_mask = None)
             h = attn_output
         else:
             h = last_layer
 
         # to get a single vector, reduce over the sequence length dimension.
 
+        h = h.transpose(0,1) #(batch_size, seq_len, 1024)
+
         if self.reduce == "mean":
-            sum = torch.sum(h, dim=0)
+            sum = torch.sum(h * batch_mask[..., None].float(), dim=1)
             final = sum / lengths[:, None]
         else:
             raise Exception("Unknown reduce method")
 
-        final = final.unsqueeze(0)  # add the dummy seq len dimension
-
-        return final, final
+        return final
 
 
 
@@ -70,9 +72,8 @@ sent2 = ["good", ",", "thanks", "!"]
 sent3 = ["yes", "!"]
 batch = [sent1, sent2, sent3]
 batch_ids = batch_to_ids(batch)
-print(type(batch_ids))
-print(batch_ids.shape)
+
 
 encoded = encoder(batch)
-padded = torch.nn.utils.rnn.pad_sequence(encoded, batch_first=False, padding_value=0)
-print(padded)
+print(encoded.shape)
+print(encoded)
