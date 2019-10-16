@@ -25,12 +25,17 @@ class PadCollate:
         """
 
         sents = []
+        ids = []
+
         for i, group in enumerate(batch_data):
             for sent in group:
 
-                sents.append((sent, i))
+                sents.append(sent)
+                ids.append(i)
 
-        return sents
+        sents, ids = np.array(sents), np.array(ids)
+
+        return sents, torch.LongTensor(ids)
 
     def __call__(self, batch):
         return self.pad_collate(batch)

@@ -65,15 +65,16 @@ class ELMOEncoder(nn.Module):
         return final
 
 
+if __name__ == '__main__':
 
-encoder = ELMOEncoder()
-sent1 = ["hello", ",", "how", "are", "you", "today", "?"]
-sent2 = ["good", ",", "thanks", "!"]
-sent3 = ["yes", "!"]
-batch = [sent1, sent2, sent3]
-batch_ids = batch_to_ids(batch)
+    encoder = ELMOEncoder()
+    sent1 = ["hello", ",", "how", "are", "you", "today", "?"]
+    sent2 = ["good", ",", "thanks", "!"]
+    sent3 = ["yes", "!"]
+    batch = [sent1, sent2, sent3]
+    batch_ids = batch_to_ids(batch)
 
 
-encoded = encoder(batch)
-print(encoded.shape)
-print(encoded)
+    encoded = encoder(batch)
+    print(encoded.shape)
+    print(encoded)
