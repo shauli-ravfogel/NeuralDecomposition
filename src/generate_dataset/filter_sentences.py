@@ -3,7 +3,7 @@ import gensim
 import numpy as np
 from typing import DefaultDict, List, Tuple, Dict, Set
 import sklearn
-from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.metrics.pairwise import pairwise_distances, cosine_distances
 import tqdm
 import random
 from utils import DEFAULT_PARAMS
@@ -29,7 +29,7 @@ def calcualte_similarity_score(sent_vecs: np.ndarray, group_function_mask: np.nd
     relevant = sent_vecs * group_function_mask[..., None] if ignore_function else sent_vecs.copy()
 
     bag_of_words = np.sum(relevant, axis=1)  # sum over seq length dimension.
-    dis_mat = pairwise_distances(bag_of_words)
+    dis_mat = cosine_distances(bag_of_words)
     mean_distance = np.mean(dis_mat.flatten())
     return mean_distance
 
@@ -83,6 +83,7 @@ def print_sents_by_percentile(sorted_sents: List[Tuple[np.ndarray, float]]):
         print(per, low, top)
         for k in range(examples_per_group):
             random_sent, score = random.choice(relevant)
+            print("score: {}".format(score))
             print_group(random_sent)
 
 
