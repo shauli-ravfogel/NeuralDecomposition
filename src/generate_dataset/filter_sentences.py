@@ -6,6 +6,9 @@ import sklearn
 from sklearn.metrics.pairwise import pairwise_distances
 import tqdm
 import random
+from utils import DEFAULT_PARAMS
+
+FUNCTION_WORDS = DEFAULT_PARAMS["function_words"]
 
 
 def load_embeddings(w2v_file: str):
@@ -22,8 +25,10 @@ def load_sents(path: str) -> List[List[List[str]]]:
     return list(data.values())
 
 
-def calcualte_similarity_score(sent_vecs: np.ndarray) -> float:
-    bag_of_words = np.sum(sent_vecs, axis=1)  # sum over seq length dimension.
+def calcualte_similarity_score(sent_vecs: np.ndarray, group_function_mask: np.ndarray, ignore_function=True) -> float:
+    relevant = sent_vecs * group_function_mask[..., None] if ignore_function else sent_vecs.copy()
+
+    bag_of_words = np.sum(relevant, axis=1)  # sum over seq length dimension.
     dis_mat = pairwise_distances(bag_of_words)
     mean_distance = np.mean(dis_mat.flatten())
     return mean_distance
@@ -37,13 +42,14 @@ def sort_by_similarity_score(groups: List[List[List[str]]], embds: gensim.models
 
         group_size, sent_len = group.shape
         group_vecs = np.zeros((group_size, sent_len, 300))
+        group_function_mask = np.zeros((group_size, sent_len))
 
         for j, sent in enumerate(group):
             for k, w in enumerate(sent):
-                group_vecs[j, k] = embds.get_vectors(w) if w in vocab else embds.get_vectors["##"]
-                # group_vecs[j,k] = np.random.rand(300)
+                group_vecs[j, k] = embds[w] if w in vocab else embds["##"]
+                group_function_mask[j, k] = 1. if w not in FUNCTION_WORDS else 0.
 
-        sim_score = calcualte_similarity_score(group_vecs)
+        sim_score = calcualte_similarity_score(group_vecs, group_function_mask)
         scores[i] = sim_score
 
     groups_and_sim_scores = list(zip(groups, scores))
