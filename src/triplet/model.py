@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-#from pytorch_revgrad import RevGrad
+from pytorch_revgrad import RevGrad
 
 
 
@@ -101,9 +101,16 @@ class Siamese(nn.Module):
         p1 = self.pair2vec(h1, h3)
         p2 = self.pair2vec(h2, h4)
 
-        return (w1, w2, w3, w4), (h1,h2,h3,h4), (p1, p2)
+        if self.adversary:
+            adv_inp, adv_labels = self.input_for_adversary(w1, h1, h2)
+            adv_preds = self.adversary(adv_inp)
+        else:
+            adv_labels, adv_preds = None, None
 
+        output_dict = {"w1": w1, "w2": w2, "w3": w3, "w4": w4, "h1": h1, "h2": h2, "h3": h3, "h4": h4,
+                       "p1": p1, "p2": p2, "adv_preds": adv_preds, "adv_labels": adv_labels}
 
+        return (w1, w2, w3, w4), (h1,h2,h3,h4), (p1, p2), (adv_preds, )
 
 
 
