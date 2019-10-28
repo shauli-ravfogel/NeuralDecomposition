@@ -21,13 +21,14 @@ python src/generate_dataset/main.py --input-wiki data/interim/wikipedia.sample.t
 
 # with bert
 python src/generate_dataset/collect_bert_states.py \
-        --output-file data/interim/encoder_bert/sents_bert_base.hdf5 \
+        --input-sentences data/interim/equivalent_sentences/elmo/sents.pickle \
+        --output-file data/interim/encoded_bert/sents_bert_base.hdf5 \
         --bert-model bert-base-uncased --layer -1
 
 ## collect views for CCA
 
 python src/linear_decomposition/main_views_collector.py \
-        --input-path data/interim/encoder_bert/sents_bert_base.hdf5 \
+        --input-path data/interim/encoded_bert/sents_bert_base.hdf5 \
           --num_examples 2000000 --mode simple \
           --output-file data/interim/views/bert_base_layer_2M:-1
 # the above script creates a views file in the ./views directory. The file is named according to the arguments (num_examples, etc.)

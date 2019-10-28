@@ -12,16 +12,16 @@ import math
 #import adabound
 
 
-BATCH = 1000
+BATCH = 1500
 USE_CCA = False
 CCA_FINAL_DIM = 1024
-TRIPLET_FINAL_DIM = 1500
-K = 1
-MARGIN = 0.2
+TRIPLET_FINAL_DIM = 128
+K = 40
+MARGIN = 0.1
+WORD_DROPOUT = 0.1
 MODE = "cosine"
-FINAL = "plus"
-
-PAIR_REPR = "abs-diff" # diff/abs-diff/product/abs-product/plus
+FINAL = "softmax"
+FILTER_FUNC_WORDS = False
 
 if __name__ == '__main__':
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         cca_network = model.SoftCCANetwork(dim = 2048, final = CCA_FINAL_DIM)
         cca_loss = loss.SoftCCALoss()
 
-    triplet_network = model.Siamese(cca_network, final_dim = TRIPLET_FINAL_DIM).cuda()
+    triplet_network = model.Siamese(cca_network, final_dim = TRIPLET_FINAL_DIM, word_dropout = WORD_DROPOUT)
 
     optimizer = optim.Adam(triplet_network.parameters(), weight_decay = 1e-6) # 0 = no weight decay, 1 = full weight decay
     #optimizer = radam.RAdam(network.parameters())
@@ -46,9 +46,9 @@ if __name__ == '__main__':
     #train = dataset.Dataset("sample.15k.pickle")
 
 
-    train, dev = dataset.Dataset("sample.3k"), dataset.Dataset("sample.3k")
+    train, dev = dataset.Dataset("sample.3k", filter_func = FILTER_FUNC_WORDS), dataset.Dataset("sample.3k", filter_func = FILTER_FUNC_WORDS)
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience = 4, factor = 0.8, verbose = True)
-    training_generator = data.DataLoader(train, batch_size=BATCH, drop_last = True, shuffle=True, collate_fn=dataset.PadCollate())
-    dev_generator = data.DataLoader(dev, batch_size=BATCH, drop_last = True, shuffle=True, collate_fn=dataset.PadCollate())
+    training_generator = data.DataLoader(train, batch_size=BATCH, drop_last = False, shuffle=True, collate_fn=dataset.PadCollate())
+    dev_generator = data.DataLoader(dev, batch_size=BATCH, drop_last = False, shuffle=True, collate_fn=dataset.PadCollate())
     training.train(triplet_network, cca_network, training_generator, dev_generator, loss_fn, cca_loss, optimizer, scheduler, num_epochs = 25000)

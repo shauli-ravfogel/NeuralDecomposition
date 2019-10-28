@@ -3,35 +3,29 @@
 {
     "dataset_reader":{
         "type":"ptb_trees",
-        "use_pos_tags": true,
+        "use_pos_tags": false,
         "token_indexers": {
           "elmo": {
             "type": "elmo_characters"
           }
         }
     },
-    "train_data_path": std.extVar('PTB_TRAIN_PATH'),
-    "validation_data_path": std.extVar(,'PTB_TEST_PATH'),
-//    "validation_data_path": std.extVar('PTB_DEV_PATH'),
-//    "test_data_path": std.extVar('PTB_TEST_PATH'),
-//    "test_data_path": std.extVar('PTB_TEST_PATH'),
-  "evaluate_on_test": false,
+    "train_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/parsing/train",
+    "validation_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/parsing/dev" ,
+    "test_data_path": "/home/nlp/lazary/workspace/thesis/NeuralDecomposition/data/parsing/test" ,
+  "evaluate_on_test": true,
     "model": {
-      "type": "constituency_parser",
+      "type": "constituency_parser_syn",
       "text_field_embedder": {
         "token_embedders": {
             "elmo": {
-                "type": "elmo_token_embedder",
+                "type": "layer_elmo_token_embedder",
                 "dropout": 0.2,
                 "options_file": "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json",
                 "weight_file": "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5",
                 "do_layer_norm": false
             }
         }
-      },
-      "pos_tag_embedding":{
-        "embedding_dim": 50,
-        "vocab_namespace": "pos"
       },
       "initializer": [
         ["tag_projection_layer.*weight", {"type": "xavier_normal"}],
@@ -41,7 +35,7 @@
       ],
       "encoder": {
         "type": "lstm",
-        "input_size": 1074,
+        "input_size": 2048,
         "hidden_size": 250,
         "num_layers": 2,
         "bidirectional": true,
@@ -74,11 +68,11 @@
       "grad_norm": 5.0,
       "patience": 20,
       "validation_metric": "+evalb_f1_measure",
-      "cuda_device": 1,
+      "cuda_device": 0,
       "optimizer": {
-        "type": "adadelta",
-        "lr": 1.0,
-        "rho": 0.95
+        "type": "adam",
+        //"lr": 1.0,
+        //"rho": 0.95
       }
     }
   }

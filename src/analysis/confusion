@@ -1,0 +1,44 @@
+import pickle
+from collections import defaultdict
+import sys
+sys.path.append('../src/generate_dataset')
+from typing import List
+
+
+def get_sent_string(sent: List[str], index, color = "blue"):
+
+        before, w, after = sent[:index], sent[index], sent[index + 1:]
+        before = " ".join(before)
+        after = " ".join(after)
+        w = '<b><font color="{}">'.format(color) + w + '</font></b>'
+        return '<font size = "4"' + before + " " + w + " " + after + "</font>"
+
+with open("confusion.pickle", "rb") as f:
+
+        data = pickle.load(f)
+
+html = ""
+
+for k, values in data.items():
+
+        
+        if len(values) > 50:
+        
+                html += "<h1>"+ "Query dep = {}".format(k) + "</h1>\n"
+
+                
+                for v in values:
+                        html += "<ul>\n"
+                        value_dep, query_obj, value_obj = v
+                        query_sent, query_ind, value_sent, value_ind = query_obj.sentence, query_obj.index, value_obj.sentence, value_obj.index
+                        query_sent = get_sent_string(query_sent, query_ind, "blue")
+                        value_sent = get_sent_string(value_sent, value_ind, "red")
+                        html += "<li>" + query_sent + "</li>\n"
+                        html += "<li>" + value_sent + "</li>\n"
+                        html += "<li>" + "value dep: <b>{}</b>".format(value_dep) + "</li>\n"
+                        html+="</ul>\n"     
+        
+        with open("errors.html", "w") as f:
+        
+                f.write(html)
+                

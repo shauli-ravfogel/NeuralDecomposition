@@ -100,8 +100,7 @@ def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss
                         pickle.dump(model, f)
 
 
-            p1, p2 = model(X_padded, lengths), model(Y_padded, lengths)
-
+            p1, p2 = model(X_padded, Y_padded, lengths)
 
             loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, X_str, Y_str, sent_ids, 0)
 
@@ -109,26 +108,8 @@ def train(model, cca_model, training_generator, dev_generator, loss_fn, cca_loss
             bad += batch_bad.detach().cpu().numpy().item()
             training_loss_triplet.append(loss.detach().cpu().numpy().item())
 
-
-            if cca_model is not None:
-
-                cca_loss = 0.5 * (cca_loss_fn(w1, w2) + cca_loss_fn(w3,w4))
-                training_loss_cca.append(cca_loss.detach().cpu().numpy().item())
-                #print(cca_loss, loss)
-                loss += cca_loss
-
-                """ 
-                pos_loss = pos_loss_fn(pos_pred, view1_indices.cuda())
-                predicted_indices = torch.argmax(pos_pred, dim = 1).detach().cpu().numpy()
-                actual_indices = view1_indices.detach().numpy()
-                pos_correct = (predicted_indices == actual_indices)
-                pos_good += np.count_nonzero(pos_correct)
-                pos_bad += len(pos_correct) - np.count_nonzero(pos_correct)
-                loss += pos_loss
-                """
-
             loss.backward()
-            #torch.nn.utils.clip_grad_norm_(model.parameters(), 100.)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 100.)
             optimizer.step()
             model.zero_grad()
 
@@ -151,16 +132,12 @@ def evaluate(model, cca_model, loss_fn, cca_loss_fn, dev_generator):
 
         with torch.no_grad():
 
-            p1, p2 = model(X_padded, lengths), model(Y_padded, lengths)
+            p1, p2 = model(X_padded, Y_padded, lengths)
 
             loss, diff, batch_good, batch_bad, norm = loss_fn(p1, p2, X_str, Y_str, sent_ids, i, evaluation = True)
 
             loss_vals.append(loss.detach().cpu().numpy().item())
             diffs.append(diff.detach().cpu().numpy().item())
-            if cca_model is not None:
-
-                cca_loss = 0.5 * (cca_loss_fn(w1, w2) + cca_loss_fn(w3,w4))
-                cca_loss_vals.append(cca_loss.detach().cpu().numpy().item())
 
             norms.append(norm.detach().cpu().numpy().item())
 

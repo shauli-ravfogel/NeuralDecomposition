@@ -4,8 +4,8 @@ sys.path.append('src/generate_dataset')
 from utils import DEFAULT_PARAMS
 
 FUNCTION_WORDS = DEFAULT_PARAMS["function_words"]
-sys.path.append('src/analysis/tree_distance')
-
+#sys.path.append('src/analysis/tree_distance')
+#import tree_similarity
 from typing import List, Tuple, Dict
 import typing
 from syntactic_extractor import SyntacticExtractor
@@ -22,16 +22,20 @@ from collections import Counter, defaultdict
 import copy
 from annoy import AnnoyIndex
 import os
-
+import nltk
+import matplotlib
+matplotlib.use('tkagg')
+from MulticoreTSNE import MulticoreTSNE as FAST_TSNE
+import matplotlib.pyplot as plt
 
 Sentence_vector = typing.NamedTuple("Sentence_vector",
                                     [('sent_vectors', np.ndarray), ('sent_str', List[str]),
-                                     ("doc", spacy.tokens.Doc)])
+                                     ("doc", spacy.tokens.Doc), ("tree", nltk.Tree)])
 Word_vector = typing.NamedTuple("Word_vector", [('word_vector', np.ndarray), ('sentence', List[str]),
-                                                ("doc", spacy.tokens.Doc), ("index", int)])
+                                                ("doc", spacy.tokens.Doc), ("index", int), ("tree", nltk.Tree)])
 
 
-def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, num_queries, method, num_words,
+def run_tests(sentence_reprs: List[Sentence_vector], extractor, num_queries, method, num_words,
               ignore_function_words=True):
     """
         the main function for running the experiments & printing their results.
@@ -51,7 +55,6 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
               losest_words.extractor:True.txt: as above, after the application of the syntactic extractor.
         """
 
-    sentence_reprs = get_sentence_representations(embds_and_sents)  # sentence representatons
     words_reprs = sentences2words(sentence_reprs, num_words=num_words,
                                   ignore_function_words=ignore_function_words)  # words representatons
 
@@ -79,6 +82,94 @@ def run_tests(embds_and_sents: List[Tuple[List[np.ndarray], str]], extractor, nu
 
         # closest-sentence, with ELMO + syntactic extractor
         closest_sentence_test(split, num_queries=num_queries, method=method, extractor=extractor)
+
+
+
+def record_dep_confusion(queries, values):
+
+        dep2values = defaultdict(list)
+        
+        for (query, value) in zip(queries, values):
+        
+                dep_query, dep_value = query.doc[query.index].dep_, value.doc[value.index].dep_
+                if dep_query != dep_value:
+                        dep2values[dep_query].append((dep_value, query, value))
+        
+        with open("confusion.pickle", "wb") as f:
+        
+                pickle.dump(dep2values, f)
+
+
+def choose_words_from_sents(sent_reprs, extractor, n = 10000):
+
+    sents_data = random.choices(sent_reprs, k=n)
+
+    # Apply syntactic extractor
+
+    if extractor is not None:
+
+        print("Applying syntactic extractor...")
+
+        for i, sent_repr in tqdm(enumerate(sents_data), total=len(sents_data), ascii=True):
+            sents_data[i] = sent_repr._replace(
+                sent_vectors = extractor.extract(sent_repr.sent_vectors))
+
+    # choose words
+    data = []
+
+    for sent in sents_data:
+
+        i = np.random.choice(range(len(sent.sent_str)))
+        vec = sent.sent_vectors[i].reshape(-1)
+        word = sent.sent_str[i]
+        words = sent.sent_str
+        doc = sent.doc
+        data.append(Word_vector(vec.copy(), words, doc, i))
+
+    return data
+
+
+
+
+
+def syntax_neutralization(sentence_representations: List[Sentence_vector], num_queries, extractor, alpha = 5):
+
+    # collect scores on unmodified vectors. Those are assumed to capture mainly semantics.
+
+    values = [np.mean(sent_repr.sent_vectors, axis = 0) for sent_repr in sentence_representations]
+    queries = values[:num_queries]
+    dists_original = sklearn.metrics.pairwise_distances(queries, values, metric="euclidean")
+
+    # collect scores on modified vectors.
+
+    values = copy.deepcopy(sentence_representations)
+    for i, sent in enumerate(values):
+        values[i] = np.mean(extractor.extract(sent.sent_vectors), axis = 0)
+
+    queries = values[:num_queries]
+    dists_after = sklearn.metrics.pairwise_distances(queries, values, metric="euclidean")
+
+    dists_total = dists_original - alpha * dists_after
+    sents = np.array([sentence_representations[i].sent_str for i in range(len(sentence_representations))], dtype = "object")
+    k = 5
+    top_k = dists_total.argsort(axis=1)[:, :k + 1]
+    closest_indices = top_k[:, 0: k]
+
+    with open("sents.txt", "w", encoding = "utf-8") as f:
+      for i in range(num_queries):
+
+        original = " ".join(sents[i])
+        f.write(original + "\n")
+        f.write("========================================\n")
+        closest_idx = closest_indices[i]
+        closest_sents = sents[closest_idx]
+
+        for j in range(k):
+
+            f.write(" ".join(closest_sents[j]) + "\n")
+            f.write("-------------------------------------\n")
+
+
 
 
 def split_pos(words_reprs: List[Word_vector], hard_pos: List[str]) -> List[Word_vector]:
@@ -181,6 +272,24 @@ def persist_for_tsne(word_reprs, extractor, n=10000):
         f.write("position\tPOS\tdep-edge\tparent's dep-edge\tdep-tree-depth\ttoken\tsent\n")
         for word_labels in labels:
             f.write(word_labels + "\n")
+
+
+def gat_constituency_path_to_root(tree: nltk.Tree, leaf_index: int) -> List[str]:
+
+    parented_tree = nltk.tree.ParentedTree.convert(tree)
+    labels = []
+    path_to_leaf = parented_tree.leaf_treeposition(leaf_index)
+    path_to_leaf_POS = path_to_leaf[:-1]
+
+    current, is_root = parented_tree[path_to_leaf_POS], False
+
+    while current is not None:
+
+        labels.append(current.label())
+        current = current.parent()
+
+    return labels[:-1]
+
 
 
 def get_path_to_root(word: Word_vector):
@@ -298,14 +407,14 @@ def get_closest_sentence_demo(all_sentence_np: List[np.ndarray], all_sentence: L
     if extractor is not None:
         sentence_vec = extractor.extract(sentence_vec)
 
-    query_mean = np.mean(sentence_vec, axis=0, keepdims=True)
-    sents = [s.sentence_str for s in all_sentence]
+    # query_mean = np.mean(sentence_vec, axis=0, keepdims=True)
+    sents = [s.sent_str for s in all_sentence]
 
-    closest = get_closest_vectors(all_sentence_np, query_mean, sents, method=method, k=k, ignore_same_vec=False)[0]
+    closest = get_closest_vectors(all_sentence_np, sentence_vec, sents, method=method, k=k, ignore_same_vec=False)[0]
     return [all_sentence[ind] for ind in closest]
 
 
-def parse(sentences: List[List[str]], batch_size=5000) -> List[spacy.tokens.Doc]:
+def parse(sentences: List[List[str]], batch_size = 5000, benepar=False) -> Tuple[List[spacy.tokens.Doc], List[nltk.Tree]]:
     """
         Parameters
         sentences: A list of sentence, where each sentence is a list of word strings.
@@ -321,26 +430,31 @@ def parse(sentences: List[List[str]], batch_size=5000) -> List[spacy.tokens.Doc]
     nlp.remove_pipe("ner")
 
     print("Creating docs...")
-    docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii=True)]
+    docs = [nlp.tokenizer.tokens_from_list(sent) for sent in tqdm(sentences, ascii = True)]
 
     pipeline = [(name, proc) for name, proc in nlp.pipeline]
 
     for name, component in pipeline:
         print("Applying {}...".format(name))
-        docs = component.pipe(docs, batch_size=batch_size)
+        docs = component.pipe(docs, batch_size = batch_size)
 
-    return list(docs)
+    docs = list(docs)
+
+    if benepar:
+        import tensorflow as tf
+        import benepar
+        parser = benepar.Parser("benepar_en2")
+        print("Running benepar parser...")
+        with tf.device('/gpu:0'):
+
+            trees = list(parser.parse_sents(sentences))
+        return docs, trees
+
+    return docs
 
 
-def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5,
-                        ignore_same_vec=True, filter_same_sentence=True):
-    # if method == "cosine":
-        # normalize the vectors
-        # all_vecs = all_vecs / np.linalg.norm(all_vecs, axis=1)[:, None]
-        # queries = queries / np.linalg.norm(queries, axis=1)[:, None]
-
-        # perform dot product
-        # distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="cosine")
+def get_closest_vectors_efficient(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str],
+                                  method: str, k=5, ignore_same_vec=True, filter_same_sentence=True):
 
     print('building index')
     indexer = AnnoyIndex(all_vecs[0].shape[0], 'angular')
@@ -355,20 +469,6 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], s
         indexer.build(100)  # 10 trees
         indexer.save(indexer_name)
 
-    # else:
-    #     distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
-
-    # if ignore_same_vec and filter_same_sentence:
-    #
-    #     for i in range(distances.shape[0]):
-    #         for j in range(distances.shape[1]):
-    #
-    #             if sents[i] == sents[j]:
-    #                 distances[i, j] = 1e7
-    #
-    # top_k = distances.argsort(axis=1)[:, :k + 1]
-    # start = 1 if ignore_same_vec else 0
-    # end = start + k
     closest_indices = []
     for ind, query in enumerate(tqdm(queries)):
         # 100 is a random "large" number in order to be able to filter same sentences
@@ -385,10 +485,37 @@ def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], s
             if np.array_equal(all_vecs[closest[0]], queries[ind]):
                 closest.pop(0)
         closest_indices.append(closest[:k])
-    # if ignore_same_vec:
-    #     closest_indices = top_k[:, 1: k + 1]  # ignore the same vec
-    # else:
-    #     closest_indices = top_k[:, 0: k]  # don't ignore the same vec
+
+    return closest_indices
+
+
+def get_closest_vectors(all_vecs: List[np.ndarray], queries: List[np.ndarray], sents: List[str], method: str, k=5,
+                        ignore_same_vec=True, filter_same_sentence=True):
+    if method == "cosine":
+
+        # normalize the vectors
+        all_vecs = all_vecs / np.linalg.norm(all_vecs, axis=1)[:, None]
+        queries = queries / np.linalg.norm(queries, axis=1)[:, None]
+
+        # perform dot product
+        distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="cosine")
+
+    else:
+        distances = sklearn.metrics.pairwise_distances(queries, all_vecs, metric="euclidean")
+
+    if ignore_same_vec and filter_same_sentence:
+
+        for i in range(distances.shape[0]):
+            for j in range(distances.shape[1]):
+                if sents[i] == sents[j]:
+                    distances[i, j] = 1e7
+
+    top_k = distances.argsort(axis=1)[:, :k + 1]
+
+    if ignore_same_vec:
+        closest_indices = top_k[:, 1: k + 1]  # ignore the same vec
+    else:
+        closest_indices = top_k[:, 0: k]  # don't ignore the same vec
 
     return closest_indices
 
@@ -402,12 +529,12 @@ def get_sentence_representations(embds_and_sents: List[Tuple[List[np.ndarray], s
         embds_sents_deps: A list of Sentence_vectors.
       """
 
-    embds, sentences = list(zip(*embds_and_sents))
+    embds, sentences, _, _ = list(zip(*embds_and_sents))
     docs = parse(sentences)
 
     assert len(sentences) == len(embds) == len(docs)
 
-    embds_sents_deps = [Sentence_vector(e, s, tok) for e, s, tok in
+    embds_sents_deps = [Sentence_vector(e, s, tok, None) for e, s, tok in
                         zip(embds, sentences, docs)]
 
     return embds_sents_deps
@@ -437,13 +564,13 @@ def sentences2words(sentence_representations: List[Sentence_vector],
 
         if len(data) > num_words: break
 
-        vectors, words, doc = sent_rep
+        vectors, words, doc, _ = sent_rep
 
         for j, (vec, w) in enumerate(zip(vectors, words)):
 
             if ignore_function_words and w in FUNCTION_WORDS: continue
 
-            data.append(Word_vector(vec.copy(), words, doc, j))
+            data.append(Word_vector(copy.deepcopy(vec), words, doc, j, None))
 
     random.seed(0)
     random.shuffle(data)
@@ -495,23 +622,20 @@ def closest_sentence_test(sentence_representations: List[Sentence_vector],
     queries = vecs[:num_queries]
     closest_indices = get_closest_vectors(vecs, queries, sents, method=method, k=1)
 
-    query_sents = [sents[i] for i in range(num_queries)]
-    value_sents = [sents[closest_ind[0]] for closest_ind in closest_indices]
+    query_sents = [sentence_representations[i] for i in range(num_queries)]
+    value_sents = [sentence_representations[closest_ind[0]] for closest_ind in closest_indices]
 
-    # kernel_sims, edit_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
-    # avg_kernel_sim = np.mean(kernel_sims)
-    # avg_edit_sims = np.mean(edit_sims)
+    kernel_sims = tree_similarity.get_similarity_scores(query_sents, value_sents)
+    avg_kernel_sim = np.mean(kernel_sims)
+    #avg_edit_sims = np.mean(edit_sims)
 
-    # fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
-    # with open(fname, "w", encoding="utf8") as f:
+    fname = "results/closest_sentences.extractor:{}.txt".format(extractor is not None)
+    with open(fname, "w", encoding="utf8") as f:
 
-    #    for (query, value, kernel_sim, edit_sim) in zip(query_sents, value_sents, kernel_sims, edit_sims):
-    #        f.write(" ".join(query) + "\t" + " ".join(value) + "\t" + str(kernel_sim) + "\t" + str(edit_sim) + "\n")
+        for (query, value, kernel_sim) in zip(query_sents, value_sents, kernel_sims):
+            f.write(" ".join(query.sent_str) + "\t" + " ".join(value.sent_str) + "\t" + str(kernel_sim) + "\n")
 
-    # print("Normalized mean kernel-similarity: {}; Normalized mean edit-similarity: {}".format(avg_kernel_sim,
-
-
-#                                                                                              avg_edit_sims))
+    print("Normalized mean kernel-similarity: {}".format(avg_kernel_sim))
 
 
 def node_height(token):
@@ -527,7 +651,10 @@ def get_tests() -> List[Dict]:
              {'func': lambda x: x.doc[x.index].pos_, 'name': 'pos'},
              {'func': lambda x: x.doc[x.index].tag_, 'name': 'tag'},
              {'func': lambda x: x.doc[x.index].head.dep_, 'name': 'head\'s dependency edge'},
-             {'func': lambda x: x.doc[x.index].i, 'name': 'index'}]
+             {'func': lambda x: x.doc[x.index].i, 'name': 'index'},
+             {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:], 'name': 'constituency-path-length=until root'},
+             {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:4], 'name': 'constituency-path-length=3'},
+             {'func': lambda x: gat_constituency_path_to_root(x.tree, x.index)[1:3], 'name': 'constituency-path-length=2'}]
 
     return tests
 
@@ -683,7 +810,9 @@ def closest_word_test(words_reprs: List[Word_vector], extractor=None,
     for i in range(k):
         value_words = [data[closest_ind[i]] for closest_ind in closest_indices]
         k_value_words.append(value_words)
-
+        if i == 0:
+                record_dep_confusion(query_words, value_words)
+            
     # exact match
     perform_tests(query_words, k_value_words, k=1)
 
@@ -734,8 +863,9 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     print("calculating projection...")
 
-    proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
-
+    #proj = TSNE(n_components=2, random_state=0, metric=metric, verbose=1).fit_transform(embeddings)
+    proj = FAST_TSNE(n_jobs=4, n_components = 2, random_state = 0, metric = metric, verbose = 1, n_iter = 1000).fit_transform(embeddings)
+        
     fig, ax = plt.subplots()
 
     xs, ys = proj[:, 0], proj[:, 1]
@@ -773,5 +903,5 @@ def perform_tsne(words_reprs: List[Word_vector], extractor, num_vecs=1000, color
 
     title += "\n        (#words: {}; applied syntactic extractor: {}; metric: {})".format(num_vecs,
                                                                                           extractor is not None, metric)
-    ax.set_title(title)
+    #ax.set_title(title)
     plt.show()

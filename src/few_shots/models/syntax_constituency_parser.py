@@ -7,6 +7,7 @@ https://github.com/allenai/allennlp/blob/master/training_config/constituency_par
 from typing import Dict, Tuple, List, Optional, NamedTuple, Any
 from overrides import overrides
 
+import numpy as np
 import torch
 from torch.nn.modules.linear import Linear
 from nltk import Tree
@@ -23,6 +24,10 @@ from allennlp.nn.util import masked_softmax, get_lengths_from_binary_sequence_ma
 from allennlp.training.metrics import CategoricalAccuracy
 from allennlp.training.metrics import EvalbBracketingScorer, DEFAULT_EVALB_DIR
 from allennlp.common.checks import ConfigurationError
+from allennlp.commands.elmo import ElmoEmbedder
+
+from analysis.triplet_extractor import TripletExtractor
+
 
 class SpanInformation(NamedTuple):
     """
@@ -57,7 +62,7 @@ def extract_syntax(embeddings: torch.FloatTensor) -> torch.FloatTensor:
     pass
 
 
-@Model.register("constituency_parser")
+@Model.register("constituency_parser_syn")
 class SpanConstituencyParser(Model):
     """
     This ``SpanConstituencyParser`` simply encodes a sequence of text
@@ -97,6 +102,7 @@ class SpanConstituencyParser(Model):
                  text_field_embedder: TextFieldEmbedder,
                  span_extractor: SpanExtractor,
                  encoder: Seq2SeqEncoder,
+                 syntactic_extractor_path: str = None,
                  feedforward: FeedForward = None,
                  pos_tag_embedding: Embedding = None,
                  initializer: InitializerApplicator = InitializerApplicator(),
@@ -117,17 +123,28 @@ class SpanConstituencyParser(Model):
 
         self.tag_projection_layer = TimeDistributed(Linear(output_dim, self.num_classes))
 
-        representation_dim = text_field_embedder.get_output_dim()
+        if syntactic_extractor_path is not None:
+            self.syntax_extractor = TripletExtractor(syntactic_extractor_path)
+        else:
+            self.syntax_extractor = None
+
+        self.use_raw_tokens = True
+        if self.use_raw_tokens:
+            options_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
+            weight_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+            self.elmo = ElmoEmbedder(options_file, weight_file, cuda_device=0)
+
+        representation_dim = text_field_embedder.get_output_dim() * 2
         if pos_tag_embedding is not None:
             representation_dim += pos_tag_embedding.get_output_dim()
-        check_dimensions_match(representation_dim,
-                               encoder.get_input_dim(),
-                               "representation dim (tokens + optional POS tags)",
-                               "encoder input dim")
-        check_dimensions_match(encoder.get_output_dim(),
-                               span_extractor.get_input_dim(),
-                               "encoder input dim",
-                               "span extractor input dim")
+        #check_dimensions_match(representation_dim,
+        #                       encoder.get_input_dim(),
+        #                       "representation dim (tokens + optional POS tags)",
+        #                       "encoder input dim")
+        #check_dimensions_match(encoder.get_output_dim(),
+        #                       span_extractor.get_input_dim(),
+        #                       "encoder input dim",
+        #                       "span extractor input dim")
         if feedforward is not None:
             check_dimensions_match(span_extractor.get_output_dim(),
                                    feedforward.get_input_dim(),
@@ -141,6 +158,14 @@ class SpanConstituencyParser(Model):
         else:
             self._evalb_score = None
         initializer(self)
+
+    def fill_blanks(self, encoded_sents):
+        vecs = []
+        for i in range(len(encoded_sents)):
+            sent_embs = np.concatenate([encoded_sents[i][layer] for layer in [1, 2]], axis=1)
+            vecs.append(torch.tensor(sent_embs))
+
+        return torch.nn.utils.rnn.pad_sequence(vecs, batch_first=True)
 
     @overrides
     def forward(self,  # type: ignore
@@ -199,7 +224,20 @@ class SpanConstituencyParser(Model):
         loss : ``torch.FloatTensor``, optional
             A scalar loss to be optimised.
         """
-        embedded_text_input = self.text_field_embedder(tokens)
+        if self.use_raw_tokens:
+            raw_tokens = [meta["tokens"] for meta in metadata]
+            res = self.elmo.embed_batch(raw_tokens)
+            embedded_text_input = self.fill_blanks(res)
+            embedded_text_input = embedded_text_input.cuda()
+            # tensors = [torch.tensor([x]) for x in filled_res]
+            #import pdb; pdb.set_trace()
+            # embedded_text_input = torch.cat(tensors, dim=0)
+        else:
+            embedded_text_input = self.text_field_embedder(tokens)
+
+        if self.syntax_extractor is not None:
+            embedded_text_input = self.syntax_extractor.extract_syntax(embedded_text_input)
+
         if pos_tags is not None and self.pos_tag_embedding is not None:
             embedded_pos_tags = self.pos_tag_embedding(pos_tags)
             embedded_text_input = torch.cat([embedded_text_input, embedded_pos_tags], -1)
