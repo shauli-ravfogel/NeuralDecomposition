@@ -17,38 +17,42 @@ class GaussianNoise(nn.Module):
 
 class Siamese(nn.Module):
 
-    def __init__(self, cca_model, final_dim, pair_repr):
+    def __init__(self, cca_model, final_dim, pair_repr, adversary = False):
 
         super(Siamese, self).__init__()
 
         self.cca_model = cca_model
         self.pair_repr = pair_repr
+        self.adversary = adversary
+
         if self.cca_model is None:
-            layer_sizes = [2048, 1024, final_dim]
+            self.layer_sizes = [2048, 1024, final_dim]
         else:
-            layer_sizes = [self.cca_model.final, final_dim]
+            self.layer_sizes = [self.cca_model.final, final_dim]
 
         layers = []
 
-        for i, (layer_dim, next_layer_dim) in enumerate(zip(layer_sizes,layer_sizes[1:])):
+        for i, (layer_dim, next_layer_dim) in enumerate(zip(self.layer_sizes,self.layer_sizes[1:])):
 
             layers.append(nn.BatchNorm1d(layer_dim))
             #if i == 0:
             #    layers.append(GaussianNoise(stddev=0.001))
             layers.append(nn.Linear(layer_dim, next_layer_dim, bias = True))
-            if i != len(layer_sizes) - 2:
+            if i != len(self.layer_sizes) - 2:
                 layers.append(nn.ReLU())
 
         self.layers = nn.Sequential(*layers)
 
-        pos_network = []
-        pos_network.append(RevGrad())
-        pos_network.append(nn.Linear(final_dim, 512))
-        pos_network.append(nn.Linear(512, 256))
-        pos_network.append(nn.Linear(256, 128))
-        pos_network.append(nn.Linear(128, 50))
+        if self.adversary:
 
-        self.pos_net = nn.Sequential(*pos_network)
+            adversary = []
+            adversary.append(RevGrad())
+            adversary.append(nn.Linear(final_dim + self.layer_sizes[0], 512))
+            adversary.append(nn.Linear(512, 256))
+            adversary.append(nn.Linear(256, 128))
+            adversary.append(nn.Linear(128, 2))
+
+            self.adversary = nn.Sequential(*adversary)
 
     def process(self, X):
 
@@ -73,6 +77,19 @@ class Siamese(nn.Module):
             return h1 + h2
         elif self.pair_repr == "abs-plus":
             return torch.abs(h1 + h2)
+
+    def input_for_adversary(self, w1, h1, h2):
+
+        elmo_vecs = w1
+        concat = torch.cat((h1,h2), dim = 0)
+
+        idx = torch.randperm(concat.shape[0])
+        concat = concat[idx] # row shuffling
+        true_labels = idx < w1.shape[0]
+        transformed_vecs = concat[:w1.shape[0]] # randomly choose either h1[i] or h2[i] for i = 1...n
+        final = torch.cat((elmo_vecs,transformed_vecs), dim = 1)
+
+        return (final, true_labels)
 
     def forward(self, w1, w2, w3, w4): #(w1, w2 at the same ind), (w3, w4 at the same ind)
 
@@ -130,10 +147,13 @@ if __name__ == '__main__':
 
     train_size = 5000
     dim = 2048
-    net = Siamese()
-    x1 = torch.rand(dim) - 0.5
-    x2 = torch.rand(dim) - 0.5
+    final_dim = 256
+    batch_size = 3
+    net = Siamese(None, final_dim, "diff", adversary = True)
+    x1 = torch.rand((batch_size, dim)) - 0.5
+    h = torch.rand((batch_size, final_dim)) - 0.5
+    h2 = torch.rand((batch_size, final_dim)) - 0.5
 
-    h = net(x1,x2)
-
-    print(h)
+    final, labels = net.input_for_adversary(x1, h, h2)
+    print(final.shape)
+    print(labels.shape)
