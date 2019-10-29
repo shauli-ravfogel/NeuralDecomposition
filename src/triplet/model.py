@@ -48,8 +48,11 @@ class Siamese(nn.Module):
             adversary = []
             adversary.append(RevGrad())
             adversary.append(nn.Linear(final_dim + self.layer_sizes[0], 512))
+            adversary.append(nn.ReLU())
             adversary.append(nn.Linear(512, 256))
+            adversary.append(nn.ReLU())
             adversary.append(nn.Linear(256, 128))
+            adversary.append(nn.ReLU())
             adversary.append(nn.Linear(128, 2))
 
             self.adversary = nn.Sequential(*adversary)
@@ -110,7 +113,7 @@ class Siamese(nn.Module):
         output_dict = {"w1": w1, "w2": w2, "w3": w3, "w4": w4, "h1": h1, "h2": h2, "h3": h3, "h4": h4,
                        "p1": p1, "p2": p2, "adv_preds": adv_preds, "adv_labels": adv_labels}
 
-        return (w1, w2, w3, w4), (h1,h2,h3,h4), (p1, p2), (adv_preds, )
+        return (w1, w2, w3, w4), (h1,h2,h3,h4), (p1, p2), (adv_preds, adv_labels)
 
 
 
