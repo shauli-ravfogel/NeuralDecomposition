@@ -35,8 +35,6 @@ class Siamese(nn.Module):
         for i, (layer_dim, next_layer_dim) in enumerate(zip(self.layer_sizes,self.layer_sizes[1:])):
 
             layers.append(nn.BatchNorm1d(layer_dim))
-            #if i == 0:
-            #    layers.append(GaussianNoise(stddev=0.001))
             layers.append(nn.Linear(layer_dim, next_layer_dim, bias = True))
             if i != len(self.layer_sizes) - 2:
                 layers.append(nn.ReLU())
@@ -91,6 +89,7 @@ class Siamese(nn.Module):
         mask_h2 = ~mask_h1
         transformed_vecs = torch.zeros_like(h1)
         transformed_vecs[mask_h1] = h1[mask_h1]
+        transformed_vecs[mask_h2] = h2[mask_h2]
 
         # concatenate with elmo vectors
 
@@ -172,3 +171,4 @@ if __name__ == '__main__':
     final, labels = net.input_for_adversary(x1, h, h2)
     print(final.shape)
     print(labels.shape)
+    #print(final)
