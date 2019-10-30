@@ -84,12 +84,17 @@ class Siamese(nn.Module):
     def input_for_adversary(self, w1, h1, h2):
 
         elmo_vecs = w1
-        concat = torch.cat((h1,h2), dim = 0)
 
-        idx = torch.randperm(concat.shape[0])
-        concat = concat[idx] # row shuffling
-        true_labels = idx < w1.shape[0]
-        transformed_vecs = concat[:w1.shape[0]] # randomly choose either h1[i] or h2[i] for i = 1...n
+        # randomly choose either h1[i] or h2[i] for i = 1...n
+
+        mask_h1 = torch.rand(w1.shape[0]) < 0.5
+        mask_h2 = ~mask_h1
+        transformed_vecs = torch.zeros_like(h1)
+        transformed_vecs[mask_h1] = h1[mask_h1]
+
+        # concatenate with elmo vectors
+
+        true_labels = mask_h1 # label == 1 iff transformed_vecs[i] == h1[i]
         final = torch.cat((elmo_vecs,transformed_vecs), dim = 1)
 
         return (final, true_labels)
