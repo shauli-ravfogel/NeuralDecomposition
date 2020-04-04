@@ -31,11 +31,18 @@
       },
       "encoder": {
         "type": "stacked_bidirectional_lstm",
-        "input_size": 2048,
+        "input_size": 75,
         "hidden_size": 400,
         "num_layers": 3,
         "recurrent_dropout_probability": 0.3,
         "use_highway": true
+      },
+      "feedforward": {
+        "input_dim": 2048,
+        "num_layers": 1,
+        "hidden_dims": 75,
+        "activations": "relu",
+        "dropout": 0.3
       },
       "use_mst_decoding_for_validation": false,
       "arc_representation_dim": 500,

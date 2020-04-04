@@ -11,10 +11,12 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules import Dropout
 import numpy
+import numpy as np
+import pickle
 
 from allennlp.common.checks import check_dimensions_match, ConfigurationError
 from allennlp.data import Vocabulary
-from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder, Embedding, InputVariationalDropout
+from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder, Embedding, InputVariationalDropout, TimeDistributed
 from allennlp.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
 from allennlp.modules import FeedForward
 from allennlp.models.model import Model
@@ -88,6 +90,8 @@ class BiaffineDependencyParser(Model):
                  tag_representation_dim: int,
                  arc_representation_dim: int,
                  syntactic_extractor_path: str = None,
+                 feedforward: FeedForward = None,
+                 pca_path: str = None,
                  tag_feedforward: FeedForward = None,
                  arc_feedforward: FeedForward = None,
                  pos_tag_embedding: Embedding = None,
@@ -127,14 +131,21 @@ class BiaffineDependencyParser(Model):
 
         if syntactic_extractor_path is not None:
             self.syntax_extractor = TripletExtractor(syntactic_extractor_path)
+            self.syntax_extractor.model.cuda()
         else:
             self.syntax_extractor = None
 
-        self.use_raw_tokens = False
+        if pca_path is not None:
+            with open(pca_path, 'rb') as f:
+                self.pca = pickle.load(f)
+
+        self.use_raw_tokens = True
         if self.use_raw_tokens:
             options_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
             weight_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
             self.elmo = ElmoEmbedder(options_file, weight_file, cuda_device=0)
+
+        self.feedforward_layer = TimeDistributed(feedforward) if feedforward else None
 
         self._pos_tag_embedding = pos_tag_embedding or None
         self._dropout = InputVariationalDropout(dropout)
@@ -145,8 +156,8 @@ class BiaffineDependencyParser(Model):
         if pos_tag_embedding is not None:
             representation_dim += pos_tag_embedding.get_output_dim()
 
-        check_dimensions_match(representation_dim, encoder.get_input_dim(),
-                               "text field embedding dim", "encoder input dim")
+        #check_dimensions_match(representation_dim * 2, encoder.get_input_dim(),
+        #                       "text field embedding dim", "encoder input dim")
 
         check_dimensions_match(tag_representation_dim, self.head_tag_feedforward.get_output_dim(),
                                "tag representation dim", "tag feedforward output dim")
@@ -163,6 +174,14 @@ class BiaffineDependencyParser(Model):
 
         self._attachment_scores = AttachmentScores()
         initializer(self)
+
+    def fill_blanks(self, encoded_sents):
+        vecs = []
+        for i in range(len(encoded_sents)):
+            sent_embs = np.concatenate([encoded_sents[i][layer] for layer in [1, 2]], axis=1)
+            vecs.append(torch.tensor(sent_embs))
+
+        return torch.nn.utils.rnn.pad_sequence(vecs, batch_first=True)
 
     @overrides
     def forward(self,  # type: ignore
@@ -234,6 +253,16 @@ class BiaffineDependencyParser(Model):
 
         if self.syntax_extractor is not None:
             embedded_text_input = self.syntax_extractor.extract_syntax(embedded_text_input)
+        elif self.feedforward_layer is not None:
+            embedded_text_input = self.feedforward_layer(embedded_text_input)
+        elif self.pca is not None:
+            np_embed = embedded_text_input.cpu().numpy()
+            batched_pca = []
+            for sentence in np_embed:
+                pca_reduced = self.pca.transform(sentence)
+                batched_pca.append(pca_reduced)
+            batched_pca = np.asarray(batched_pca)
+            embedded_text_input = torch.from_numpy(batched_pca).float().cuda()
 
         if pos_tags is not None and self._pos_tag_embedding is not None:
             embedded_pos_tags = self._pos_tag_embedding(pos_tags)
