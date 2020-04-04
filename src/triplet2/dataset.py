@@ -24,10 +24,7 @@ class PadCollate:
 
         """
         X, Y, X_str, Y_str, lengths, sent_ids = list(zip(*batch_data))
-        print(type(X))
-        exit()
-        X = X[:, :28]
-        Y = Y[:, :28]
+
         lengths = torch.LongTensor(lengths)
         sent_ids = torch.LongTensor(sent_ids)
 
@@ -35,7 +32,12 @@ class PadCollate:
             lengths, sent_ids = lengths.cuda(), sent_ids.cuda()
 
         X_padded = torch.nn.utils.rnn.pad_sequence(X, batch_first = True)
+       
+        del X
+
         Y_padded = torch.nn.utils.rnn.pad_sequence(Y, batch_first = True)
+
+        del Y
 
         return (X_padded, Y_padded, np.array(X_str), np.array(Y_str), lengths, sent_ids)
 
@@ -46,12 +48,13 @@ class PadCollate:
 
 
 class Dataset(data.Dataset):
-    def __init__(self, data_path):
+    def __init__(self, data_path, filter_func = False):
 
         with open(data_path, "rb") as f:
 
             self.data = pickle.load(f)
 
+        self.filter_func = filter_func
         print("Dataset set size is {}".format(len(self.data)))
 
 
@@ -66,9 +69,19 @@ class Dataset(data.Dataset):
             instance = self.data[index]
 
             sent1_vecs, sent2_vecs = instance["vecs"]
-            x,y = torch.from_numpy(sent1_vecs).float(), torch.from_numpy(sent2_vecs).float()
+            x,y = torch.from_numpy(sent1_vecs).float()[:, :2048], torch.from_numpy(sent2_vecs).float()[:, :2048]
+            x = x[:28, :]
+            y = y[:28, :]
+
+            if self.filter_func:
+                content_idx = instance["content_idx"]
+                func_idx = np.array([i for i in range(len(x)) if i not in content_idx])
+                x[func_idx, :] = 1e-8
+                y[func_idx, :] = 1e-8
+
             if CUDA:
                 x,y = x.cuda(), y.cuda()
+            
             x_sent, y_sent = instance["sent1"], instance["sent2"]
             length = instance["sent_length"]
             sent_id = instance["sent_id"]

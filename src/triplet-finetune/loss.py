@@ -103,18 +103,13 @@ class BatchHardTripletLoss2(torch.nn.Module):
             mask[range(len(mask)), range(len(mask))] = 0
         return mask
 
-    def forward(self, h1, h2, sent1, sent2, labels, index, evaluation = False):
+    def forward(self, vecs, sents, labels, index, evaluation = False):
 
         if self.normalize or self.mode == "cosine":
 
-            h1 = h1 / torch.norm(h1, dim = 1, p = self.p, keepdim = True)
-            h2 = h2 / torch.norm(h2, dim = 1, p = self.p, keepdim = True)
+            vecs = vecs / torch.norm(vecs, dim = 1, p = self.p, keepdim = True)
 
-        sent1, sent2 = np.array(sent1, dtype = object), np.array(sent2, dtype = object)
-        labels = torch.cat((labels, labels), dim = 0)
-        batch = torch.cat((h1, h2), dim = 0)
-
-        sents = np.concatenate((sent1, sent2), axis = 0)
+        batch = vecs
 
         if self.mode == "euc":
             #dists = torch.norm((batch[:, None, :] - batch), dim = 2, p = self.p)
@@ -146,15 +141,14 @@ class BatchHardTripletLoss2(torch.nn.Module):
             neg_sents = sents[hardest_negative_indices]
             with open("negatives.txt", "w") as f:
                 for (anchor_sent, hard_sent) in zip(sents, neg_sents):
-                    f.write(anchor_sent + "\n")
+                    f.write(" ".join(anchor_sent) + "\n")
                     f.write("-----------------------------------------\n")
-                    f.write(hard_sent + "\n")
+                    f.write(" ".join(hard_sent) + "\n")
                     f.write("==========================================================\n")
 
         differences = hardest_positive_dist - hardest_negative_dist
 
         if self.final == "plus":
-            print
             triplet_loss = torch.max(differences + self.alpha, torch.zeros_like(differences))
         elif self.final == "softplus":
             triplet_loss = F.softplus(differences, beta = 3)
